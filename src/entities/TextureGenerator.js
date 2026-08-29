@@ -1,4 +1,4 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 
 /**
  * TextureGenerator - Ultra Hızlı, Bellek Önbellekli (Cached) PBR Doku Üreticisi
@@ -57,6 +57,35 @@ export class TextureGenerator {
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(32, 32);
     this.cache.grass = texture;
+    return texture;
+  }
+
+  // 1B. Bozkır Çimeni ve Buğday Başağı Dokusu (Billboard)
+  static createSteppeGrassBladeTexture() {
+    if (this.cache.steppeGrassBlade) return this.cache.steppeGrassBlade;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, 256, 512);
+
+    const bladeColors = ['#d1b46a', '#c2a255', '#988746', '#6b7a3d', '#54632b'];
+    for (let b = 0; b < 24; b++) {
+      const startX = 128 + (Math.random() - 0.5) * 80;
+      const endX = startX + (Math.random() - 0.5) * 110;
+      const endY = 60 + Math.random() * 140;
+
+      ctx.strokeStyle = bladeColors[b % bladeColors.length];
+      ctx.lineWidth = 3.5 - (b * 0.08);
+      ctx.beginPath();
+      ctx.moveTo(startX, 510);
+      ctx.quadraticCurveTo(startX + (Math.random() - 0.5) * 50, 300, endX, endY);
+      ctx.stroke();
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    this.cache.steppeGrassBlade = texture;
     return texture;
   }
 
