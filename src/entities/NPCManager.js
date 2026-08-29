@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
+import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
 import { ModelBuilder } from './ModelBuilder.js';
 import { TownGenerator } from './TownGenerator.js';
 import { VillagerAI } from './VillagerAI.js';
@@ -15,6 +17,8 @@ export class NPCManager {
     this.scene = scene;
     this.modelBuilder = new ModelBuilder();
     this.gltfLoader = new GLTFLoader();
+    this.objLoader = new OBJLoader();
+    this.mtlLoader = new MTLLoader();
     this.npcs = [];
     this.enemies = [];
     this.villagerAIs = [];
@@ -163,7 +167,7 @@ export class NPCManager {
       workType: 'innkeeping'
     });
 
-    // B) Su Kuyusu Sakası Saka İbrahim
+    // B) Su Kuyusu Sakası Saka İbrahim (Kullanıcının Yüklediği 3D OBJ Modeli)
     const saka = this.createHumanNPC({
       id: 'saka_ibrahim',
       name: 'Saka İbrahim',
@@ -172,6 +176,8 @@ export class NPCManager {
       kaftanColor: 0x2d4860,
       hairColor: 0x1a1510,
       headwear: 'cap',
+      objPath: 'saka.obj',
+      mtlPath: 'saka.mtl',
       dialogueId: 'saka_talk'
     });
     this.attachVillagerAI(saka, {
@@ -363,9 +369,7 @@ export class NPCManager {
 
   createHumanNPC(config) {
     let mesh;
-    if (config.id === 'kethuda') {
-      mesh = this.modelBuilder.createModernKethudaStanLee();
-    } else if (config.isPestemal) {
+    if (config.isPestemal) {
       mesh = this.modelBuilder.createPestemalMan(config.skinTone || 0xd8ad88, config.pestemalColor || 0xb53232);
     } else {
       mesh = this.modelBuilder.createDetailedHumanNPC(config);
@@ -374,12 +378,89 @@ export class NPCManager {
     mesh.position.set(config.position.x, config.position.y || h, config.position.z);
     this.scene.add(mesh);
 
-    // Koca Yakub özel GLTF modeli varsa yükle (Tarayıcı ortamında)
-    if ((config.gltfPath || config.id === 'kethuda') && typeof window !== 'undefined' && window.location) {
+    // 1. ÖZEL 3D OBJ MODELİ YÜKLEYİCİSİ (Saka İbrahim & Gelen 3D Karakterler)
+    if ((config.objPath || config.id === 'saka_ibrahim') && typeof window !== 'undefined' && window.location) {
       try {
-        const modelPath = config.gltfPath || './models/kethuda.glb';
+        const mtlName = config.mtlPath || 'saka.mtl';
+        const objName = config.objPath || 'saka.obj';
+
+        this.mtlLoader.setPath('./models/');
+        this.mtlLoader.load(
+          mtlName,
+          (materials) => {
+            materials.preload();
+            const objLoader = new OBJLoader();
+            objLoader.setMaterials(materials);
+            objLoader.setPath('./models/');
+            objLoader.load(
+              objName,
+              (object) => {
+                const textureLoader = new THREE.TextureLoader();
+                const normalMap = textureLoader.load('./models/saka_normal.jpg');
+                const rmMap = textureLoader.load('./models/saka_rm.jpg');
+
+                object.traverse((child) => {
+                  if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    if (child.material) {
+                      child.material.side = THREE.DoubleSide;
+                      if (normalMap) child.material.normalMap = normalMap;
+                      if (rmMap) {
+                        child.material.roughnessMap = rmMap;
+                        child.material.metalnessMap = rmMap;
+                      }
+                      child.material.needsUpdate = true;
+                    }
+                  }
+                });
+
+                // Otomatik ölçekleme (1.85m gerçek insan boyuna eşitle)
+                const box = new THREE.Box3().setFromObject(object);
+                const size = box.getSize(new THREE.Vector3());
+                if (size.y > 0) {
+                  const scaleFactor = 1.85 / size.y;
+                  object.scale.set(scaleFactor, scaleFactor, scaleFactor);
+                }
+
+                // Eski yedek kutuları temizle ve gerçek 3D modeli oturt
+                while (mesh.children.length > 0) {
+                  mesh.remove(mesh.children[0]);
+                }
+                mesh.add(object);
+              },
+              undefined,
+              (err) => { console.warn('OBJ Yüklenirken hata:', err); }
+            );
+          },
+          undefined,
+          (err) => {
+            // MTL dosyası yoksa salt OBJ yükle
+            const objLoader = new OBJLoader();
+            objLoader.setPath('./models/');
+            objLoader.load(objName, (object) => {
+              const box = new THREE.Box3().setFromObject(object);
+              const size = box.getSize(new THREE.Vector3());
+              if (size.y > 0) {
+                const scaleFactor = 1.85 / size.y;
+                object.scale.set(scaleFactor, scaleFactor, scaleFactor);
+              }
+              while (mesh.children.length > 0) {
+                mesh.remove(mesh.children[0]);
+              }
+              mesh.add(object);
+            });
+          }
+        );
+      } catch (e) {
+        console.warn('OBJ Loader hatası:', e);
+      }
+    }
+    // 2. GLTF Model Yükleyici
+    else if (config.gltfPath && typeof window !== 'undefined' && window.location) {
+      try {
         this.gltfLoader.load(
-          modelPath,
+          config.gltfPath,
           (gltf) => {
             const model = gltf.scene;
             model.traverse((child) => {
