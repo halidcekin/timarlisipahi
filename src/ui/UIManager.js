@@ -379,9 +379,18 @@ export class UIManager {
     this.dom.interactionPrompt.classList.add('hidden');
   }
 
-  openDialogue(dialogueId) {
+  openDialogue(dialogueId, npcObj = null) {
     const data = DialogueSystem.getDialogueData(dialogueId);
     if (!data) return;
+
+    if (this.activeTalkingNPC && this.activeTalkingNPC.ai) {
+      this.activeTalkingNPC.ai.setTalking(false);
+    }
+
+    this.activeTalkingNPC = npcObj;
+    if (this.activeTalkingNPC && this.activeTalkingNPC.ai) {
+      this.activeTalkingNPC.ai.setTalking(true);
+    }
 
     if (data.onOpen) {
       data.onOpen();
@@ -394,7 +403,8 @@ export class UIManager {
 
     this.renderDialogueChoices(data.choices);
     this.dom.dialogueModal.classList.remove('hidden');
-    document.exitPointerLock();
+    this.dom.dialogueModal.style.display = 'flex';
+    try { document.exitPointerLock(); } catch (e) {}
   }
 
   renderDialogueChoices(choices) {
@@ -421,19 +431,27 @@ export class UIManager {
   }
 
   closeDialogue() {
+    if (this.activeTalkingNPC && this.activeTalkingNPC.ai) {
+      this.activeTalkingNPC.ai.setTalking(false);
+      this.activeTalkingNPC = null;
+    }
     this.dom.dialogueModal.classList.add('hidden');
+    this.dom.dialogueModal.style.display = 'none';
   }
 
   toggleTimarModal(forceState) {
-    const isHidden = this.dom.timarModal.classList.contains('hidden');
+    if (!this.dom.timarModal) return;
+    const isHidden = this.dom.timarModal.classList.contains('hidden') || this.dom.timarModal.style.display === 'none';
     const newState = (forceState !== undefined) ? forceState : isHidden;
 
     if (newState) {
       this.updateTimarBookUI();
       this.dom.timarModal.classList.remove('hidden');
-      document.exitPointerLock();
+      this.dom.timarModal.style.display = 'flex';
+      try { document.exitPointerLock(); } catch (e) {}
     } else {
       this.dom.timarModal.classList.add('hidden');
+      this.dom.timarModal.style.display = 'none';
     }
   }
 

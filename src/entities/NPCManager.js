@@ -2,9 +2,13 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { ModelBuilder } from './ModelBuilder.js';
 import { TownGenerator } from './TownGenerator.js';
+import { VillagerAI } from './VillagerAI.js';
+import { gameState } from '../core/GameState.js';
 
 /**
- * NPCManager - Ultra Gerçekçi Yüz ve Anatomiye Sahip Osmanlı Karakterleri
+ * NPCManager - Mount & Blade II: Bannerlord Seviyesinde Yaşayan ve Etkileşimli Köy Ahalisi
+ * - Uyuyan, Yiyen, İçen, Tarlada/Örste/Kuyuda Çalışan 20+ Canlı Karakter
+ * - 24 Saatlik Zaman Çizelgesi & Davranış Durum Makineleri (VillagerAI)
  */
 export class NPCManager {
   constructor(scene) {
@@ -13,24 +17,35 @@ export class NPCManager {
     this.gltfLoader = new GLTFLoader();
     this.npcs = [];
     this.enemies = [];
+    this.villagerAIs = [];
   }
 
   initNPCs() {
-    // 1. Köy Kethüdası Koca Yakub (Köy Meydanında tam karşımızda)
-    this.createHumanNPC({
+    // -------------------------------------------------------------------------
+    // 1. ÖNEMLİ KÖY LİDERLERİ & PROTOKOL
+    // -------------------------------------------------------------------------
+    // A) Köy Kethüdası Koca Yakub (Köy Meydanında)
+    const kethuda = this.createHumanNPC({
       id: 'kethuda',
       name: 'Koca Yakub (Kethüda)',
       role: 'Reaya ve Köy Temsilcisi',
       position: new THREE.Vector3(0, 0, 8),
-      kaftanColor: 0x4a3222, // Koyu Kahverengi Cübbe
-      turbanColor: 0xf5f0ea, // Beyaz Sarık
+      kaftanColor: 0x4a3222,
+      turbanColor: 0xf5f0ea,
       hairColor: 0x1a1510,
       headwear: 'turban',
       dialogueId: 'kethuda_talk'
     });
+    this.attachVillagerAI(kethuda, {
+      homePos: new THREE.Vector3(0, 0, -32),
+      workPos: new THREE.Vector3(0, 0, 8),
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(0, 0, 8),
+      workType: 'innkeeping'
+    });
 
-    // 2. Köy İmamı Molla Şemseddin (Mescid Avlusunda)
-    this.createHumanNPC({
+    // B) Köy İmamı Molla Şemseddin (Mescid Avlusunda)
+    const imam = this.createHumanNPC({
       id: 'imam',
       name: 'Molla Şemseddin (Kadı Naibi)',
       role: 'Köy İmamı ve Hukuk Naibi',
@@ -41,139 +56,303 @@ export class NPCManager {
       headwear: 'turban',
       dialogueId: 'imam_talk'
     });
+    this.attachVillagerAI(imam, {
+      homePos: new THREE.Vector3(26, 0, 12),
+      workPos: new THREE.Vector3(10, 0, 2),
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(12, 0, -4),
+      workType: 'innkeeping'
+    });
 
-    // 3. Demirci Rüstem Usta (Atölyede Örs ve Ocak Başında)
-    this.createHumanNPC({
+    // C) Demirci Rüstem Usta & Çırak Salih (Atölyede Örs ve Ocak Başında)
+    const demirci = this.createHumanNPC({
       id: 'demirci',
       name: 'Demirci Rüstem Usta',
       role: 'Silah ve Zırh Ustası',
-      position: new THREE.Vector3(-26.5, TownGenerator.getTerrainHeight(-26.5, 34.5), 34.5),
-      kaftanColor: 0x2b2219, // Deri İş Önlüğü
-      hairColor: 0x141210,  // Kara Pala Bıyık
+      position: new THREE.Vector3(-58, 0, 6.8),
+      kaftanColor: 0x2b2219,
+      hairColor: 0x141210,
       headwear: 'cap',
       dialogueId: 'demirci_talk'
     });
+    this.attachVillagerAI(demirci, {
+      homePos: new THREE.Vector3(-22, 0, 8),
+      workPos: new THREE.Vector3(-58, 0, 6.8),
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(0, 0, 6),
+      workType: 'smithing'
+    });
 
-    // 4. Komşu Tımarlı Sipahi Gazi Sungur Bey (Kuzey Yolu)
-    this.createHumanNPC({
+    const cirak = this.createHumanNPC({
+      id: 'cirak_salih',
+      name: 'Çırak Salih',
+      role: 'Demirci Çırağı',
+      position: new THREE.Vector3(-60, 0, 6.2),
+      kaftanColor: 0x3d3024,
+      hairColor: 0x1a1510,
+      headwear: 'cap',
+      hasBeard: false,
+      dialogueId: 'cirak_talk'
+    });
+    this.attachVillagerAI(cirak, {
+      homePos: new THREE.Vector3(-22, 0, 8),
+      workPos: new THREE.Vector3(-60, 0, 6.2),
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(0, 0, 6),
+      workType: 'smithing'
+    });
+
+    // D) Komşu Tımarlı Sipahi Gazi Sungur Bey (Kuzey Yolu)
+    const neighbor = this.createHumanNPC({
       id: 'neighbor',
       name: 'Gazi Sungur Bey',
       role: 'Komşu Çakırlı Tımarı Sahibi',
-      position: new THREE.Vector3(18, TownGenerator.getTerrainHeight(18, -10), -10),
-      kaftanColor: 0x8b1e1e, // Al Kırmızı Sipahi Kaftanı
+      position: new THREE.Vector3(18, 0, -10),
+      kaftanColor: 0x8b1e1e,
       hairColor: 0x1f1a14,
-      headwear: 'bork',     // Sipahi Börkü
+      headwear: 'bork',
       dialogueId: 'neighbor_talk'
     });
+    this.attachVillagerAI(neighbor, {
+      homePos: new THREE.Vector3(28, 0, -22),
+      workPos: new THREE.Vector3(18, 0, -10),
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(0, 0, 6),
+      workType: 'guarding'
+    });
 
-    // 5. Toy Cebelü Ali (Konağın Bahçesinde Talim Yapan Genç Sipahi Neferi)
-    this.createHumanNPC({
+    // E) Toy Cebelü Ali (Talimgâhta Kılıç Çalışan Genç Nefer)
+    const cebelu = this.createHumanNPC({
       id: 'cebelu',
       name: 'Toy Cebelü Ali',
       role: 'Sipahinin Sadık Cebelü Neferi',
-      position: new THREE.Vector3(-8, TownGenerator.getTerrainHeight(-8, -38), -38),
-      kaftanColor: 0x243b5e, // Mavi Yelek
+      position: new THREE.Vector3(14, 0, -26),
+      kaftanColor: 0x243b5e,
       hairColor: 0x241d16,
       headwear: 'cap',
-      hasBeard: false,      // Genç bıyıksız/hafif sakallı
+      hasBeard: false,
       dialogueId: 'cebelu_talk'
     });
+    this.attachVillagerAI(cebelu, {
+      homePos: new THREE.Vector3(0, 0, -32),
+      workPos: new THREE.Vector3(14, 0, -26),
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(0, 0, 6),
+      workType: 'guarding'
+    });
 
-    // 6. Sancak Kalesi Dizdarı Hamza Bey (Kale İç Avlusunda)
-    this.createHumanNPC({
+    // -------------------------------------------------------------------------
+    // 2. ÇARŞI & HAN AHALİSİ (ESNAF, SAKA, AŞÇI, HANCI)
+    // -------------------------------------------------------------------------
+    // A) Hancı İdris
+    const hanci = this.createHumanNPC({
+      id: 'hanci_idris',
+      name: 'Hancı İdris',
+      role: 'Köy Hanı Sahibi & Aşçı',
+      position: new THREE.Vector3(-14, 0, 26),
+      kaftanColor: 0x6e2c1a,
+      hairColor: 0x241d16,
+      headwear: 'turban',
+      dialogueId: 'hanci_talk'
+    });
+    this.attachVillagerAI(hanci, {
+      homePos: new THREE.Vector3(-16, 0, 28),
+      workPos: new THREE.Vector3(-14, 0, 26),
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(-10, 0, 24),
+      workType: 'innkeeping'
+    });
+
+    // B) Su Kuyusu Sakası Saka İbrahim
+    const saka = this.createHumanNPC({
+      id: 'saka_ibrahim',
+      name: 'Saka İbrahim',
+      role: 'Köy Sakası (Su Taşıyıcı)',
+      position: new THREE.Vector3(8, 0, 24.5),
+      kaftanColor: 0x2d4860,
+      hairColor: 0x1a1510,
+      headwear: 'cap',
+      dialogueId: 'saka_talk'
+    });
+    this.attachVillagerAI(saka, {
+      homePos: new THREE.Vector3(22, 0, 65),
+      workPos: new THREE.Vector3(8, 0, 24.5),
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(0, 0, 6),
+      workType: 'well_water'
+    });
+
+    // C) Pazar Yeri Baharatçısı Attar Mehmet Efendi
+    const attar = this.createHumanNPC({
+      id: 'attar_mehmet',
+      name: 'Attar Mehmet Efendi',
+      role: 'Çarşı Baharatçısı & Şifacı',
+      position: new THREE.Vector3(-10, 0, 15.5),
+      kaftanColor: 0x8b6508,
+      hairColor: 0x4a443a,
+      headwear: 'turban',
+      dialogueId: 'attar_talk'
+    });
+    this.attachVillagerAI(attar, {
+      homePos: new THREE.Vector3(-24, 0, 42),
+      workPos: new THREE.Vector3(-10, 0, 15.5),
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(0, 0, 6),
+      workType: 'innkeeping'
+    });
+
+    // D) Köy İhtiyarı Koca Dede
+    const kocaDede = this.createHumanNPC({
+      id: 'koca_dede',
+      name: 'Koca Dede (Gazi Piri)',
+      role: 'Köyün Asırlık Gazisi & Bilgesi',
+      position: new THREE.Vector3(-6, 0, 5),
+      kaftanColor: 0x42464a,
+      hairColor: 0xdedede,
+      turbanColor: 0xffffff,
+      headwear: 'turban',
+      hasBeard: true,
+      dialogueId: 'dede_talk'
+    });
+    this.attachVillagerAI(kocaDede, {
+      homePos: new THREE.Vector3(-20, 0, -15),
+      workPos: new THREE.Vector3(-6, 0, 5),
+      eatPos: new THREE.Vector3(-6, 0, 24),
+      socialPos: new THREE.Vector3(-6, 0, 5),
+      workType: 'innkeeping'
+    });
+
+    // -------------------------------------------------------------------------
+    // 3. TARLALARDA ÇALIŞAN ÇİFTÇİLER & IRGATLAR (DOĞU QUARTER)
+    // -------------------------------------------------------------------------
+    const farmers = [
+      { id: 'ciftci_hasan', name: 'Çiftçi Hasan', work: new THREE.Vector3(45, 0, 45), home: new THREE.Vector3(24, 0, 48) },
+      { id: 'irgat_veli', name: 'Irgat Veli', work: new THREE.Vector3(55, 0, 60), home: new THREE.Vector3(22, 0, 65) },
+      { id: 'reaya_mahmud', name: 'Reaya Mahmud', work: new THREE.Vector3(62, 0, 42), home: new THREE.Vector3(28, 0, 32) },
+      { id: 'orakci_bekir', name: 'Orakçı Bekir', work: new THREE.Vector3(48, 0, 70), home: new THREE.Vector3(32, 0, -45) }
+    ];
+
+    farmers.forEach(f => {
+      const npc = this.createHumanNPC({
+        id: f.id,
+        name: f.name,
+        role: 'Tımar Reayası & Çiftçi',
+        position: f.work,
+        kaftanColor: 0x5c4d3c,
+        hairColor: 0x111111,
+        headwear: 'cap',
+        dialogueId: 'farmer_talk'
+      });
+      this.attachVillagerAI(npc, {
+        homePos: f.home,
+        workPos: f.work,
+        eatPos: new THREE.Vector3(-10, 0, 24),
+        socialPos: new THREE.Vector3(0, 0, 6),
+        workType: 'farming'
+      });
+    });
+
+    // -------------------------------------------------------------------------
+    // 4. SANCAK KALESİ GARNİZONU
+    // -------------------------------------------------------------------------
+    // A) Dizdar Hamza Bey
+    const dizdar = this.createHumanNPC({
       id: 'dizdar',
       name: 'Dizdar Hamza Bey',
       role: 'Sancak Kalesi Muhafızı & Dizdarı',
-      position: new THREE.Vector3(185, TownGenerator.getTerrainHeight(185, 0), 0),
-      kaftanColor: 0x8b1e1e, // Al Sipahi Kaftanı
-      turbanColor: 0xd4af37, // Altın Sarımlı Sarık
+      position: new THREE.Vector3(185, 0, 0),
+      kaftanColor: 0x8b1e1e,
+      turbanColor: 0xd4af37,
       hairColor: 0x241d16,
       headwear: 'turban',
       hasBeard: true,
       dialogueId: 'dizdar_talk'
     });
-
-    // 7. Kale Kapısı Nöbetçileri
-    this.createHumanNPC({
-      id: 'kale_guard_1',
-      name: 'Kale Nöbetçisi Gazi Hasan',
-      role: 'Sancak Kalesi Kapı Muhafızı',
-      position: new THREE.Vector3(148, TownGenerator.getTerrainHeight(148, 4.5), 4.5),
-      kaftanColor: 0x2b382d,
-      hairColor: 0x111111,
-      headwear: 'cap',
-      dialogueId: 'guard_talk'
+    this.attachVillagerAI(dizdar, {
+      homePos: new THREE.Vector3(190, 0, 0),
+      workPos: new THREE.Vector3(185, 0, 0),
+      eatPos: new THREE.Vector3(180, 0, 8),
+      socialPos: new THREE.Vector3(185, 0, 0),
+      workType: 'guarding'
     });
 
-    this.createHumanNPC({
-      id: 'kale_guard_2',
-      name: 'Kale Okçusu Balaban',
-      role: 'Sancak Kalesi Kapı Nöbetçisi',
-      position: new THREE.Vector3(148, TownGenerator.getTerrainHeight(148, -4.5), -4.5),
-      kaftanColor: 0x2b382d,
-      hairColor: 0x111111,
-      headwear: 'cap',
-      dialogueId: 'guard_talk'
+    // B) Kale Kapı Nöbetçileri
+    const guards = [
+      { id: 'kale_guard_1', name: 'Kale Nöbetçisi Gazi Hasan', pos: new THREE.Vector3(148, 0, 4.5) },
+      { id: 'kale_guard_2', name: 'Kale Okçusu Balaban', pos: new THREE.Vector3(148, 0, -4.5) },
+      { id: 'kale_guard_3', name: 'Zırhlı Nefer Timur', pos: new THREE.Vector3(175, 0, -8) }
+    ];
+
+    guards.forEach(g => {
+      const guardNPC = this.createHumanNPC({
+        id: g.id,
+        name: g.name,
+        role: 'Sancak Kalesi Kapı Muhafızı',
+        position: g.pos,
+        kaftanColor: 0x2b382d,
+        hairColor: 0x111111,
+        headwear: 'cap',
+        dialogueId: 'guard_talk'
+      });
+      this.attachVillagerAI(guardNPC, {
+        homePos: new THREE.Vector3(180, 0, 10),
+        workPos: g.pos,
+        eatPos: new THREE.Vector3(180, 0, 5),
+        socialPos: g.pos,
+        workType: 'guarding'
+      });
     });
 
-    // 8. Orman Sınırındaki Harami / Eşkıya Grubu (Kuzey Batı)
+    // -------------------------------------------------------------------------
+    // 5. ORMAN HARAMİLERİ (KUZEYBATI KAMPI)
+    // -------------------------------------------------------------------------
     this.spawnBandits();
+  }
 
-    // 9. Tarlalarda Çalışan Reaya (Köylüler)
-    this.spawnPeasants();
+  attachVillagerAI(npcData, scheduleConfig) {
+    const ai = new VillagerAI(npcData, scheduleConfig);
+    this.villagerAIs.push(ai);
+    npcData.ai = ai;
   }
 
   createHumanNPC(config) {
     let mesh;
     if (config.id === 'kethuda') {
-      // 3D Görseldeki Beyaz Saçlı, Kalın Gözlüklü, Siyah Blazer Ceketli Koca Yakub (Stan Lee) Modeli
       mesh = this.modelBuilder.createModernKethudaStanLee();
     } else {
       mesh = this.modelBuilder.createDetailedHumanNPC(config);
     }
-    mesh.position.copy(config.position);
+    const h = TownGenerator.getTerrainHeight(config.position.x, config.position.z);
+    mesh.position.set(config.position.x, h, config.position.z);
     this.scene.add(mesh);
 
-    // Eğer Koca Yakub ise veya özel bir GLTF model yolu tanımlandıysa yükle
+    // Koca Yakub özel GLTF modeli varsa yükle
     if (config.gltfPath || config.id === 'kethuda') {
       const modelPath = config.gltfPath || './models/kethuda.glb';
       this.gltfLoader.load(
         modelPath,
         (gltf) => {
           const model = gltf.scene;
-
-          // Gölgeler ve çift taraflı doku
           model.traverse((child) => {
             if (child.isMesh) {
               child.castShadow = true;
               child.receiveShadow = true;
-              if (child.material) {
-                child.material.side = THREE.DoubleSide;
-              }
+              if (child.material) child.material.side = THREE.DoubleSide;
             }
           });
-
-          // Otomatik boy ayarlama (1.85m insan boyu)
           const box = new THREE.Box3().setFromObject(model);
           const size = box.getSize(new THREE.Vector3());
           if (size.y > 0) {
-            const targetHeight = 1.85;
-            const scaleFactor = targetHeight / size.y;
+            const scaleFactor = 1.85 / size.y;
             model.scale.set(scaleFactor, scaleFactor, scaleFactor);
           }
-
-          // Mevcut prosedürel parçaları temizleyip GLTF modeli içine yerleştir
           while (mesh.children.length > 0) {
             mesh.remove(mesh.children[0]);
           }
           mesh.add(model);
-          console.log(`✅ [3D Model] ${config.name} için Meshy GLTF modeli başarıyla yüklendi: ${modelPath}`);
         },
         undefined,
-        (err) => {
-          // Dosya henüz public/models klasörüne konmadıysa sessizce prosedürel model kalır
-          console.info(`ℹ️ ${config.name} için özel .glb dosyası bekleniyor (${modelPath}).`);
-        }
+        () => {}
       );
     }
 
@@ -208,7 +387,6 @@ export class NPCManager {
         hasBeard: true
       });
 
-      // Eşkıya Palası Ekle
       const sword = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.95, 0.02), this.modelBuilder.materials.metal);
       sword.position.set(0.55, 0.85, 0.3);
       sword.rotation.set(Math.PI / 4, 0, -Math.PI / 4);
@@ -230,65 +408,13 @@ export class NPCManager {
     });
   }
 
-  spawnPeasants() {
-    // Tarlalar etrafında çalışan köylüler (x: 40-60, z: 50-70)
-    const peasantCoords = [
-      { x: 45, z: 55, name: 'Çiftçi Hasan' },
-      { x: 55, z: 65, name: 'Irgat Veli' },
-      { x: 50, z: 45, name: 'Reaya Mahmud' }
-    ];
-
-    peasantCoords.forEach(c => {
-      this.createHumanNPC({
-        id: `peasant_${c.name}`,
-        name: c.name,
-        role: 'Tımar Reayası',
-        position: new THREE.Vector3(c.x, TownGenerator.getTerrainHeight(c.x, c.z), c.z),
-        kaftanColor: 0x5c4d3c, // Kirli Toprak Rengi
-        hairColor: 0x111111,
-        headwear: 'cap',
-        dialogueId: 'peasant_talk'
-      });
-    });
-  }
-
-  update(delta, playerPos) {
-    const time = performance.now() * 0.002;
-
-    // NPC Canlı Nefes Alma, Göğüs Salınımı ve Oyuncuya Yönelme
-    this.npcs.forEach(npc => {
-      // Eğer bu NPC Kethüda ise ve bekleyen cevapsız arzuhal varsa oyuncuya koşsun
-      if (npc.id === 'kethuda' && gameState.hasPendingMessenger) {
-        const distToPlayer = npc.position.distanceTo(playerPos);
-        if (distToPlayer > 3.2) {
-          const dir = new THREE.Vector3().subVectors(playerPos, npc.position).normalize();
-          npc.position.x += dir.x * delta * 5.0; // Koşma hızı
-          npc.position.z += dir.z * delta * 5.0;
-          npc.mesh.position.set(npc.position.x, TownGenerator.getTerrainHeight(npc.position.x, npc.position.z), npc.position.z);
-          npc.mesh.rotation.y = Math.atan2(dir.x, dir.z);
-          return;
-        }
-      }
-
-      const terrainH = TownGenerator.getTerrainHeight(npc.position.x, npc.position.z);
-      // Doğal Göğüs Nefes Alma & Ayak Ağırlık Dağılımı Salınımı (GTA Stili Canlı Duruş)
-      const breath = Math.sin(time * 2.4 + npc.animOffset);
-      const sway = Math.cos(time * 1.2 + npc.animOffset);
-
-      npc.mesh.position.y = terrainH + breath * 0.012;
-      npc.mesh.rotation.z = sway * 0.012;
-
-      // Göğüs Hacim Genişlemesi (Respiration)
-      npc.mesh.scale.set(1.0 + breath * 0.012, 1.0 + breath * 0.008, 1.0 + breath * 0.012);
-
-      const dist = npc.position.distanceTo(playerPos);
-      if (dist < 12) {
-        const targetRot = Math.atan2(playerPos.x - npc.position.x, playerPos.z - npc.position.z);
-        npc.mesh.rotation.y = THREE.MathUtils.lerp(npc.mesh.rotation.y, targetRot, 0.06);
-      }
+  update(delta, playerPos, hour = 12.0, particleSystem = null) {
+    // 1. Köylülerin 24 Saatlik Rutin ve Davranış Yapay Zekası Güncellemesi
+    this.villagerAIs.forEach(ai => {
+      ai.update(delta, hour, playerPos, particleSystem);
     });
 
-    // Eşkıya Yapay Zekası
+    // 2. Eşkıya Düşman Saldırı Yapay Zekası
     this.enemies.forEach(enemy => {
       if (enemy.isDead) return;
 

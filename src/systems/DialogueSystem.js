@@ -291,6 +291,169 @@ export class DialogueSystem {
             action: null
           }
         ]
+      },
+
+      // 8. DEMİRCİ ÇIRAĞI SALİH
+      cirak_talk: {
+        npcName: 'Çırak Salih',
+        npcRole: 'Demirci Çırağı',
+        icon: '🔨',
+        text: `"Buyur Sipahi Beyim! Rüstem Usta bana körüğü çekmeyi ve kılıçlara su vermeyi öğretir. Gece gündüz ocak başındayız."`,
+        choices: [
+          {
+            label: 'Aferin çırak, ustana iyi kulak ver.',
+            action: null
+          }
+        ]
+      },
+
+      // 9. HANCI İDRİS
+      hanci_talk: {
+        npcName: 'Hancı İdris',
+        npcRole: 'Köy Hanı Sahibi & Aşçı',
+        icon: '🍲',
+        text: `"Hoş geldin Gazi Beyim! Kazanımızda sıcak kuzu yahnisi kaynar, fırından taze bazlama çıktı. Boğazından sıcak bir lokma geçsin ister misin?"`,
+        onOpen: () => {
+          questSystem.advanceObjective('quest_inn_spy', 0);
+        },
+        choices: [
+          {
+            label: '🍖 "Bir tas sıcak yahni ve taze bazlama ver hancı (-25 Akçe)."',
+            action: () => {
+              if (gameState.timar.akce >= 25) {
+                gameState.timar.akce -= 25;
+                gameState.sipahi.health = Math.min(100, gameState.sipahi.health + 35);
+                soundManager.playVictoryJingle();
+                questSystem.advanceObjective('quest_inn_spy', 1);
+                gameState.addNotification('🍖 Sıcak ziyafet çektiniz! Sağlığınız +35 yenilendi.', 'success');
+                return {
+                  text: `"Afiyet şifa olsun yiğit beyim! Gücün kuvvetin daim olsun."`,
+                  choices: [{ label: 'Eline sağlık İdris.', action: null }]
+                };
+              } else {
+                gameState.addNotification('Yetersiz Akçe!', 'alert');
+                return null;
+              }
+            }
+          },
+          {
+            label: 'Hayırlı işler İdris, sonra uğrarım.',
+            action: () => {
+              questSystem.advanceObjective('quest_inn_spy', 1);
+              return null;
+            }
+          }
+        ]
+      },
+
+      // 10. SAKA İBRAHİM
+      saka_talk: {
+        npcName: 'Saka İbrahim',
+        npcRole: 'Köy Sakası',
+        icon: '🪣',
+        text: `"Selamünaleyküm Beyim! Kuyunun suyu pek tatlıdır, tarladaki ırgata ve konağa taze su taşırım. Bir maşraba buz gibi kuyu suyu ikram edeyim mi?"`,
+        choices: [
+          {
+            label: '💧 "Ver bir maşraba İbrahim, içimiz serinlesin."',
+            action: () => {
+              gameState.sipahi.stamina = 100;
+              gameState.addNotification('💧 Buz gibi kuyu suyu içtiniz! Kuvvetiniz tazelendi.', 'info');
+              return {
+                text: `"Helali hoş olsun Sipahi Beyim! Yarasın."`,
+                choices: [{ label: 'Eyvallah Saka.', action: null }]
+              };
+            }
+          },
+          {
+            label: 'Kolay gelsin İbrahim.',
+            action: null
+          }
+        ]
+      },
+
+      // 11. ATTAR MEHMET EFENDİ
+      attar_talk: {
+        npcName: 'Attar Mehmet Efendi',
+        npcRole: 'Çarşı Şifacısı & Baharatçı',
+        icon: '🌿',
+        text: `"Devletlü Beyim hoş geldin! Dağlardan topladığımız kantaron yağı, çörekotu ve şifalı merhemler kılıç yarasına birebirdir. Bir arzun var mıdır?"`,
+        onOpen: () => {
+          questSystem.advanceObjective('quest_attar', 0);
+        },
+        choices: [
+          {
+            label: '🌿 "Savaş için şifalı kantaron merhemi alayım (-50 Akçe)."',
+            action: () => {
+              if (gameState.timar.akce >= 50) {
+                gameState.timar.akce -= 50;
+                gameState.sipahi.health = 100;
+                soundManager.playVictoryJingle();
+                questSystem.advanceObjective('quest_attar', 1);
+                gameState.addNotification('🌿 Kantaron merhemi sürüldü! Canınız tamamen doldu.', 'success');
+                return {
+                  text: `"Şifa olsun beyim! Gaza meydanında kılıcın keskin olsun."`,
+                  choices: [{ label: 'Var ol hekim efendi.', action: null }]
+                };
+              } else {
+                gameState.addNotification('Yetersiz Akçe!', 'alert');
+                return null;
+              }
+            }
+          },
+          {
+            label: 'Bereketli kazançlar Mehmet Efendi.',
+            action: () => {
+              questSystem.advanceObjective('quest_attar', 1);
+              return null;
+            }
+          }
+        ]
+      },
+
+      // 12. KOCA DEDE
+      dede_talk: {
+        npcName: 'Koca Dede',
+        npcRole: 'Köyün Asırlık Gazisi',
+        icon: '👴',
+        text: `"Hey gidi günler hey... Sultan Murad Hüdavendigar ile Kosova meydanında küffara kılıç çalmıştık. Şimdi bu topraklarda senin gibi bir yiğit sipahiyi görmek gözlerimi yaşartır evlat. Adaletten sakın ayrılma!"`,
+        onOpen: () => {
+          questSystem.advanceObjective('quest_dede_flag', 0);
+        },
+        choices: [
+          {
+            label: '🤲 "Dualarını bizden esirgeme Koca Dede."',
+            action: () => {
+              gameState.sipahi.reputation += 10;
+              soundManager.playVictoryJingle();
+              questSystem.advanceObjective('quest_dede_flag', 1);
+              return {
+                text: `"Cenab-ı Hak kılıcını keskin, yüreğini korkusuz eylesin gazamızı mübarek kılsın evlat!"`,
+                choices: [{ label: 'Âmin dedem, sağ olasın.', action: null }]
+              };
+            }
+          },
+          {
+            label: 'Ellerinden öperim dedem.',
+            action: () => {
+              questSystem.advanceObjective('quest_dede_flag', 1);
+              return null;
+            }
+          }
+        ]
+      },
+
+      // 13. ÇİFTÇİ HASAN & REAYA
+      farmer_talk: {
+        npcName: 'Tımar Reayası',
+        npcRole: 'Çiftçi & Buğday Irgatı',
+        icon: '🌾',
+        text: `"Sipahi Beyim çok yaşa! Hamdolsun buğdaylar harmana çekilir. Sayende köyümüzde dirlik düzenlik vardır, haramilere aman verme!"`,
+        choices: [
+          {
+            label: '🌾 "Emeğiniz zayi olmaz, bereketli hasatlar ola."',
+            action: null
+          }
+        ]
       }
     };
 

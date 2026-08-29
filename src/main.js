@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Engine } from './core/Engine.js';
 import { InputManager } from './core/InputManager.js';
+import { ParticleSystem } from './core/ParticleSystem.js';
 import { TownGenerator } from './entities/TownGenerator.js';
 import { Player } from './entities/Player.js';
 import { NPCManager } from './entities/NPCManager.js';
@@ -14,34 +15,38 @@ import { soundManager } from './core/AudioManager.js';
 import { steamManager } from './core/SteamManager.js';
 
 /**
- * Mülk-i Osmanî: Tımarlı Sipahi 3D - Ana Oyun Başlatıcısı ve Döngüsü
+ * Mülk-i Osmanî: Tımarlı Sipahi 3D - Mount & Blade II: Bannerlord Seviyesinde Açık Dünya Oyun Motoru
  */
 export class Game {
   constructor() {
     this.canvas = document.getElementById('webgl-canvas');
     if (!this.canvas) return;
 
+    // 1. Render Motoru & Atmosfer
     this.engine = new Engine(this.canvas);
     this.input = new InputManager(this.canvas);
 
-    // 1. Prosedürel Kasaba, Arazi, Hisar ve Bitki Örtüsü
+    // 2. Bannerlord Parçacık Sistemi (Duman, Kıvılcım, Köz, Toz)
+    this.particles = new ParticleSystem(this.engine.scene);
+
+    // 3. Prosedürel Kasaba, Zemin, Hayvanlar & Yataklar
     this.town = new TownGenerator(this.engine.scene);
     this.town.generateTown();
 
-    // 2. Tımarlı Sipahi Oyuncu Kontrolcüsü
+    // 4. Tımarlı Sipahi Oyuncu Kontrolcüsü
     this.player = new Player(this.engine.camera, this.engine.scene, this.town.colliders);
     if (this.town.horseEntity) {
       this.player.setHorse(this.town.horseEntity);
     }
 
-    // 3. Osmanlı Karakterleri ve Düşmanlar
+    // 5. 24 Saat Yaşayan Köylüler, Zanaatkarlar ve Muhafızlar
     this.npcManager = new NPCManager(this.engine.scene);
     this.npcManager.initNPCs();
 
-    // 4. Dövüş Sistemi
+    // 6. Dövüş Sistemi
     this.combat = new CombatSystem(this.player, this.npcManager);
 
-    // 5. Arayüz ve Defterler
+    // 7. Arayüz & Menüler
     this.ui = new UIManager();
 
     // Hızlı Seyahat Köprüsü
@@ -60,7 +65,6 @@ export class Game {
     this.setupStartButton();
     this.startLoop();
 
-    // Steam Rich Presence
     try {
       steamManager.setRichPresence('Tımar Köyü Teftişinde');
     } catch (e) {}
@@ -98,7 +102,6 @@ export class Game {
         e.preventDefault();
         e.stopPropagation();
 
-        // Başlangıç ekranını hemen kapat
         startScreen.classList.add('hidden');
         startScreen.style.display = 'none';
         startScreen.style.visibility = 'hidden';
@@ -170,7 +173,7 @@ export class Game {
     this.input.onInteract = () => {
       const nearbyNPC = this.npcManager.getNearbyNPC(this.player.position, 4.2);
       if (nearbyNPC) {
-        this.ui.openDialogue(nearbyNPC.dialogueId);
+        this.ui.openDialogue(nearbyNPC.dialogueId, nearbyNPC);
         return;
       }
 
@@ -193,44 +196,54 @@ export class Game {
       this.lastTime = now;
 
       try {
-        // 1. Gün & Zaman Akışı
+        // 1. Gün & Zaman Akışı (24 Saatlik Döngü)
         gameState.time.dayTimeHours = (gameState.time.dayTimeHours + delta * 0.1) % 24;
 
-        // 2. Çevre & Yeldeğirmeni Animasyonu
+        // 2. Dinamik Gökyüzü, Güneş ve Ay Döngüsü
+        if (this.engine) {
+          this.engine.updateDayNight(gameState.time.dayTimeHours);
+        }
+
+        // 3. Atmosferik Parçacık Motoru (Duman, Kıvılcım, Köz, Toz)
+        if (this.particles && this.player) {
+          this.particles.update(delta, this.player.position);
+        }
+
+        // 4. Çevre & Yeldeğirmeni Animasyonu
         if (this.town) {
           this.town.update(delta);
         }
 
-        // 3. Oyuncu Fiziği ve Hareketi
+        // 5. Oyuncu Fiziği ve Hareketi
         if (this.player && this.input) {
           this.player.update(delta, this.input);
         }
 
-        // 4. NPC & Düşman Yapay Zekası
+        // 6. 24 Saatlik Köylü Yaşam Döngüsü & Yapay Zeka
         if (this.npcManager && this.player) {
-          this.npcManager.update(delta, this.player.position);
+          this.npcManager.update(delta, this.player.position, gameState.time.dayTimeHours, this.particles);
         }
 
-        // 5. Dövüş ve Vuruş Sistemi
+        // 7. Dövüş ve Vuruş Sistemi
         if (this.combat) {
           this.combat.update(delta);
         }
 
-        // 6. HUD ve Pusula Güncellemesi
+        // 8. HUD, Pusula ve Saat Güncellemesi
         if (this.ui && this.player && this.engine && this.npcManager) {
           this.ui.update(this.player.position, this.engine.camera, this.player.yaw, this.npcManager.npcs, this.npcManager.enemies);
         }
 
-        // 7. Etkileşim İpucu Kontrolü
+        // 9. Etkileşim İpucu Kontrolü
         this.updateInteractionPrompts();
 
-        // 8. Arzuhal ve Dilekçe Sistemi Zamanlayıcısı
+        // 10. Arzuhal ve Dilekçe Sistemi Zamanlayıcısı
         petitionSystem.update(delta);
       } catch (err) {
         console.warn('Oyun mantığı döngü uyarısı:', err);
       }
 
-      // 8. Render (Her zaman çalışır)
+      // 11. Render
       try {
         if (this.engine) {
           this.engine.render();
@@ -246,7 +259,16 @@ export class Game {
   updateInteractionPrompts() {
     const nearbyNPC = this.npcManager.getNearbyNPC(this.player.position, 4.2);
     if (nearbyNPC) {
-      this.ui.showInteractionPrompt(`[E] ${nearbyNPC.name} ile Görüş`);
+      let stateDesc = '';
+      if (nearbyNPC.ai) {
+        switch (nearbyNPC.ai.currentState) {
+          case 'SLEEPING': stateDesc = ' (Uyuyor 💤)'; break;
+          case 'WORKING': stateDesc = ' (Çalışıyor ⚒️)'; break;
+          case 'EATING': stateDesc = ' (Yemek Yiyor 🍲)'; break;
+          case 'WANDERING': stateDesc = ' (Dolaşıyor 🚶)'; break;
+        }
+      }
+      this.ui.showInteractionPrompt(`[E] ${nearbyNPC.name}${stateDesc} ile Görüş`);
       return;
     }
 

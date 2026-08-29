@@ -1494,4 +1494,103 @@ export class ModelBuilder {
 
     return gateGroup;
   }
+
+  // 17. ANADOLU KÖY KOYUNU (SHEEP)
+  createSheep() {
+    const sheep = new THREE.Group();
+    const woolMat = new THREE.MeshStandardMaterial({ color: 0xede8dc, roughness: 0.95 });
+    const skinMat = new THREE.MeshStandardMaterial({ color: 0x3d3228, roughness: 0.8 });
+
+    // Yün Gövde
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.65, 1.2), woolMat);
+    body.position.y = 0.65;
+    body.castShadow = true;
+    sheep.add(body);
+
+    // Kafa
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 0.45), skinMat);
+    head.position.set(0, 0.85, 0.65);
+    head.castShadow = true;
+    sheep.add(head);
+
+    // Kulaklar
+    for (let s of [-1, 1]) {
+      const ear = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.08, 0.08), skinMat);
+      ear.position.set(s * 0.22, 0.92, 0.62);
+      ear.rotation.z = s * 0.35;
+      sheep.add(ear);
+    }
+
+    // 4 Bacak
+    for (let x of [-0.28, 0.28]) {
+      for (let z of [-0.4, 0.4]) {
+        const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.45, 6), skinMat);
+        leg.position.set(x, 0.22, z);
+        leg.castShadow = true;
+        sheep.add(leg);
+      }
+    }
+
+    return sheep;
+  }
+
+  // 18. KÖY TAVUĞU (CHICKEN)
+  createChicken() {
+    const chicken = new THREE.Group();
+    const featherMat = new THREE.MeshStandardMaterial({ color: 0xc87d32, roughness: 0.8 }); // Kahverengi/Kızıl Köy Tavuğu
+    const beakMat = new THREE.MeshStandardMaterial({ color: 0xd49b28, roughness: 0.5 });
+    const combMat = new THREE.MeshStandardMaterial({ color: 0xb51e1e, roughness: 0.6 });
+
+    // Gövde
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.22, 0.32), featherMat);
+    body.position.y = 0.24;
+    chicken.add(body);
+
+    // Kafa
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.12), featherMat);
+    head.position.set(0, 0.38, 0.14);
+    chicken.add(head);
+
+    // Gaga & İbik
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.08, 4), beakMat);
+    beak.position.set(0, 0.36, 0.22);
+    beak.rotation.x = Math.PI / 2;
+    const comb = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.08, 0.10), combMat);
+    comb.position.set(0, 0.46, 0.13);
+    chicken.add(beak, comb);
+
+    // Bacaklar
+    for (let x of [-0.06, 0.06]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.15, 4), beakMat);
+      leg.position.set(x, 0.08, 0);
+      chicken.add(leg);
+    }
+
+    return chicken;
+  }
+
+  // 19. AHŞAP OSMANLI SEDİRİ / YATAK (SEDİR BED)
+  createSedirBed() {
+    const bed = new THREE.Group();
+    const woodMat = this.materials.wood;
+    const fabricMat = new THREE.MeshStandardMaterial({ color: 0x7a2828, roughness: 0.85 }); // Kırmızı Kilim Döşek
+
+    // Ahşap Kaide
+    const base = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.35, 2.2), woodMat);
+    base.position.y = 0.18;
+    base.castShadow = true;
+    bed.add(base);
+
+    // Kilim Minder
+    const mattress = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.18, 2.1), fabricMat);
+    mattress.position.y = 0.42;
+    bed.add(mattress);
+
+    // Yastık (Pillow)
+    const pillow = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.14, 0.45), new THREE.MeshStandardMaterial({ color: 0xddcca8 }));
+    pillow.position.set(0, 0.54, -0.75);
+    bed.add(pillow);
+
+    return bed;
+  }
 }

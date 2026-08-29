@@ -69,6 +69,12 @@ export class TownGenerator {
     // 10. Çevre Bitki Örtüsü (120+ Çam, Servi, Meşe, Çim & Çiçekler)
     this.populateNatureAndFoliage();
 
+    // 11. Köy Hayvanları (Otlayan Koyunlar & Tavuklar)
+    this.spawnVillageFauna();
+
+    // 12. Uyku Sedirleri & Yatakları
+    this.setupSedirBeds();
+
     return {
       colliders: this.colliders,
       animatedObjects: this.animatedObjects,
@@ -627,6 +633,48 @@ export class TownGenerator {
       this.scene.add(tree);
       this.addCollider(rx, rz, 1.5, 1.5);
     }
+  }
+
+  spawnVillageFauna() {
+    // 1. Tarlalar ve Çayır Civarı Otlayan Koyunlar (x: 40-70, z: 20-50)
+    for (let i = 0; i < 8; i++) {
+      const sheep = this.modelBuilder.createSheep();
+      const sx = 42 + Math.random() * 25;
+      const sz = 20 + Math.random() * 28;
+      sheep.position.set(sx, TownGenerator.getTerrainHeight(sx, sz), sz);
+      sheep.rotation.y = Math.random() * Math.PI * 2;
+      this.scene.add(sheep);
+      this.addCollider(sx, sz, 1.2, 1.2);
+    }
+
+    // 2. Köy Meydanı ve Han Çevresinde Dolaşan Tavuklar
+    for (let i = 0; i < 10; i++) {
+      const chicken = this.modelBuilder.createChicken();
+      const cx = (Math.random() - 0.5) * 35;
+      const cz = 10 + Math.random() * 30;
+      chicken.position.set(cx, TownGenerator.getTerrainHeight(cx, cz), cz);
+      chicken.rotation.y = Math.random() * Math.PI * 2;
+      this.scene.add(chicken);
+    }
+  }
+
+  setupSedirBeds() {
+    // Köylülerin Gece Uyuması İçin Sedir / Yatak Noktaları
+    const bedLocations = [
+      { x: -22, z: 8 },   // Konak 1
+      { x: -20, z: -15 }, // Konak 2
+      { x: 26, z: 12 },   // Konak 3
+      { x: 28, z: -22 },  // Konak 4
+      { x: -24, z: 42 },  // Konak 5
+      { x: 24, z: 48 },   // Konak 6
+      { x: 0, z: -32 }    // Sipahi Konağı Odası
+    ];
+
+    bedLocations.forEach(loc => {
+      const bed = this.modelBuilder.createSedirBed();
+      bed.position.set(loc.x, TownGenerator.getTerrainHeight(loc.x, loc.z), loc.z);
+      this.scene.add(bed);
+    });
   }
 
   update(delta) {
