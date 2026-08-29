@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { ModelBuilder } from './ModelBuilder.js';
 import { TownGenerator } from './TownGenerator.js';
 import { VillagerAI } from './VillagerAI.js';
@@ -19,6 +20,7 @@ export class NPCManager {
     this.gltfLoader = new GLTFLoader();
     this.objLoader = new OBJLoader();
     this.mtlLoader = new MTLLoader();
+    this.fbxLoader = new FBXLoader();
     this.npcs = [];
     this.enemies = [];
     this.villagerAIs = [];
@@ -28,7 +30,7 @@ export class NPCManager {
     // -------------------------------------------------------------------------
     // 1. ÖNEMLİ KÖY LİDERLERİ & PROTOKOL
     // -------------------------------------------------------------------------
-    // A) Köy Kethüdası Koca Yakub (Köy Meydanında - Stan Lee 3D Modeli)
+    // A) Köy Kethüdası Koca Yakub (Köy Meydanında - Flying.fbx Animasyonlu 3D Modeli)
     const kethuda = this.createHumanNPC({
       id: 'kethuda',
       name: 'Koca Yakub (Kethüda)',
@@ -38,8 +40,8 @@ export class NPCManager {
       turbanColor: 0xf5f0ea,
       hairColor: 0x1a1510,
       headwear: 'turban',
-      objPath: 'stanlee3d.obj',
-      mtlPath: 'stanlee3d.mtl',
+      fbxPath: 'Flying.fbx',
+      baseColorPath: 'stanlee3d_basecolor.jpg',
       normalMapPath: 'stanlee3d_normal.jpg',
       rmMapPath: 'stanlee3d_rm.jpg',
       dialogueId: 'kethuda_talk'
@@ -384,8 +386,70 @@ export class NPCManager {
     mesh.position.set(config.position.x, config.position.y || h, config.position.z);
     this.scene.add(mesh);
 
-    // 1. ÖZEL 3D OBJ MODELİ YÜKLEYİCİSİ (Koca Yakub, Saka ve Diğer 3D Karakterler)
-    if (config.objPath && typeof window !== 'undefined' && window.location) {
+    // 0. ÖZEL 3D FBX MODELİ & ANİMASYON YÜKLEYİCİSİ (Koca Yakub Flying.fbx vb.)
+    if (config.fbxPath && typeof window !== 'undefined' && window.location) {
+      try {
+        const fbxName = config.fbxPath;
+        this.fbxLoader.setPath('./models/');
+        this.fbxLoader.load(
+          fbxName,
+          (fbx) => {
+            const textureLoader = new THREE.TextureLoader();
+            const baseColor = config.baseColorPath ? textureLoader.load(`./models/${config.baseColorPath}`) : null;
+            const normalMap = config.normalMapPath ? textureLoader.load(`./models/${config.normalMapPath}`) : null;
+            const rmMap = config.rmMapPath ? textureLoader.load(`./models/${config.rmMapPath}`) : null;
+
+            fbx.traverse((child) => {
+              if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+                if (child.material) {
+                  child.material.side = THREE.DoubleSide;
+                  if (baseColor && (!child.material.map || !child.material.map.image)) {
+                    child.material.map = baseColor;
+                  }
+                  if (normalMap) child.material.normalMap = normalMap;
+                  if (rmMap) {
+                    child.material.roughnessMap = rmMap;
+                    child.material.metalnessMap = rmMap;
+                  }
+                  child.material.needsUpdate = true;
+                }
+              }
+            });
+
+            // Animasyon Mixer Kurulumu & Oynatma
+            if (fbx.animations && fbx.animations.length > 0) {
+              const mixer = new THREE.AnimationMixer(fbx);
+              const action = mixer.clipAction(fbx.animations[0]);
+              action.play();
+              npcData.mixer = mixer;
+              npcData.animAction = action;
+            }
+
+            // Otomatik ölçekleme (1.85m gerçek insan boyuna eşitle)
+            const box = new THREE.Box3().setFromObject(fbx);
+            const size = box.getSize(new THREE.Vector3());
+            if (size.y > 0) {
+              const scaleFactor = 1.85 / size.y;
+              fbx.scale.set(scaleFactor, scaleFactor, scaleFactor);
+            }
+
+            // Kutuları temizle ve animasyonlu FBX modelini oturt
+            while (mesh.children.length > 0) {
+              mesh.remove(mesh.children[0]);
+            }
+            mesh.add(fbx);
+          },
+          undefined,
+          (err) => { console.warn('FBX Yüklenirken hata:', err); }
+        );
+      } catch (e) {
+        console.warn('FBX Loader hatası:', e);
+      }
+    }
+    // 1. ÖZEL 3D OBJ MODELİ YÜKLEYİCİSİ (Saka İbrahim & Gelen 3D Karakterler)
+    else if (config.objPath && typeof window !== 'undefined' && window.location) {
       try {
         const mtlName = config.mtlPath || config.objPath.replace('.obj', '.mtl');
         const objName = config.objPath;
@@ -504,7 +568,9 @@ export class NPCManager {
       animOffset: Math.random() * Math.PI * 2,
       health: 80,
       maxHealth: 80,
-      isDead: false
+      isDead: false,
+      mixer: null,
+      animAction: null
     };
 
     this.npcs.push(npcData);
@@ -553,6 +619,13 @@ export class NPCManager {
   }
 
   update(delta, playerPos, hour = 12.0, particleSystem = null) {
+    // 0. FBX AnimationMixer İskelet Animasyon Güncellemesi
+    this.npcs.forEach(npc => {
+      if (npc.mixer) {
+        npc.mixer.update(delta);
+      }
+    });
+
     // 1. Köylülerin 24 Saatlik Rutin ve Davranış Yapay Zekası Güncellemesi
     this.villagerAIs.forEach(ai => {
       ai.update(delta, hour, playerPos, particleSystem);

@@ -131,6 +131,15 @@ export class VillagerAI {
     // 1. Saat kontrolü ile durum güncelle
     this.evaluateSchedule(hour);
 
+    // Periyodik etrafta gezinme ve teftiş adımları
+    this.wanderTimer = (this.wanderTimer || 0) + delta;
+    if (this.wanderTimer > 6.0 && this.currentState === VillagerState.WORKING && !this.isLockedInDialogue) {
+      this.wanderTimer = 0;
+      const angle = Math.random() * Math.PI * 2;
+      const radius = 2.5 + Math.random() * 4.5;
+      this.targetPos.set(this.workPos.x + Math.cos(angle) * radius, 0, this.workPos.z + Math.sin(angle) * radius);
+    }
+
     const mesh = this.npc.mesh;
     if (!mesh) return;
 
