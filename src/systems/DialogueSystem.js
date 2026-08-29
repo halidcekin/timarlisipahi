@@ -454,6 +454,60 @@ export class DialogueSystem {
             action: null
           }
         ]
+      },
+
+      // 14. TELLAK HÜSEYİN AĞA (OSMANLI HAMAMI)
+      tellak_talk: {
+        npcName: 'Tellak Hüseyin Ağa',
+        npcRole: 'Hamam Tellağı & Masöz',
+        icon: '🧖‍♂️',
+        text: `"Sefa getirdin Sipahi Beyim! Gazalardan, talimlerden yorgun düşmüşsün. Mermer göbek taşımız sıcacıktır. Şöyle bir uzan da kemiklerini çatırdatıp, mis kokulu sabun köpüğü ve ak pak kese ile seni yenileyelim! (Hizmet Bedeli: 40 Akçe)"`,
+        choices: [
+          {
+            label: '🧖 "Buyur Ağa, hakkındır 40 Akçe. Şöyle esaslı bir kese köpük yap."',
+            action: () => {
+              if (gameState.timar.akce < 40) {
+                gameState.addNotification('⚠️ Yeterli Akçen yok! (Gereken: 40 Akçe)', 'alert');
+                return {
+                  text: `"Beyim canın sağ olsun, lakin kesende akçe kalmamış. Sonra yine bekleriz."`,
+                  choices: [{ label: 'Sonra gelirim.', action: null }]
+                };
+              }
+
+              // Kese Köpük Ritüeli: Sıhhat ve Kuvvet %100 Dolumu
+              gameState.timar.akce -= 40;
+              gameState.sipahi.health = gameState.sipahi.maxHealth;
+              gameState.sipahi.stamina = gameState.sipahi.maxStamina;
+              gameState.lastBathDay = gameState.time.dayCount;
+
+              try { soundManager.playVictoryJingle(); } catch (e) {}
+              gameState.addNotification('🧖 Tellak Hüseyin Ağa kese ve köpükle seni pirüpak eyledi! Sıhhat ve kuvvetin kemale erdi.', 'success');
+
+              return {
+                text: `"Ohhh, yarasın beyime! Kuş gibi hafifledin, yorgunluktan eser kalmadı. Gazalarda kılıcın keskin, sıhhatin daim olsun!"`,
+                choices: [{ label: 'Eline sağlık Hüseyin Ağa, çok makbule geçti.', action: null }]
+              };
+            }
+          },
+          {
+            label: '🚿 "Şimdilik bir teftişe gelmiştim Hüseyin Ağa, kolay gelsin."',
+            action: null
+          }
+        ]
+      },
+
+      // 15. HAMAM MÜŞTERİSİ REAYA
+      hamam_musteri_talk: {
+        npcName: 'Hamam Müşterisi',
+        npcRole: 'Yıkanan Köylü',
+        icon: '🧼',
+        text: `"Ohhh be! Sıcak göbek taşı bütün bel ağrılarımı aldı götürdü. Hamamımız köyümüzün bereketidir beyim, Allah razı olsun."`,
+        choices: [
+          {
+            label: 'Sıhhatler olsun.',
+            action: null
+          }
+        ]
       }
     };
 

@@ -8,9 +8,10 @@ import { TownGenerator } from '../entities/TownGenerator.js';
  * CombatSystem - 1. Kişi Kılıç Dövüşü ve Vuruş Algılama
  */
 export class CombatSystem {
-  constructor(player, npcManager) {
+  constructor(player, npcManager, townGenerator = null) {
     this.player = player;
     this.npcManager = npcManager;
+    this.townGenerator = townGenerator;
     this.activeSparks = [];
 
     // 3D Kıvılcım ve Darbe Parçacık Grubu
@@ -18,6 +19,44 @@ export class CombatSystem {
     if (this.player.scene) {
       this.player.scene.add(this.sparkGroup);
     }
+  }
+
+  setTownGenerator(townGen) {
+    this.townGenerator = townGen;
+  }
+
+  /**
+   * Hasar Alan Varlıkta Kırmızı Parlama (Damage Flash Efekti)
+   */
+  applyDamageFlash(mesh) {
+    if (!mesh) return;
+    const originalMaterials = [];
+
+    mesh.traverse((child) => {
+      if (child.isMesh && child.material) {
+        if (Array.isArray(child.material)) {
+          child.material.forEach(m => {
+            if (m.emissive) {
+              const orig = m.emissive.getHex();
+              originalMaterials.push({ mat: m, orig });
+              m.emissive.setHex(0xdd1111);
+            }
+          });
+        } else if (child.material.emissive) {
+          const orig = child.material.emissive.getHex();
+          originalMaterials.push({ mat: child.material, orig });
+          child.material.emissive.setHex(0xdd1111);
+        }
+      }
+    });
+
+    setTimeout(() => {
+      originalMaterials.forEach(item => {
+        if (item.mat && item.mat.emissive) {
+          item.mat.emissive.setHex(item.orig);
+        }
+      });
+    }, 220);
   }
 
   /**
@@ -98,6 +137,7 @@ export class CombatSystem {
     const playerDir = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, this.player.yaw, 0));
 
     let hitCount = 0;
+    const baseDamage = 25 + gameState.sipahi.swordLevel * 8;
 
     // 1. Düşmanlara vuruş kontrolü
     this.npcManager.enemies.forEach(enemy => {
@@ -105,26 +145,21 @@ export class CombatSystem {
 
       const dist = playerPos.distanceTo(enemy.position);
       if (dist < 3.2) {
-        // Açı kontrolü (Oyuncunun baktığı yönde mi?)
         const toEnemy = new THREE.Vector3().subVectors(enemy.position, playerPos).normalize();
         const dot = playerDir.dot(toEnemy);
 
         if (dot > 0.4) {
-          // İsabet!
           hitCount++;
-          const baseDamage = 25 + gameState.sipahi.swordLevel * 8;
           enemy.health -= baseDamage;
 
           soundManager.playSwordClash();
           this.player.addCameraShake(0.14);
+          this.applyDamageFlash(enemy.mesh);
 
-          // Kan ve Toz Saç
           const hitPos = enemy.position.clone().add(new THREE.Vector3(0, 1.2, 0));
           this.spawnBloodAndDust(hitPos, true);
 
-          gameState.addNotification(`⚔️ ${enemy.name} kılıç darbesi aldı! (-${baseDamage} Can)`, 'alert');
-
-          // Geri itilme efekti
+          gameState.addNotification(`⚔️ ${enemy.name} darbe aldı! (-${baseDamage} Sıhhat)`, 'alert');
           enemy.position.addScaledVector(playerDir, 0.8);
 
           if (enemy.health <= 0) {
@@ -134,7 +169,85 @@ export class CombatSystem {
       }
     });
 
-    // 2. Kale Avlusu Talim Mankenlerine Vuruş Kontrolü
+    // 2. Köylü NPC'lere Vuruş Kontrolü (Reayaya Saldırı ve Asayiş Düşüşü)
+    this.npcManager.npcs.forEach(npc => {
+      if (npc.isDead) return;
+
+      const dist = playerPos.distanceTo(npc.position);
+      if (dist < 3.0) {
+        const toNPC = new THREE.Vector3().subVectors(npc.position, playerPos).normalize();
+        const dot = playerDir.dot(toNPC);
+
+        if (dot > 0.45) {
+          hitCount++;
+          npc.health = (npc.health || 80) - baseDamage;
+
+          soundManager.playSwordClash();
+          this.player.addCameraShake(0.12);
+          this.applyDamageFlash(npc.mesh);
+
+          const hitPos = npc.position.clone().add(new THREE.Vector3(0, 1.2, 0));
+          this.spawnBloodAndDust(hitPos, true);
+
+          // Ağır Hüküm: Reayaya saldırmak asayiş ve morali yıkar
+          gameState.timar.asayis = Math.max(0, gameState.timar.asayis - 12);
+          gameState.timar.morale = Math.max(0, gameState.timar.morale - 15);
+          gameState.addNotification(`⚠️ Reayaya el kaldırdın! ${npc.name} yaralandı! Asayiş ve köylü morali düştü.`, 'alert');
+
+          if (npc.health <= 0) {
+            npc.isDead = true;
+            npc.mesh.rotation.x = Math.PI / 2;
+            npc.mesh.position.y = 0.2;
+            gameState.timar.asayis = Math.max(0, gameState.timar.asayis - 25);
+            gameState.addNotification(`💀 Eyvah! ${npc.name} can verdi! Köyde isyan ve teessür hâkim.`, 'alert');
+          }
+        }
+      }
+    });
+
+    // 3. Canlı Hayvanlar ve Kırılabilir Objeler (TownGenerator.damageables)
+    if (this.townGenerator && this.townGenerator.damageables) {
+      this.townGenerator.damageables.forEach(dmg => {
+        if (dmg.isDead) return;
+
+        const dist = playerPos.distanceTo(dmg.mesh.position);
+        if (dist < 3.2) {
+          const toObj = new THREE.Vector3().subVectors(dmg.mesh.position, playerPos).normalize();
+          const dot = playerDir.dot(toObj);
+
+          if (dot > 0.35) {
+            hitCount++;
+            dmg.health -= baseDamage;
+            soundManager.playSwordClash();
+            this.player.addCameraShake(0.08);
+            this.applyDamageFlash(dmg.mesh);
+
+            const hitPos = dmg.mesh.position.clone().add(new THREE.Vector3(0, 0.6, 0));
+            const isAnimal = dmg.type === 'animal';
+            this.spawnBloodAndDust(hitPos, isAnimal);
+
+            if (dmg.health <= 0) {
+              dmg.isDead = true;
+              if (isAnimal) {
+                dmg.mesh.rotation.z = Math.PI / 2;
+                dmg.mesh.position.y = 0.15;
+                gameState.timar.grain += 10;
+                gameState.addNotification(`🥩 ${dmg.name} kesildi (+10 Erzak).`, 'info');
+              } else {
+                // Kırılabilir fıçı veya saman balyası patlaması
+                dmg.mesh.scale.set(0.01, 0.01, 0.01);
+                if (dmg.mesh.parent) dmg.mesh.parent.remove(dmg.mesh);
+                gameState.addNotification(`💥 ${dmg.name} paramparça oldu!`, 'info');
+              }
+            } else {
+              gameState.addNotification(`⚔️ ${dmg.name} hasar aldı! (${dmg.health}/${dmg.maxHealth} Can)`, 'info');
+            }
+          }
+        }
+      });
+    }
+
+    // 4. Kale Avlusu Talim Mankenlerine Vuruş Kontrolü
     const dummyPositions = [
       new THREE.Vector3(175, TownGenerator.getTerrainHeight(175, -10), -10),
       new THREE.Vector3(175, TownGenerator.getTerrainHeight(175, -6), -6)
@@ -151,7 +264,7 @@ export class CombatSystem {
           this.player.addCameraShake(0.08);
 
           const hitPos = dPos.clone().add(new THREE.Vector3(0, 1.5, 0));
-          this.spawnBloodAndDust(hitPos, false); // Mankene vurduğunda kan yok, toz var
+          this.spawnBloodAndDust(hitPos, false);
 
           gameState.military.cebeluExperience = (gameState.military.cebeluExperience || 0) + 5;
           gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - 8);
@@ -176,6 +289,8 @@ export class CombatSystem {
 
     gameState.addNotification(`💀 ${enemy.name} alt edildi! +${lootAkce} Akçe ele geçirildi. Asayiş arttı!`, 'success');
     soundManager.playVictoryJingle();
+
+    // Görev Sistemi Bildirimi
 
     // Görev Sistemi Bildirimi
     questSystem.onEnemyKilled(enemy);

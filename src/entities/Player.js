@@ -25,6 +25,8 @@ export class Player {
 
     this.walkSpeed = 6.5;
     this.runSpeed = 11.5;
+    this.unarmedWalkSpeed = 8.5;
+    this.unarmedRunSpeed = 15.0;
     this.horseSpeed = 18.0;
     this.jumpForce = 8.0;
     this.gravity = 22.0;
@@ -49,6 +51,20 @@ export class Player {
     this.footstepTimer = 0;
   }
 
+  toggleWeapon() {
+    gameState.sipahi.swordDrawn = !gameState.sipahi.swordDrawn;
+    if (this.weaponRig) {
+      this.weaponRig.visible = gameState.sipahi.swordDrawn && (this.cameraMode === 'firstPerson');
+    }
+    
+    if (gameState.sipahi.swordDrawn) {
+      gameState.addNotification('⚔️ Pusatını kuşandın. Savaşa hazırsın!', 'info');
+      try { soundManager.playSwordSwing(); } catch (e) {}
+    } else {
+      gameState.addNotification('🏃 Kılıcını kınına soktun. Çevik ve hızlı hareket ediyorsun.', 'info');
+    }
+  }
+
   setHorse(horse) {
     this.horseEntity = horse;
   }
@@ -59,7 +75,7 @@ export class Player {
 
   toggleCameraMode() {
     this.cameraMode = (this.cameraMode === 'firstPerson') ? 'thirdPerson' : 'firstPerson';
-    this.weaponRig.visible = (this.cameraMode === 'firstPerson');
+    this.weaponRig.visible = (this.cameraMode === 'firstPerson') && gameState.sipahi.swordDrawn;
   }
 
   toggleHorseMount() {
@@ -98,6 +114,11 @@ export class Player {
   triggerAttack() {
     if (this.isRiding) return false;
 
+    if (!gameState.sipahi.swordDrawn) {
+      gameState.addNotification('⚠️ Önce pusatını kuşan! (Q Tuşuna bas)', 'alert');
+      return false;
+    }
+
     // Eğer saldırı ortasındaysa ve sonuna yaklaşıldıysa sıradaki komboyu sıraya al
     if (this.isAttacking) {
       if (this.attackProgress > 0.45 && this.attackProgress < 0.9) {
@@ -132,6 +153,9 @@ export class Player {
   }
 
   setBlocking(isBlocking) {
+    if (!gameState.sipahi.swordDrawn && isBlocking) {
+      return;
+    }
     this.isBlocking = isBlocking;
     gameState.sipahi.isBlocking = isBlocking;
     if (isBlocking) {
@@ -155,14 +179,20 @@ export class Player {
 
     const isMoving = moveDir.lengthSq() > 0;
     const isRunning = (inputManager.isKeyDown('ShiftLeft') || inputManager.isKeyDown('ShiftRight')) && isMoving;
-    let currentSpeed = this.walkSpeed;
+    
+    // Temel Hız Belirleme (Silahsızken daha hızlı ve çevik)
+    const isUnarmed = !gameState.sipahi.swordDrawn;
+    const baseWalk = isUnarmed ? this.unarmedWalkSpeed : this.walkSpeed;
+    const baseRun = isUnarmed ? this.unarmedRunSpeed : this.runSpeed;
+    let currentSpeed = baseWalk;
 
     if (this.isRiding) {
       currentSpeed = this.horseSpeed;
     } else if (isRunning && gameState.sipahi.stamina > 5) {
-      currentSpeed = this.runSpeed;
-      // Koşarken saniyede 22 kuvvet harcar
-      gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - delta * 22);
+      currentSpeed = baseRun;
+      // Koşarken saniyede kuvvet harcar (silahsızken daha az harcar)
+      const staminaDrain = isUnarmed ? 15 : 22;
+      gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - delta * staminaDrain);
       this.staminaRegenDelay = 0.9;
     } else if (this.isBlocking) {
       currentSpeed = this.walkSpeed * 0.55; // Kalkan/kılıç bloğunda yavaş yürüyüş

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * InputManager - Tımarlı Sipahi 3D Klavye, Fare ve Pointer Lock Kontrolleri
  * WASD (Hareket), Space (Zıpla/Dörtnal), Shift (Koş), Sol Tık (Kılıç Saldırısı),
  * Sağ Tık (Blok), E (Etkileşim/Konuş), F (Ata Bin/İn), TAB (Tımar Defteri),
@@ -25,6 +25,9 @@ export class InputManager {
     this.onToggleQuests = null;  // J Tuşu
     this.onToggleMap = null;     // M Tuşu
 
+    this.onToggleWeapon = null;  // Q Tuşu (Kılıcı Kına Koy / Kuşan)
+    this.onToggleBow = null;     // R Tuşu (Okçuluk / Yay Çek)
+
     this.setupListeners();
   }
 
@@ -34,6 +37,10 @@ export class InputManager {
 
       if (e.code === 'KeyE') {
         if (this.onInteract) this.onInteract();
+      } else if (e.code === 'KeyQ') {
+        if (this.onToggleWeapon) this.onToggleWeapon();
+      } else if (e.code === 'KeyR') {
+        if (this.onToggleBow) this.onToggleBow();
       } else if (e.code === 'KeyF') {
         if (this.onMountHorse) this.onMountHorse();
       } else if (e.code === 'KeyV') {

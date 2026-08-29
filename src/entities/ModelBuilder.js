@@ -1595,4 +1595,230 @@ export class ModelBuilder {
 
     return bed;
   }
+
+  // 20. AHŞAP TAHLIL / SU FIÇISI (BARREL)
+  createBarrel() {
+    const barrel = new THREE.Group();
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x5a3d24, roughness: 0.8 });
+    const ironMat = new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.3 });
+
+    // Fıçı Gövdesi
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 1.1, 12), woodMat);
+    body.position.y = 0.55;
+    body.castShadow = true;
+    barrel.add(body);
+
+    // Demir Kuşaklar (Hoops)
+    for (let y of [0.2, 0.55, 0.9]) {
+      const hoop = new THREE.Mesh(new THREE.CylinderGeometry(0.50, 0.50, 0.05, 12), ironMat);
+      hoop.position.y = y;
+      barrel.add(hoop);
+    }
+
+    return barrel;
+  }
+
+  // 21. BUĞDAY SAMAN BALYASI (HAY BALE)
+  createHayBale() {
+    const bale = new THREE.Group();
+    const hayMat = new THREE.MeshStandardMaterial({ color: 0xc4a45a, roughness: 0.95 });
+    const ropeMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a, roughness: 0.9 });
+
+    const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.7, 0.8), hayMat);
+    body.position.y = 0.35;
+    body.castShadow = true;
+    bale.add(body);
+
+    // İp Kuşakları
+    for (let x of [-0.3, 0.3]) {
+      const rope = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.72, 0.82), ropeMat);
+      rope.position.set(x, 0.35, 0);
+      bale.add(rope);
+    }
+
+    return bale;
+  }
+
+  // 22. PEŞTEMALLİ HAMAM ADAMI / TELLAĞI
+  createPestemalMan(skinTone = 0xd8ad88, pestemalColor = 0xb53232) {
+    const man = new THREE.Group();
+    const skinMat = new THREE.MeshStandardMaterial({ color: skinTone, roughness: 0.7 });
+    const pestemalMat = new THREE.MeshStandardMaterial({ color: pestemalColor, roughness: 0.85 }); // Peştemal
+    const takunyaMat = new THREE.MeshStandardMaterial({ color: 0x4a3220, roughness: 0.8 }); // Ahşap Takunya
+
+    // Beden (Çıplak Üst Gövde)
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.65, 0.28), skinMat);
+    torso.position.y = 1.35;
+    torso.castShadow = true;
+    man.add(torso);
+
+    // Baş (Kafa)
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.28, 0.24), skinMat);
+    head.position.set(0, 1.82, 0);
+    head.castShadow = true;
+    man.add(head);
+
+    // Belden Aşağı Sarılı Peştemal
+    const skirt = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.33, 0.65, 10), pestemalMat);
+    skirt.position.y = 0.85;
+    skirt.castShadow = true;
+    man.add(skirt);
+
+    // Kollar
+    for (let side of [-1, 1]) {
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.06, 0.55), skinMat);
+      arm.position.set(side * 0.32, 1.32, 0);
+      arm.castShadow = true;
+      man.add(arm);
+    }
+
+    // Bacaklar & Ayaklar (Takunyalı)
+    for (let side of [-1, 1]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.52), skinMat);
+      leg.position.set(side * 0.14, 0.30, 0);
+      leg.castShadow = true;
+      man.add(leg);
+
+      const takunya = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.06, 0.24), takunyaMat);
+      takunya.position.set(side * 0.14, 0.03, 0.04);
+      man.add(takunya);
+    }
+
+    return man;
+  }
+
+  // 23. HAMAM MERMER KURNASI & PİRİNÇ MUSLUK
+  createHamamKurna() {
+    const kurnaGroup = new THREE.Group();
+    const marbleMat = new THREE.MeshStandardMaterial({ color: 0xf5f5fa, roughness: 0.25, metalness: 0.1 });
+    const brassMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.85, roughness: 0.3 });
+    const waterMat = new THREE.MeshStandardMaterial({ color: 0x4aa0d8, transparent: true, opacity: 0.75, roughness: 0.1 });
+
+    // Kurna Kaidesi & Gövdesi
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.75, 0.85), marbleMat);
+    base.position.y = 0.38;
+    base.castShadow = true;
+    kurnaGroup.add(base);
+
+    // Kurna İçi Su
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(0.72, 0.72), waterMat);
+    water.rotation.x = -Math.PI / 2;
+    water.position.set(0, 0.72, 0);
+    kurnaGroup.add(water);
+
+    // Pirinç Osmanlı Musluğu
+    const tap = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.25), brassMat);
+    tap.rotation.x = Math.PI / 2;
+    tap.position.set(0, 0.95, -0.38);
+    kurnaGroup.add(tap);
+
+    // Pirinç Hamam Tası
+    const tas = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.09, 0.07, 10), brassMat);
+    tas.position.set(0.30, 0.80, 0.15);
+    kurnaGroup.add(tas);
+
+    return kurnaGroup;
+  }
+
+  // 24. HAMAM SEKİZGEN GÖBEK TAŞI
+  createGobekTasi() {
+    const gobekGroup = new THREE.Group();
+    const marbleMat = new THREE.MeshStandardMaterial({ color: 0xf8f8fc, roughness: 0.2, metalness: 0.08 });
+    const borderMat = new THREE.MeshStandardMaterial({ color: 0xd8d8e0, roughness: 0.35 });
+
+    // Sekizgen Mermer Göbek Taşı
+    const stone = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 3.1, 0.55, 8), marbleMat);
+    stone.position.y = 0.28;
+    stone.castShadow = true;
+    stone.receiveShadow = true;
+    gobekGroup.add(stone);
+
+    // Kenar Mermer Bordürü
+    const border = new THREE.Mesh(new THREE.CylinderGeometry(3.15, 3.25, 0.15, 8), borderMat);
+    stone.add(border);
+
+    return gobekGroup;
+  }
+
+  // 25. KALE OK TALİM HEDEF PANOSU
+  createArcheryTarget() {
+    const targetGroup = new THREE.Group();
+    const strawMat = new THREE.MeshStandardMaterial({ color: 0xd4b870, roughness: 0.9 }); // Saman Hedef
+    const woodMat = this.materials.wood;
+    const ringRedMat = new THREE.MeshStandardMaterial({ color: 0xcc2222, roughness: 0.6 });
+    const ringYellowMat = new THREE.MeshStandardMaterial({ color: 0xddaa11, roughness: 0.6 });
+    const ringWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.6 });
+
+    // Hedef Diski (Saman Gövde)
+    const disk = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 0.25, 20), strawMat);
+    disk.rotation.x = Math.PI / 2;
+    disk.position.y = 1.6;
+    disk.castShadow = true;
+    targetGroup.add(disk);
+
+    // Beyaz Dış Halka
+    const whiteRing = new THREE.Mesh(new THREE.RingGeometry(0.85, 1.35, 20), ringWhiteMat);
+    whiteRing.position.set(0, 1.6, 0.13);
+    targetGroup.add(whiteRing);
+
+    // Kırmızı Orta Halka
+    const redRing = new THREE.Mesh(new THREE.RingGeometry(0.40, 0.85, 20), ringRedMat);
+    redRing.position.set(0, 1.6, 0.132);
+    targetGroup.add(redRing);
+
+    // Sarı Merkez (12'den Vurulan Göbek Noktası)
+    const bullseye = new THREE.Mesh(new THREE.CircleGeometry(0.40, 20), ringYellowMat);
+    bullseye.position.set(0, 1.6, 0.134);
+    targetGroup.add(bullseye);
+
+    // Ahşap Sehpa / Ayaklar
+    for (let angle of [-0.35, 0.35]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.2), woodMat);
+      leg.position.set(Math.sin(angle) * 0.9, 0.95, -0.2);
+      leg.rotation.z = -angle;
+      leg.castShadow = true;
+      targetGroup.add(leg);
+    }
+    const backLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 2.3), woodMat);
+    backLeg.position.set(0, 0.95, -0.65);
+    backLeg.rotation.x = 0.35;
+    targetGroup.add(backLeg);
+
+    return targetGroup;
+  }
+
+  // 26. 1. ŞAHIS OSMANLI TALİM YAYI (BOW RIG)
+  createFirstPersonBow() {
+    const bowRig = new THREE.Group();
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x4a2e16, roughness: 0.65 });
+    const gripMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8 });
+    const stringMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+    // Yay Eğrisi (Kavisli Torus Parçası)
+    const bowCurve = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.024, 8, 24, Math.PI * 0.85), woodMat);
+    bowCurve.rotation.z = Math.PI * 0.08;
+    bowCurve.position.set(0.12, -0.1, -0.45);
+    bowRig.add(bowCurve);
+
+    // Deri Kabza
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.16, 8), gripMat);
+    grip.position.set(0.12, -0.1, -0.45);
+    bowRig.add(grip);
+
+    // Kiriş İpi (String)
+    const stringPoints = [
+      new THREE.Vector3(0.12, 0.42, -0.45),
+      new THREE.Vector3(0.12, -0.1, -0.32), // Çekilme noktası
+      new THREE.Vector3(0.12, -0.62, -0.45)
+    ];
+    const stringGeo = new THREE.BufferGeometry().setFromPoints(stringPoints);
+    const bowString = new THREE.Line(stringGeo, stringMat);
+    bowRig.add(bowString);
+
+    // Yay Pozisyonu
+    bowRig.position.set(0.15, -0.18, -0.2);
+    bowRig.visible = false;
+
+    return bowRig;
+  }
 }

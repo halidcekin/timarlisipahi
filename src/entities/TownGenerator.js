@@ -18,6 +18,8 @@ export class TownGenerator {
     this.colliders = [];
     this.animatedObjects = [];
     this.interactables = [];
+    this.damageables = [];
+    this.archeryTargets = [];
     this.horseEntity = null;
   }
 
@@ -60,25 +62,33 @@ export class TownGenerator {
     // 7. Safranbolu Evleri & Mahalle Dokusu (12+ Farklı Konak)
     this.buildResidentialHouses();
 
-    // 8. Sancak Kalesi & Doğu Taş Yolu
+    // 8. Osmanlı Hamamı (Kubbe, Sekizgen Göbek Taşı, 4 Mermer Kurna, Buhar)
+    this.buildHamam();
+
+    // 9. Sancak Kalesi & Doğu Taş Yolu (Okçuluk Talim Poligonu Dahil)
     this.buildCastleDistrict();
 
-    // 9. Harami / Eşkıya Kampı (Kuzeybatı Ormanı)
+    // 10. Harami / Eşkıya Kampı (Kuzeybatı Ormanı)
     this.buildBanditCamp();
 
-    // 10. Çevre Bitki Örtüsü (120+ Çam, Servi, Meşe, Çim & Çiçekler)
+    // 11. Çevre Bitki Örtüsü (120+ Çam, Servi, Meşe, Çim & Çiçekler)
     this.populateNatureAndFoliage();
 
-    // 11. Köy Hayvanları (Otlayan Koyunlar & Tavuklar)
+    // 12. Köy Hayvanları (Otlayan Koyunlar & Tavuklar)
     this.spawnVillageFauna();
 
-    // 12. Uyku Sedirleri & Yatakları
+    // 13. Kırılabilir Fıçılar & Saman Balyaları
+    this.spawnBreakableObjects();
+
+    // 14. Uyku Sedirleri & Yatakları
     this.setupSedirBeds();
 
     return {
       colliders: this.colliders,
       animatedObjects: this.animatedObjects,
       interactables: this.interactables,
+      damageables: this.damageables,
+      archeryTargets: this.archeryTargets,
       horse: this.horseEntity
     };
   }
@@ -447,11 +457,129 @@ export class TownGenerator {
   }
 
   // ---------------------------------------------------------------------------
-  // 8. SANCAK KALESİ & DOĞU TAŞ YOLU
+  // ---------------------------------------------------------------------------
+  // 8. OSMANLI HAMAMI (KUBBE, MERMER GÖBEK TAŞI, 4 KURNA & SICAK BUHAR)
+  // ---------------------------------------------------------------------------
+  buildHamam() {
+    const hamamX = 32;
+    const hamamZ = 26;
+    const hamamGroup = new THREE.Group();
+
+    // 1. Taş Dış Duvarlar (16x14 metre genişlik, 5 metre yükseklik)
+    const wallMat = this.modelBuilder.materials.wall;
+    const hamamWalls = new THREE.Mesh(new THREE.BoxGeometry(16, 5, 14), wallMat);
+    hamamWalls.position.y = 2.5;
+    hamamWalls.castShadow = true;
+    hamamWalls.receiveShadow = true;
+    hamamGroup.add(hamamWalls);
+
+    // 2. Hamam Giriş Kapısı (Ön Cephede Açıklık)
+    const doorMat = this.modelBuilder.materials.wood;
+    const door = new THREE.Mesh(new THREE.BoxGeometry(2.4, 3.4, 0.4), doorMat);
+    door.position.set(0, 1.7, 7.1);
+    hamamGroup.add(door);
+
+    // 3. Büyük Sıcaklık Kubbesi (Cam Gözlü Kurşun Kubbe)
+    const domeMat = this.modelBuilder.materials.domeBlue;
+    const dome = new THREE.Mesh(
+      new THREE.SphereGeometry(6.8, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+      domeMat
+    );
+    dome.position.set(0, 5.0, 0);
+    dome.castShadow = true;
+    hamamGroup.add(dome);
+
+    // Kubbe Tepesi Aydınlık Cam Feneri
+    const lantern = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.8, 0.9, 0.8, 12),
+      new THREE.MeshStandardMaterial({ color: 0xe0e8f0, roughness: 0.2, metalness: 0.3 })
+    );
+    lantern.position.set(0, 11.8, 0);
+    hamamGroup.add(lantern);
+
+    // 4. Mermer Zemin Kaplaması
+    const marbleFloor = new THREE.Mesh(
+      new THREE.PlaneGeometry(15, 13),
+      new THREE.MeshStandardMaterial({ color: 0xededf2, roughness: 0.2, metalness: 0.05 })
+    );
+    marbleFloor.rotation.x = -Math.PI / 2;
+    marbleFloor.position.y = 0.05;
+    marbleFloor.receiveShadow = true;
+    hamamGroup.add(marbleFloor);
+
+    // 5. Merkezde Büyük Sekizgen Mermer Göbek Taşı
+    const gobekTasi = this.modelBuilder.createGobekTasi();
+    gobekTasi.position.set(0, 0, 0);
+    hamamGroup.add(gobekTasi);
+
+    // 6. Dört Duvar Kenarında Pirinç Musluklu Mermer Kurnalar & Taslar
+    const kurnaOffsets = [
+      { x: -5.8, z: 0, rot: Math.PI / 2 },   // Batı Kurna
+      { x: 5.8, z: 0, rot: -Math.PI / 2 },  // Doğu Kurna
+      { x: 0, z: -5.0, rot: 0 },            // Kuzey Kurna
+      { x: -3.5, z: 5.0, rot: Math.PI }     // Güney Kurna (Kapı yanı)
+    ];
+
+    kurnaOffsets.forEach(k => {
+      const kurna = this.modelBuilder.createHamamKurna();
+      kurna.position.set(k.x, 0, k.z);
+      kurna.rotation.y = k.rot;
+      hamamGroup.add(kurna);
+    });
+
+    // 7. Loş ve Sıcak Kehribar Hamam Fener Işığı
+    const hamamLight = new THREE.PointLight(0xffaa44, 2.2, 22);
+    hamamLight.position.set(0, 4.2, 0);
+    hamamGroup.add(hamamLight);
+
+    hamamGroup.position.set(hamamX, 0, hamamZ);
+    this.scene.add(hamamGroup);
+
+    // Dış Duvar Çarpışma Kutuları (Kapı geçişi serbest)
+    this.addCollider(hamamX - 8, hamamZ, 1.5, 14); // Batı
+    this.addCollider(hamamX + 8, hamamZ, 1.5, 14); // Doğu
+    this.addCollider(hamamX, hamamZ - 7, 16, 1.5); // Kuzey
+    this.addCollider(hamamX - 5, hamamZ + 7, 6, 1.5); // Güney Sol
+    this.addCollider(hamamX + 5, hamamZ + 7, 6, 1.5); // Güney Sağ
+  }
+
+  // ---------------------------------------------------------------------------
+  // 9. SANCAK KALESİ, TAŞ YOL & OKÇULUK TALİM POLİGONU
   // ---------------------------------------------------------------------------
   buildCastleDistrict() {
     this.buildCastle();
     this.buildStoneRoadToCastle();
+    this.buildArcheryRange();
+  }
+
+  buildArcheryRange() {
+    const rangeX = 175;
+    const rangeZ = -10;
+
+    // 1. Ok Hedef Panosu (10 metre ilerde: x: 175, z: -22)
+    const target = this.modelBuilder.createArcheryTarget();
+    target.position.set(rangeX, 0, -22);
+    this.scene.add(target);
+
+    this.archeryTargets.push({
+      mesh: target,
+      position: new THREE.Vector3(rangeX, 1.6, -22),
+      radiusBullseye: 0.40,
+      radiusMid: 0.85,
+      radiusOuter: 1.40
+    });
+
+    // 2. Okçu Atış Çizgisi & Ahşap Barikat
+    const lineMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.7 });
+    const shootingLine = new THREE.Mesh(new THREE.BoxGeometry(4.0, 0.04, 0.3), lineMat);
+    shootingLine.position.set(rangeX, 0.05, rangeZ);
+    this.scene.add(shootingLine);
+
+    // Yay Sehbası
+    const stand = this.modelBuilder.createWeaponRack();
+    stand.position.set(rangeX + 2.5, 0, rangeZ);
+    stand.rotation.y = -Math.PI / 2;
+    this.scene.add(stand);
   }
 
   buildCastle() {
@@ -645,6 +773,15 @@ export class TownGenerator {
       sheep.rotation.y = Math.random() * Math.PI * 2;
       this.scene.add(sheep);
       this.addCollider(sx, sz, 1.2, 1.2);
+
+      this.damageables.push({
+        mesh: sheep,
+        name: `Koyun #${i + 1}`,
+        type: 'animal',
+        maxHealth: 35,
+        health: 35,
+        isDead: false
+      });
     }
 
     // 2. Köy Meydanı ve Han Çevresinde Dolaşan Tavuklar
@@ -655,7 +792,74 @@ export class TownGenerator {
       chicken.position.set(cx, TownGenerator.getTerrainHeight(cx, cz), cz);
       chicken.rotation.y = Math.random() * Math.PI * 2;
       this.scene.add(chicken);
+
+      this.damageables.push({
+        mesh: chicken,
+        name: `Köy Tavuğu #${i + 1}`,
+        type: 'animal',
+        maxHealth: 15,
+        health: 15,
+        isDead: false
+      });
     }
+  }
+
+  // 13. KIRILABİLİR FIÇILAR VE SAMAN BALYALARI
+  spawnBreakableObjects() {
+    const barrelPositions = [
+      { x: -18, z: 22 },  // Han Önü
+      { x: -20, z: 24 },
+      { x: -15, z: 26 },
+      { x: -24, z: -4 },  // Çarşı
+      { x: -22, z: 4 },
+      { x: -55, z: 8 },   // Demirci Yanı
+      { x: -53, z: 6 },
+      { x: 172, z: -8 },  // Kale Avlusu
+      { x: 176, z: -14 }
+    ];
+
+    barrelPositions.forEach((pos, idx) => {
+      const barrel = this.modelBuilder.createBarrel();
+      barrel.position.set(pos.x, TownGenerator.getTerrainHeight(pos.x, pos.z), pos.z);
+      this.scene.add(barrel);
+      this.addCollider(pos.x, pos.z, 0.9, 0.9);
+
+      this.damageables.push({
+        mesh: barrel,
+        name: `Ahşap Fıçı #${idx + 1}`,
+        type: 'object',
+        maxHealth: 30,
+        health: 30,
+        isDead: false
+      });
+    });
+
+    const balePositions = [
+      { x: 45, z: 25 },   // Tarlalar
+      { x: 48, z: 28 },
+      { x: 52, z: 22 },
+      { x: 60, z: 35 },
+      { x: 64, z: 38 },
+      { x: 12, z: -35 },  // Sipahi Tavlası Yanı
+      { x: 14, z: -38 }
+    ];
+
+    balePositions.forEach((pos, idx) => {
+      const bale = this.modelBuilder.createHayBale();
+      bale.position.set(pos.x, TownGenerator.getTerrainHeight(pos.x, pos.z), pos.z);
+      bale.rotation.y = (Math.random() - 0.5) * 0.4;
+      this.scene.add(bale);
+      this.addCollider(pos.x, pos.z, 1.2, 0.8);
+
+      this.damageables.push({
+        mesh: bale,
+        name: `Saman Balyası #${idx + 1}`,
+        type: 'object',
+        maxHealth: 25,
+        health: 25,
+        isDead: false
+      });
+    });
   }
 
   setupSedirBeds() {

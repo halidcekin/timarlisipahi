@@ -307,6 +307,52 @@ export class NPCManager {
     // 5. ORMAN HARAMİLERİ (KUZEYBATI KAMPI)
     // -------------------------------------------------------------------------
     this.spawnBandits();
+    // -------------------------------------------------------------------------
+    // 5. OSMANLI HAMAMI VE TELLAK EKİBİ (X: 32, Z: 26)
+    // -------------------------------------------------------------------------
+    // A) Tellak Hüseyin Ağa
+    const tellak = this.createHumanNPC({
+      id: 'tellak',
+      name: 'Tellak Hüseyin Ağa',
+      role: 'Hamam Tellağı & Masöz',
+      position: new THREE.Vector3(32, 0, 24.2),
+      isPestemal: true,
+      pestemalColor: 0xb53232, // Kırmızı kareli peştemal
+      dialogueId: 'tellak_talk'
+    });
+    this.attachVillagerAI(tellak, {
+      homePos: new THREE.Vector3(26, 0, 12),
+      workPos: new THREE.Vector3(32, 0, 24.2),
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(32, 0, 26),
+      workType: 'innkeeping'
+    });
+
+    // B) Göbek Taşında Yatan Müşteri (Uzanmış dinleniyor)
+    const hamamYatan = this.createHumanNPC({
+      id: 'hamam_reaya_1',
+      name: 'Terleyen Köylü Dursun',
+      role: 'Hamam Müşterisi',
+      position: new THREE.Vector3(32, 0.55, 26),
+      isPestemal: true,
+      pestemalColor: 0x3268b5,
+      dialogueId: 'hamam_musteri_talk'
+    });
+    // Göbek taşında yatma duruşu
+    hamamYatan.mesh.rotation.z = Math.PI / 2;
+    hamamYatan.mesh.position.y = 0.55;
+
+    // C) Kurna Başında Yıkanan Müşteri
+    const hamamYikanan = this.createHumanNPC({
+      id: 'hamam_reaya_2',
+      name: 'Kurnada Yıkanan Hamdi',
+      role: 'Hamam Müşterisi',
+      position: new THREE.Vector3(37.5, 0, 26),
+      isPestemal: true,
+      pestemalColor: 0x2e8a55,
+      dialogueId: 'hamam_musteri_talk'
+    });
+    hamamYikanan.mesh.rotation.y = -Math.PI / 2;
   }
 
   attachVillagerAI(npcData, scheduleConfig) {
@@ -319,11 +365,13 @@ export class NPCManager {
     let mesh;
     if (config.id === 'kethuda') {
       mesh = this.modelBuilder.createModernKethudaStanLee();
+    } else if (config.isPestemal) {
+      mesh = this.modelBuilder.createPestemalMan(config.skinTone || 0xd8ad88, config.pestemalColor || 0xb53232);
     } else {
       mesh = this.modelBuilder.createDetailedHumanNPC(config);
     }
     const h = TownGenerator.getTerrainHeight(config.position.x, config.position.z);
-    mesh.position.set(config.position.x, h, config.position.z);
+    mesh.position.set(config.position.x, config.position.y || h, config.position.z);
     this.scene.add(mesh);
 
     // Koca Yakub özel GLTF modeli varsa yükle
@@ -364,7 +412,10 @@ export class NPCManager {
       position: mesh.position,
       dialogueId: config.dialogueId,
       initialY: mesh.position.y,
-      animOffset: Math.random() * Math.PI * 2
+      animOffset: Math.random() * Math.PI * 2,
+      health: 80,
+      maxHealth: 80,
+      isDead: false
     };
 
     this.npcs.push(npcData);

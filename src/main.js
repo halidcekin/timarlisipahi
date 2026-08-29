@@ -6,6 +6,7 @@ import { TownGenerator } from './entities/TownGenerator.js';
 import { Player } from './entities/Player.js';
 import { NPCManager } from './entities/NPCManager.js';
 import { CombatSystem } from './systems/CombatSystem.js';
+import { ArcherySystem } from './systems/ArcherySystem.js';
 import { UIManager } from './ui/UIManager.js';
 import { DialogueSystem } from './systems/DialogueSystem.js';
 import { gameState } from './core/GameState.js';
@@ -43,11 +44,18 @@ export class Game {
     this.npcManager = new NPCManager(this.engine.scene);
     this.npcManager.initNPCs();
 
-    // 6. Dövüş Sistemi
-    this.combat = new CombatSystem(this.player, this.npcManager);
+    // 6. Dövüş ve Vuruş Sistemi (Evrensel Hasar ve Kırılabilir Objeler Dahil)
+    this.combat = new CombatSystem(this.player, this.npcManager, this.town);
 
-    // 7. Arayüz & Menüler
+    // 7. Ok Talimi & Okçuluk Sistemi
+    this.archery = new ArcherySystem(this.engine.scene, this.engine.camera, this.player, this.town);
+
+    // 8. Arayüz & Menüler
     this.ui = new UIManager();
+
+    // Hikaye Hatırlatma Zamanlayıcısı
+    this.storyReminderTimer = 0;
+    this.lowHealthWarned = false;
 
     // Hızlı Seyahat Köprüsü
     this.ui.setFastTravelHandler((x, z, locationName) => {
@@ -137,6 +145,21 @@ export class Game {
       this.player.setBlocking(isBlocking);
     };
 
+    // Q Tuşu: Pusat Kuşan / Kına Koy
+    this.input.onToggleWeapon = () => {
+      if (this.archery && this.archery.isBowMode) {
+        this.archery.toggleBowMode(); // Yay modundaysa önce yayı kaldır
+      }
+      this.player.toggleWeapon();
+    };
+
+    // R Tuşu: Okçuluk / Yay Çek & Nişan Al
+    this.input.onToggleBow = () => {
+      if (this.archery) {
+        this.archery.toggleBowMode();
+      }
+    };
+
     // F Tuşu: Ata Bin / İn
     this.input.onMountHorse = () => {
       this.player.toggleHorseMount();
@@ -148,6 +171,9 @@ export class Game {
     // V Tuşu: 1. Şahıs / 3. Şahıs Kamera
     this.input.onToggleCamera = () => {
       this.player.toggleCameraMode();
+      if (this.archery && this.archery.isBowMode) {
+        this.archery.bowRig.visible = (this.player.cameraMode === 'firstPerson');
+      }
       gameState.addNotification(
         this.player.cameraMode === 'firstPerson' ? '🎥 1. Şahıs Görüşü' : '🎥 3. Şahıs Görüşü',
         'info'
@@ -184,6 +210,33 @@ export class Game {
         }
       }
     };
+  }
+
+  updateStoryGuidance(delta) {
+    this.storyReminderTimer += delta;
+
+    // 1. Düşük Can Durumunda Hamam / Merhem Tavsiyesi
+    if (gameState.sipahi.health <= 35 && !this.lowHealthWarned) {
+      this.lowHealthWarned = true;
+      gameState.addNotification('💔 Ağır yaralısın! Hamama gidip kese köpük yaptır veya Attar Mehmet\'ten merhem al.', 'alert');
+    } else if (gameState.sipahi.health > 70) {
+      this.lowHealthWarned = false;
+    }
+
+    // 2. Her 100 Saniyede Bir Aktif Göreve Yönlendirme
+    if (this.storyReminderTimer >= 100) {
+      this.storyReminderTimer = 0;
+      const activeQuest = questSystem.getActiveQuest();
+      if (activeQuest && activeQuest.targetPos && this.player) {
+        const dist = this.player.position.distanceTo(activeQuest.targetPos);
+        if (dist > 35) {
+          gameState.addNotification(
+            `📜 Hatırlatma: "${activeQuest.shortTitle}" görevi bekliyor. ${activeQuest.targetName} ile görüşmelisin (${Math.round(dist)}m).`,
+            'info'
+          );
+        }
+      }
+    }
   }
 
   startLoop() {
@@ -230,21 +283,29 @@ export class Game {
           this.combat.update(delta);
         }
 
-        // 8. HUD, Pusula ve Saat Güncellemesi
+        // 8. Ok Talimi ve Okçuluk Sistemi
+        if (this.archery && this.input) {
+          this.archery.update(delta, this.input);
+        }
+
+        // 9. HUD, Pusula ve Saat Güncellemesi
         if (this.ui && this.player && this.engine && this.npcManager) {
           this.ui.update(this.player.position, this.engine.camera, this.player.yaw, this.npcManager.npcs, this.npcManager.enemies);
         }
 
-        // 9. Etkileşim İpucu Kontrolü
+        // 10. Hikaye Hatırlatma ve Yönlendirme Kontrolü
+        this.updateStoryGuidance(delta);
+
+        // 11. Etkileşim İpucu Kontrolü
         this.updateInteractionPrompts();
 
-        // 10. Arzuhal ve Dilekçe Sistemi Zamanlayıcısı
+        // 12. Arzuhal ve Dilekçe Sistemi Zamanlayıcısı
         petitionSystem.update(delta);
       } catch (err) {
         console.warn('Oyun mantığı döngü uyarısı:', err);
       }
 
-      // 11. Render
+      // 13. Render
       try {
         if (this.engine) {
           this.engine.render();
