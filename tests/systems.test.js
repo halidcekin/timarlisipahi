@@ -339,6 +339,41 @@ assert(campaignBattleSystem.isBattleActive === false, '5 safha sonunda Niğbolu 
 assert(gameState.activeCampaign.isResolved === true, 'Niğbolu Seferi fermanı başarıyla sonuçlandırıldı');
 assert(finalOutcome.lootAkce > 0, 'Zafer ganimeti ve padişah bahşişi kazanıldı');
 
+// -------------------------------------------------------------
+// TEST 16: Çok Katmanlı Dallanan Diyalog Ağaçları ve Soruşturma Testi
+// -------------------------------------------------------------
+// 1. Koca Yakub (Kethüda) Alt Diyalog Dalı
+const yakubData = DialogueSystem.getDialogueData('kethuda_talk');
+assert(yakubData !== null, 'Koca Yakub diyalog düğümü mevcut');
+const yakubDefterBranch = yakubData.choices[0].action(); // Defter kayıtları dalı
+assert(yakubDefterBranch !== null && yakubDefterBranch.choices.length >= 2, 'Koca Yakub defter ve öşür alt dallanması başarılı');
+
+const yakubAffetChoice = yakubDefterBranch.choices[0]; // Yetimleri affetme kararı
+const yakubSonuc = yakubAffetChoice.action();
+assert(yakubSonuc !== null && yakubSonuc.text.includes('Hızır yoldaşın olsun'), 'Yakub Ağa adaletli kararı onayladı');
+
+// 2. Molla Şemseddin (Kadı Naibi) Ferman ve Gazâ Fıkhı Dalı
+const imamData = DialogueSystem.getDialogueData('imam_talk');
+const imamFermanBranch = imamData.choices[1].action();
+assert(imamFermanBranch !== null && imamFermanBranch.text.includes('Niğbolu Hisarı'), 'Molla Şemseddin Haçlı kuşatması havadisini aktardı');
+
+// 3. Ahi Demirci Rüstem Usta - Gürz ve Zırh Delme Sırrı
+const demirciData = DialogueSystem.getDialogueData('demirci_talk');
+const demirciGürzBranch = demirciData.choices[0].action();
+assert(demirciGürzBranch.choices.length === 2, 'Demirci Rüstem Gürz vs Kılıç seçimi sundu');
+const gurzAlChoice = demirciGürzBranch.choices[0].action();
+assert(gameState.sipahi.equippedWeapon === 'mace', 'Sipahi ağır şövalyeler için Gürz kuşandı');
+
+// 4. Hancı İdris - Casusluk Soruşturması ve Belge Ele Geçirme
+const hanciData = DialogueSystem.getDialogueData('hanci_talk');
+const hanciCasusBranch = hanciData.choices[0].action();
+assert(hanciCasusBranch.text.includes('parşömene çizer') || hanciCasusBranch.text.includes('kroki'), 'Han casusunun parşömen haritası ele geçirildi');
+
+// 5. Koca Dede - 1389 Kosova Gazâ Vasiyeti
+const dedeData = DialogueSystem.getDialogueData('dede_talk');
+const dedeKosovaBranch = dedeData.choices[0].action();
+assert(dedeKosovaBranch.text.includes('Kosova') && dedeKosovaBranch.text.includes('Murad Han'), 'Koca Dede 1389 Kosova gazâ vasiyetini aktardı');
+
 console.log('\n🧪 ==========================================');
 console.log(`🧪 TEST SONUCU: ${passedTests}/${totalTests} TEST BAŞARIYLA TAMAMLANDI!`);
 console.log('🧪 ==========================================');
