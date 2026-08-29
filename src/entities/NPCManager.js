@@ -28,7 +28,7 @@ export class NPCManager {
     // -------------------------------------------------------------------------
     // 1. ÖNEMLİ KÖY LİDERLERİ & PROTOKOL
     // -------------------------------------------------------------------------
-    // A) Köy Kethüdası Koca Yakub (Köy Meydanında)
+    // A) Köy Kethüdası Koca Yakub (Köy Meydanında - Stan Lee 3D Modeli)
     const kethuda = this.createHumanNPC({
       id: 'kethuda',
       name: 'Koca Yakub (Kethüda)',
@@ -38,6 +38,10 @@ export class NPCManager {
       turbanColor: 0xf5f0ea,
       hairColor: 0x1a1510,
       headwear: 'turban',
+      objPath: 'stanlee3d.obj',
+      mtlPath: 'stanlee3d.mtl',
+      normalMapPath: 'stanlee3d_normal.jpg',
+      rmMapPath: 'stanlee3d_rm.jpg',
       dialogueId: 'kethuda_talk'
     });
     this.attachVillagerAI(kethuda, {
@@ -178,6 +182,8 @@ export class NPCManager {
       headwear: 'cap',
       objPath: 'saka.obj',
       mtlPath: 'saka.mtl',
+      normalMapPath: 'saka_normal.jpg',
+      rmMapPath: 'saka_rm.jpg',
       dialogueId: 'saka_talk'
     });
     this.attachVillagerAI(saka, {
@@ -378,11 +384,11 @@ export class NPCManager {
     mesh.position.set(config.position.x, config.position.y || h, config.position.z);
     this.scene.add(mesh);
 
-    // 1. ÖZEL 3D OBJ MODELİ YÜKLEYİCİSİ (Saka İbrahim & Gelen 3D Karakterler)
-    if ((config.objPath || config.id === 'saka_ibrahim') && typeof window !== 'undefined' && window.location) {
+    // 1. ÖZEL 3D OBJ MODELİ YÜKLEYİCİSİ (Koca Yakub, Saka ve Diğer 3D Karakterler)
+    if (config.objPath && typeof window !== 'undefined' && window.location) {
       try {
-        const mtlName = config.mtlPath || 'saka.mtl';
-        const objName = config.objPath || 'saka.obj';
+        const mtlName = config.mtlPath || config.objPath.replace('.obj', '.mtl');
+        const objName = config.objPath;
 
         this.mtlLoader.setPath('./models/');
         this.mtlLoader.load(
@@ -396,8 +402,8 @@ export class NPCManager {
               objName,
               (object) => {
                 const textureLoader = new THREE.TextureLoader();
-                const normalMap = textureLoader.load('./models/saka_normal.jpg');
-                const rmMap = textureLoader.load('./models/saka_rm.jpg');
+                const normalMap = config.normalMapPath ? textureLoader.load(`./models/${config.normalMapPath}`) : null;
+                const rmMap = config.rmMapPath ? textureLoader.load(`./models/${config.rmMapPath}`) : null;
 
                 object.traverse((child) => {
                   if (child.isMesh) {
