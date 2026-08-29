@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { ModelBuilder } from './ModelBuilder.js';
 import { TownGenerator } from './TownGenerator.js';
 
@@ -9,6 +10,7 @@ export class NPCManager {
   constructor(scene) {
     this.scene = scene;
     this.modelBuilder = new ModelBuilder();
+    this.gltfLoader = new GLTFLoader();
     this.npcs = [];
     this.enemies = [];
   }
@@ -125,6 +127,49 @@ export class NPCManager {
     const mesh = this.modelBuilder.createDetailedHumanNPC(config);
     mesh.position.copy(config.position);
     this.scene.add(mesh);
+
+    // Eğer Koca Yakub ise veya özel bir GLTF model yolu tanımlandıysa yükle
+    if (config.gltfPath || config.id === 'kethuda') {
+      const modelPath = config.gltfPath || './models/kethuda.glb';
+      this.gltfLoader.load(
+        modelPath,
+        (gltf) => {
+          const model = gltf.scene;
+
+          // Gölgeler ve çift taraflı doku
+          model.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+              if (child.material) {
+                child.material.side = THREE.DoubleSide;
+              }
+            }
+          });
+
+          // Otomatik boy ayarlama (1.85m insan boyu)
+          const box = new THREE.Box3().setFromObject(model);
+          const size = box.getSize(new THREE.Vector3());
+          if (size.y > 0) {
+            const targetHeight = 1.85;
+            const scaleFactor = targetHeight / size.y;
+            model.scale.set(scaleFactor, scaleFactor, scaleFactor);
+          }
+
+          // Mevcut prosedürel parçaları temizleyip GLTF modeli içine yerleştir
+          while (mesh.children.length > 0) {
+            mesh.remove(mesh.children[0]);
+          }
+          mesh.add(model);
+          console.log(`✅ [3D Model] ${config.name} için Meshy GLTF modeli başarıyla yüklendi: ${modelPath}`);
+        },
+        undefined,
+        (err) => {
+          // Dosya henüz public/models klasörüne konmadıysa sessizce prosedürel model kalır
+          console.info(`ℹ️ ${config.name} için özel .glb dosyası bekleniyor (${modelPath}).`);
+        }
+      );
+    }
 
     const npcData = {
       id: config.id,
