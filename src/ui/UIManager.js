@@ -1189,6 +1189,8 @@ export class UIManager {
 
   checkFailState() {
     if (!gameState.failState || !gameState.failState.isGameOver) return;
+    if (this.failOverlayActive) return;
+    this.failOverlayActive = true;
 
     let overlay = document.getElementById('fail-state-overlay');
     if (!overlay) {
@@ -1229,9 +1231,12 @@ export class UIManager {
       </button>
     `;
 
-    document.getElementById('btn-restart-game')?.addEventListener('click', () => {
-      window.location.reload();
-    });
+    const restartBtn = document.getElementById('btn-restart-game');
+    if (restartBtn) {
+      restartBtn.addEventListener('click', () => {
+        window.location.reload();
+      });
+    }
   }
 
   renderNotifications() {
