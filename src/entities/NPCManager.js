@@ -30,7 +30,7 @@ export class NPCManager {
     // -------------------------------------------------------------------------
     // 1. ÖNEMLİ KÖY LİDERLERİ & PROTOKOL
     // -------------------------------------------------------------------------
-    // A) Köy Kethüdası Koca Yakub (Köy Meydanında - Flying.fbx Animasyonlu 3D Modeli)
+    // A) Köy Kethüdası Koca Yakub (Köy Meydanında - Stan Lee 3D Modeli)
     const kethuda = this.createHumanNPC({
       id: 'kethuda',
       name: 'Koca Yakub (Kethüda)',
@@ -40,8 +40,8 @@ export class NPCManager {
       turbanColor: 0xf5f0ea,
       hairColor: 0x1a1510,
       headwear: 'turban',
-      fbxPath: 'Flying.fbx',
-      baseColorPath: 'stanlee3d_basecolor.jpg',
+      objPath: 'stanlee3d.obj',
+      mtlPath: 'stanlee3d.mtl',
       normalMapPath: 'stanlee3d_normal.jpg',
       rmMapPath: 'stanlee3d_rm.jpg',
       dialogueId: 'kethuda_talk'
@@ -74,7 +74,7 @@ export class NPCManager {
       workType: 'innkeeping'
     });
 
-    // C) Demirci Rüstem Usta & Çırak Salih (Atölyede Örs ve Ocak Başında)
+    // C) Demirci Rüstem Usta & Çırak Salih (Atölyede Örs ve Ocak Başında - Göbekli Osmanlı Modeli)
     const demirci = this.createHumanNPC({
       id: 'demirci',
       name: 'Demirci Rüstem Usta',
@@ -83,6 +83,10 @@ export class NPCManager {
       kaftanColor: 0x2b2219,
       hairColor: 0x141210,
       headwear: 'cap',
+      objPath: 'demirci.obj',
+      mtlPath: 'demirci.mtl',
+      normalMapPath: 'demirci_normal.jpg',
+      rmMapPath: 'demirci_rm.jpg',
       dialogueId: 'demirci_talk'
     });
     this.attachVillagerAI(demirci, {
