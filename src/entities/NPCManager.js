@@ -255,7 +255,7 @@ export class NPCManager {
   update(delta, playerPos) {
     const time = performance.now() * 0.002;
 
-    // NPC Canlı Nefes Alma ve Oyuncuya Yönelme
+    // NPC Canlı Nefes Alma, Göğüs Salınımı ve Oyuncuya Yönelme
     this.npcs.forEach(npc => {
       // Eğer bu NPC Kethüda ise ve bekleyen cevapsız arzuhal varsa oyuncuya koşsun
       if (npc.id === 'kethuda' && gameState.hasPendingMessenger) {
@@ -271,10 +271,18 @@ export class NPCManager {
       }
 
       const terrainH = TownGenerator.getTerrainHeight(npc.position.x, npc.position.z);
-      npc.mesh.position.y = terrainH + Math.sin(time + npc.animOffset) * 0.02;
+      // Doğal Göğüs Nefes Alma & Ayak Ağırlık Dağılımı Salınımı (GTA Stili Canlı Duruş)
+      const breath = Math.sin(time * 2.4 + npc.animOffset);
+      const sway = Math.cos(time * 1.2 + npc.animOffset);
+
+      npc.mesh.position.y = terrainH + breath * 0.012;
+      npc.mesh.rotation.z = sway * 0.012;
+
+      // Göğüs Hacim Genişlemesi (Respiration)
+      npc.mesh.scale.set(1.0 + breath * 0.012, 1.0 + breath * 0.008, 1.0 + breath * 0.012);
 
       const dist = npc.position.distanceTo(playerPos);
-      if (dist < 10) {
+      if (dist < 12) {
         const targetRot = Math.atan2(playerPos.x - npc.position.x, playerPos.z - npc.position.z);
         npc.mesh.rotation.y = THREE.MathUtils.lerp(npc.mesh.rotation.y, targetRot, 0.06);
       }

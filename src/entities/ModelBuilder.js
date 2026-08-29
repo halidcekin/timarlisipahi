@@ -203,313 +203,655 @@ export class ModelBuilder {
     return weaponRig;
   }
 
-  // 2B. GÖRSELDEKİ BEYAZ SAÇLI, GÖZLÜKLÜ, SİYAH CEKETLİ KOCA YAKUB (STAN LEE) MODELİ
+  // =========================================================================
+  // GTA-SEVİYESİ ANATOMİK İNSAN MODELLEME YARDIMCILARI (ORGANİK 3D MESH SİSTEMİ)
+  // =========================================================================
+
+  // 1. Beş Parmaklı Gerçekçi Anatomik El Modeli
+  createAnatomicalHand(skinMat, isLeft = false) {
+    const handGroup = new THREE.Group();
+    const side = isLeft ? -1 : 1;
+
+    // Avuç İçi (Palm) - Doğal kaslı kavisli avuç içi
+    const palm = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.082, 0.026), skinMat);
+    palm.position.set(0, -0.04, 0);
+    palm.castShadow = true;
+    handGroup.add(palm);
+
+    // Başparmak Kökü Kası (Thenar Eminence)
+    const thenar = new THREE.Mesh(new THREE.SphereGeometry(0.022, 10, 8), skinMat);
+    thenar.position.set(side * 0.028, -0.03, 0.008);
+    handGroup.add(thenar);
+
+    // Başparmak (Thumb) - 2 Boğum & Doğal Açılı
+    const thumbGroup = new THREE.Group();
+    thumbGroup.position.set(side * 0.032, -0.028, 0.012);
+    thumbGroup.rotation.set(0.35, side * 0.55, -side * 0.45);
+
+    const thumbProx = new THREE.Mesh(new THREE.CylinderGeometry(0.010, 0.011, 0.032, 8), skinMat);
+    thumbProx.position.y = -0.016;
+    thumbGroup.add(thumbProx);
+
+    const thumbDist = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.010, 0.026, 8), skinMat);
+    thumbDist.position.set(0, -0.038, 0.006);
+    thumbDist.rotation.x = -0.25;
+    thumbGroup.add(thumbDist);
+
+    handGroup.add(thumbGroup);
+
+    // 4 Parmak (İşaret, Orta, Yüzük, Serçe) - 3'er Boğumlu & Doğal Rahat Dinlenme Kıvrımı
+    const fingerDefs = [
+      { name: 'index', x: side * 0.022, len: 0.030, w: 0.009, curl: 0.28 },
+      { name: 'middle', x: side * 0.007, len: 0.035, w: 0.0095, curl: 0.32 },
+      { name: 'ring', x: -side * 0.008, len: 0.031, w: 0.009, curl: 0.38 },
+      { name: 'pinky', x: -side * 0.023, len: 0.024, w: 0.008, curl: 0.44 }
+    ];
+
+    fingerDefs.forEach(f => {
+      const fGroup = new THREE.Group();
+      fGroup.position.set(f.x, -0.08, 0.002);
+      fGroup.rotation.x = f.curl; // Doğal içe kıvrım
+
+      // Proksimal Boğum (Ana boğum)
+      const p1 = new THREE.Mesh(new THREE.CylinderGeometry(f.w, f.w * 0.95, f.len * 0.45, 8), skinMat);
+      p1.position.y = -f.len * 0.22;
+      fGroup.add(p1);
+
+      // Orta Boğum
+      const p2 = new THREE.Mesh(new THREE.CylinderGeometry(f.w * 0.95, f.w * 0.88, f.len * 0.35, 8), skinMat);
+      p2.position.set(0, -f.len * 0.55, 0.004);
+      p2.rotation.x = f.curl * 0.6;
+      fGroup.add(p2);
+
+      // Uç Boğum & Tırnak
+      const p3 = new THREE.Mesh(new THREE.CylinderGeometry(f.w * 0.88, f.w * 0.70, f.len * 0.25, 8), skinMat);
+      p3.position.set(0, -f.len * 0.80, 0.010);
+      p3.rotation.x = f.curl * 0.8;
+      fGroup.add(p3);
+
+      handGroup.add(fGroup);
+    });
+
+    return handGroup;
+  }
+
+  // 2. Heykelsi Anatomik Yüz & Kafa Sistemi (Çene, Burun, Dudak, Göz Çukuru, Göz Küreleri, Kulaklar)
+  createSculptedHead(config, skinMat, hairMat) {
+    const headGroup = new THREE.Group();
+
+    // 1. Kafatası ve Şakaklar (Organik Kafa Kubbesi)
+    const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.125, 24, 20), skinMat);
+    cranium.position.set(0, 0.05, -0.015);
+    cranium.scale.set(1.0, 1.15, 1.12);
+    cranium.castShadow = true;
+    headGroup.add(cranium);
+
+    // 2. Yanaklar & Elmacık Kemikleri (Zygomatic Arch)
+    for (let dir of [-1, 1]) {
+      const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.045, 12, 10), skinMat);
+      cheek.position.set(dir * 0.062, 0.02, 0.065);
+      cheek.scale.set(1.0, 1.2, 1.1);
+      headGroup.add(cheek);
+    }
+
+    // 3. Heykelsi Çene & Çene Kemiği (Defined Mandible & Chin)
+    const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.095, 0.085, 0.095), skinMat);
+    jaw.position.set(0, -0.065, 0.04);
+    jaw.rotation.x = 0.22;
+    headGroup.add(jaw);
+
+    const chin = new THREE.Mesh(new THREE.SphereGeometry(0.038, 12, 10), skinMat);
+    chin.position.set(0, -0.10, 0.082);
+    headGroup.add(chin);
+
+    // 4. Anatomik Burun (Burun Kemeri, Ucu ve Burun Delikleri)
+    const noseBridge = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.018, 0.065, 8), skinMat);
+    noseBridge.position.set(0, 0.025, 0.125);
+    noseBridge.rotation.x = 0.28;
+    headGroup.add(noseBridge);
+
+    const noseTip = new THREE.Mesh(new THREE.SphereGeometry(0.016, 10, 8), skinMat);
+    noseTip.position.set(0, -0.005, 0.142);
+    headGroup.add(noseTip);
+
+    for (let dir of [-1, 1]) {
+      const nostril = new THREE.Mesh(new THREE.SphereGeometry(0.009, 8, 6), skinMat);
+      nostril.position.set(dir * 0.015, -0.010, 0.134);
+      headGroup.add(nostril);
+    }
+
+    // 5. Şekilli Dudaklar ve Ağız (Philtrum, Üst ve Alt Dudak)
+    const upperLip = new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.012, 0.015), new THREE.MeshStandardMaterial({
+      color: 0xc48c78,
+      roughness: 0.55
+    }));
+    upperLip.position.set(0, -0.040, 0.118);
+    headGroup.add(upperLip);
+
+    const lowerLip = new THREE.Mesh(new THREE.BoxGeometry(0.044, 0.015, 0.018), new THREE.MeshStandardMaterial({
+      color: 0xc98674,
+      roughness: 0.50
+    }));
+    lowerLip.position.set(0, -0.056, 0.115);
+    headGroup.add(lowerLip);
+
+    // 6. Göz Çukurları, Göz Kapakları & Parlak Kornealı 3D Gözler
+    for (let dir of [-1, 1]) {
+      const eyeAssembly = new THREE.Group();
+      eyeAssembly.position.set(dir * 0.048, 0.038, 0.098);
+
+      // Göz Akı (Sclera)
+      const eyeball = new THREE.Mesh(new THREE.SphereGeometry(0.017, 14, 12), new THREE.MeshStandardMaterial({
+        color: 0xf5f7fa,
+        roughness: 0.20
+      }));
+      eyeAssembly.add(eyeball);
+
+      // İris (Koyu Kahve/Ela)
+      const iris = new THREE.Mesh(new THREE.CircleGeometry(0.009, 14), new THREE.MeshBasicMaterial({
+        color: 0x2e1a0e
+      }));
+      iris.position.set(0, 0, 0.0165);
+      eyeAssembly.add(iris);
+
+      // Gözbebeği (Pupil)
+      const pupil = new THREE.Mesh(new THREE.CircleGeometry(0.0045, 12), new THREE.MeshBasicMaterial({
+        color: 0x050505
+      }));
+      pupil.position.set(0, 0, 0.017);
+      eyeAssembly.add(pupil);
+
+      // Üst Göz Kapağı & Kaş Kemiği
+      const brow = new THREE.Mesh(new THREE.BoxGeometry(0.048, 0.012, 0.022), skinMat);
+      brow.position.set(0, 0.022, 0.008);
+      brow.rotation.z = -dir * 0.12;
+      eyeAssembly.add(brow);
+
+      headGroup.add(eyeAssembly);
+    }
+
+    // 7. Kulaklar (Helix, Lobe & Concha)
+    for (let dir of [-1, 1]) {
+      const ear = new THREE.Group();
+      ear.position.set(dir * 0.122, 0.015, -0.005);
+      ear.rotation.set(0.1, dir * 0.25, -dir * 0.15);
+
+      const earBody = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.055, 0.032), skinMat);
+      ear.add(earBody);
+
+      const earLobe = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 8), skinMat);
+      earLobe.position.set(0, -0.028, 0);
+      ear.add(earLobe);
+
+      headGroup.add(ear);
+    }
+
+    return headGroup;
+  }
+
+  // =========================================================================
+  // 2B. ULTRA-DETAYLI GTA SEVİYESİNDE MODERN KOCA YAKUB (STAN LEE) MODELİ
+  // =========================================================================
   createModernKethudaStanLee() {
     const charGroup = new THREE.Group();
 
-    // Özel Malzemeler
-    const jacketMat = new THREE.MeshStandardMaterial({ color: 0x181a1d, roughness: 0.70, metalness: 0.10 });
-    const shirtMat = new THREE.MeshStandardMaterial({ color: 0xf0f3f6, roughness: 0.85 });
-    const pantsMat = new THREE.MeshStandardMaterial({ color: 0xd5c4a1, roughness: 0.80 });
-    const beltMat = new THREE.MeshStandardMaterial({ color: 0x3d2110, roughness: 0.60 });
-    const buckleMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.85, roughness: 0.20 });
-    const shoesMat = new THREE.MeshStandardMaterial({ color: 0x4a2a16, roughness: 0.45, metalness: 0.15 });
-    const skinMat = new THREE.MeshStandardMaterial({ color: 0xdeb887, roughness: 0.65 });
-    const whiteHairMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.90 });
-    const glassesMat = new THREE.MeshStandardMaterial({ color: 0x221812, roughness: 0.30, metalness: 0.20 });
+    // Üst Düzey PBR Kumaş, Deri, Ten ve Cam Materyalleri
+    const jacketMat = new THREE.MeshStandardMaterial({
+      color: 0x15171a, // Gece Siyahı İtalyan Yün Blazer
+      roughness: 0.65,
+      metalness: 0.05
+    });
+    const shirtMat = new THREE.MeshStandardMaterial({
+      color: 0xf4f6f8, // Safir Beyazı Poplin Gömlek
+      roughness: 0.70
+    });
+    const pantsMat = new THREE.MeshStandardMaterial({
+      color: 0xc8b894, // Özel Dikim Bej/Haki Chino Pantolon
+      roughness: 0.75
+    });
+    const beltMat = new THREE.MeshStandardMaterial({
+      color: 0x2b180d, // Kahverengi Hakiki Deri Kemer
+      roughness: 0.40,
+      metalness: 0.10
+    });
+    const buckleMat = new THREE.MeshStandardMaterial({
+      color: 0xd4af37, // Parlak Pirinç / Altın Kemer Tokası
+      metalness: 0.90,
+      roughness: 0.15
+    });
+    const shoesMat = new THREE.MeshStandardMaterial({
+      color: 0x361d10, // Cilalı Kahverengi Oxford Kundura
+      roughness: 0.35,
+      metalness: 0.20
+    });
+    const skinMat = new THREE.MeshStandardMaterial({
+      color: 0xdfb48b, // Doğal İnsan Ten Rengi
+      roughness: 0.55,
+      metalness: 0.02
+    });
+    const hairMat = new THREE.MeshStandardMaterial({
+      color: 0xf2f2f2, // Hacimli Beyaz Saç
+      roughness: 0.65,
+      metalness: 0.08
+    });
+    const glassesMat = new THREE.MeshStandardMaterial({
+      color: 0x1a120b, // Kaplumbağa Kabuğu / Metalik Retro Çerçeve
+      roughness: 0.25,
+      metalness: 0.30
+    });
     const lensMat = new THREE.MeshStandardMaterial({
-      color: 0xcde8fa,
+      color: 0x9ec7e6,
       transparent: true,
-      opacity: 0.40,
-      roughness: 0.10,
-      metalness: 0.80
+      opacity: 0.45,
+      roughness: 0.05,
+      metalness: 0.90
     });
 
-    // 1. AYAKLAR & KAHVERENGİ DERİ AYAKKABILAR
+    // -------------------------------------------------------------
+    // 1. CİLALI DERİ OXFORD AYAKKABILAR (TABAN, TOPUK, BURUN & BAĞCIKLAR)
+    // -------------------------------------------------------------
     for (let dir of [-1, 1]) {
       const shoe = new THREE.Group();
-      shoe.position.set(dir * 0.14, 0.06, 0.02);
+      shoe.position.set(dir * 0.135, 0, 0.02);
 
-      // Ayakkabı Tabanı ve Gövdesi
-      const sole = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.08, 0.28), shoesMat);
+      // Kauçuk Alt Taban
+      const sole = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.035, 0.30), new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 }));
+      sole.position.set(0, 0.018, 0);
       sole.castShadow = true;
       shoe.add(sole);
 
-      // Ayakkabı Burnu (Kavisli deri burun)
-      const toe = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 8), shoesMat);
-      toe.position.set(0, -0.01, 0.12);
-      shoe.add(toe);
+      // Yükseltilmiş Ayakkabı Topuğu
+      const heel = new THREE.Mesh(new THREE.BoxGeometry(0.125, 0.045, 0.09), new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 }));
+      heel.position.set(0, 0.04, -0.095);
+      shoe.add(heel);
+
+      // Deri Gövde ve Burun Bombesi
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.075, 0.22), shoesMat);
+      body.position.set(0, 0.065, 0.01);
+      body.castShadow = true;
+      shoe.add(body);
+
+      const toeCap = new THREE.Mesh(new THREE.SphereGeometry(0.062, 14, 10), shoesMat);
+      toeCap.position.set(0, 0.052, 0.115);
+      toeCap.scale.set(0.95, 0.70, 1.1);
+      shoe.add(toeCap);
 
       charGroup.add(shoe);
     }
 
-    // 2. BACAKLAR & BEJ/HAKİ KUMAŞ PANTOLON
+    // -------------------------------------------------------------
+    // 2. TERZİ İŞİ DİKİM CHINO PANTOLON & BACAK ANATOMİSİ
+    // -------------------------------------------------------------
     for (let dir of [-1, 1]) {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.105, 0.095, 0.82, 14), pantsMat);
-      leg.position.set(dir * 0.14, 0.50, 0);
-      leg.castShadow = true;
-      charGroup.add(leg);
+      const legGroup = new THREE.Group();
+      legGroup.position.set(dir * 0.135, 0, 0);
+
+      // Alt Bacak & Baldır Kavisi (Calf Contour)
+      const lowerLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.072, 0.44, 16), pantsMat);
+      lowerLeg.position.set(0, 0.30, 0);
+      lowerLeg.castShadow = true;
+      legGroup.add(lowerLeg);
+
+      // Diz Eklemi & Kumaş Kırışığı
+      const knee = new THREE.Mesh(new THREE.SphereGeometry(0.084, 12, 10), pantsMat);
+      knee.position.set(0, 0.52, 0.012);
+      legGroup.add(knee);
+
+      // Üst Bacak (Uyluk Anatomisi - Thigh)
+      const upperLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.108, 0.088, 0.44, 16), pantsMat);
+      upperLeg.position.set(0, 0.74, 0);
+      upperLeg.castShadow = true;
+      legGroup.add(upperLeg);
+
+      charGroup.add(legGroup);
     }
 
-    // Pantolon Üst Kısmı (Basen)
-    const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.22, 0.28), pantsMat);
-    pelvis.position.set(0, 0.92, 0);
+    // Pantolon Basen ve Bel Bölümü
+    const pelvis = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.20, 0.26), pantsMat);
+    pelvis.position.set(0, 0.96, 0);
     pelvis.castShadow = true;
     charGroup.add(pelvis);
 
-    // 3. DERİ KEMER & ALTIN TOKA
-    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.39, 0.055, 0.29), beltMat);
-    belt.position.set(0, 1.02, 0);
+    // Deri Kemer ve Pirinç Toka
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.39, 0.048, 0.27), beltMat);
+    belt.position.set(0, 1.05, 0);
     charGroup.add(belt);
 
-    const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.065, 0.03), buckleMat);
-    buckle.position.set(0, 1.02, 0.15);
+    const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.055, 0.025), buckleMat);
+    buckle.position.set(0, 1.05, 0.14);
     charGroup.add(buckle);
 
-    // 4. GÖVDE: BEYAZ DÜĞMELİ GÖMLEK & SİYAH BLAZER CEKET
-    // İç Gömlek (Açık Beyaz/Krem)
-    const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.62, 0.24), shirtMat);
-    shirt.position.set(0, 1.34, 0);
+    // -------------------------------------------------------------
+    // 3. TERZİ İŞİ DİKİM SİYAH BLAZER CEKET & BEYAZ GÖMLEK
+    // -------------------------------------------------------------
+    const torsoGroup = new THREE.Group();
+    torsoGroup.position.set(0, 1.08, 0);
+
+    // Beyaz Poplin Gömlek (İç Gövde)
+    const shirt = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.58, 0.22), shirtMat);
+    shirt.position.set(0, 0.28, 0);
     shirt.castShadow = true;
-    charGroup.add(shirt);
+    torsoGroup.add(shirt);
 
-    // Gömlek Yakası (Açık V-Yaka)
-    const collarL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.10, 0.08), shirtMat);
-    collarL.position.set(-0.06, 1.63, 0.11);
-    collarL.rotation.set(0.3, 0, -0.4);
-    const collarR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.10, 0.08), shirtMat);
-    collarR.position.set(0.06, 1.63, 0.11);
-    collarR.rotation.set(0.3, 0, 0.4);
-    charGroup.add(collarL, collarR);
-
-    // Siyah Blazer Ceket (Sol ve Sağ açık kanatlar + Sırt)
-    const jacketBack = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.64, 0.08), jacketMat);
-    jacketBack.position.set(0, 1.32, -0.11);
-    jacketBack.castShadow = true;
-    charGroup.add(jacketBack);
-
-    const jacketLeft = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.64, 0.28), jacketMat);
-    jacketLeft.position.set(-0.19, 1.32, 0.01);
-    jacketLeft.castShadow = true;
-    charGroup.add(jacketLeft);
-
-    const jacketRight = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.64, 0.28), jacketMat);
-    jacketRight.position.set(0.19, 1.32, 0.01);
-    jacketRight.castShadow = true;
-    charGroup.add(jacketRight);
-
-    // Ceket Yakaları (Geniş Kruvaze/Blazer Yaka)
+    // Gömlek Yakası (Açık V-Yaka Detayı)
     for (let dir of [-1, 1]) {
-      const lapel = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.30, 0.03), jacketMat);
-      lapel.position.set(dir * 0.13, 1.48, 0.14);
-      lapel.rotation.set(0.2, 0, -dir * 0.25);
-      charGroup.add(lapel);
+      const collar = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, 0.08), shirtMat);
+      collar.position.set(dir * 0.06, 0.56, 0.10);
+      collar.rotation.set(0.32, 0, -dir * 0.42);
+      torsoGroup.add(collar);
     }
 
-    // 5. KOLLAR & BEYAZ GÖMLEK MANŞETLERİ & DOĞAL DURUŞ (A-POSE)
+    // Siyah Blazer Ceket (Geniş Omuzlu, Oturan Kesim)
+    const jacketBack = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.62, 0.09), jacketMat);
+    jacketBack.position.set(0, 0.27, -0.09);
+    jacketBack.castShadow = true;
+    torsoGroup.add(jacketBack);
+
     for (let dir of [-1, 1]) {
-      const armGroup = new THREE.Group();
-      armGroup.position.set(dir * 0.24, 1.56, 0);
+      // Ceket Ön Kanatları
+      const jacketFront = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.62, 0.26), jacketMat);
+      jacketFront.position.set(dir * 0.18, 0.27, 0.01);
+      jacketFront.castShadow = true;
+      torsoGroup.add(jacketFront);
 
-      // Omuz Başı (Ceket Omuzluğu)
-      const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 10), jacketMat);
+      // Ceket Yakaları (Notched Lapel)
+      const lapel = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.32, 0.035), jacketMat);
+      lapel.position.set(dir * 0.125, 0.42, 0.135);
+      lapel.rotation.set(0.24, 0, -dir * 0.30);
+      torsoGroup.add(lapel);
+
+      // Ceket Alt Cepleri (Flap Pockets)
+      const pocket = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.025, 0.025), jacketMat);
+      pocket.position.set(dir * 0.16, 0.12, 0.13);
+      torsoGroup.add(pocket);
+    }
+
+    // Sol Göğüs Cebi & Beyaz İpek Mendil (Pocket Square)
+    const chestPocket = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.018, 0.02), jacketMat);
+    chestPocket.position.set(-0.13, 0.40, 0.135);
+    chestPocket.rotation.z = 0.1;
+    torsoGroup.add(chestPocket);
+
+    const pocketSquare = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.022, 0.01), shirtMat);
+    pocketSquare.position.set(-0.13, 0.415, 0.138);
+    pocketSquare.rotation.z = 0.1;
+    torsoGroup.add(pocketSquare);
+
+    charGroup.add(torsoGroup);
+
+    // -------------------------------------------------------------
+    // 4. ANATOMİK KOLLAR, GÖMLEK MANŞETLERİ & 5 PARMAKLI ELLER
+    // -------------------------------------------------------------
+    for (let dir of [-1, 1]) {
+      const armAssembly = new THREE.Group();
+      armAssembly.position.set(dir * 0.25, 1.58, 0);
+
+      // Omuz Başı (Shoulder Pad & Deltoid)
+      const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.095, 14, 12), jacketMat);
       shoulder.castShadow = true;
-      armGroup.add(shoulder);
+      armAssembly.add(shoulder);
 
-      // Üst Kol (Ceket Kolu) - Aşağı doğru doğal 15° eğim
-      const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.068, 0.34, 12), jacketMat);
+      // Üst Kol (Bicep / Tricep) - Doğal A-Pozu (14° Aşağı Eğim)
+      const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.072, 0.34, 14), jacketMat);
       upperArm.position.set(dir * 0.04, -0.16, 0.02);
-      upperArm.rotation.set(0.12, 0, -dir * 0.18);
+      upperArm.rotation.set(0.10, 0, -dir * 0.16);
       upperArm.castShadow = true;
-      armGroup.add(upperArm);
+      armAssembly.add(upperArm);
 
-      // Dirsek & Ön Kol
+      // Ön Kol (Forearm) & Dirsek Bükümü
       const forearmGroup = new THREE.Group();
       forearmGroup.position.set(dir * 0.08, -0.32, 0.04);
-      forearmGroup.rotation.set(0.22, 0, -dir * 0.08); // Hafif öne ve içe kıvrım
+      forearmGroup.rotation.set(0.20, 0, -dir * 0.08);
 
-      const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.062, 0.28, 12), jacketMat);
+      const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.062, 0.28, 14), jacketMat);
       forearm.position.y = -0.12;
       forearm.castShadow = true;
       forearmGroup.add(forearm);
 
-      // Beyaz Gömlek Manşeti
-      const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.064, 0.04, 12), shirtMat);
+      // Beyaz Gömlek Manşeti (Cuff)
+      const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.064, 0.04, 14), shirtMat);
       cuff.position.y = -0.26;
       forearmGroup.add(cuff);
 
-      // Eller (Ten rengi, doğal hafif kapalı duruş)
-      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 10), skinMat);
-      hand.position.set(0, -0.31, 0.01);
+      // 5 PARMAKLI GERÇEKÇİ ANATOMİK EL
+      const hand = this.createAnatomicalHand(skinMat, dir < 0);
+      hand.position.set(0, -0.28, 0);
+      hand.rotation.set(0.15, -dir * 0.30, 0);
       forearmGroup.add(hand);
 
-      armGroup.add(forearmGroup);
-      charGroup.add(armGroup);
+      armAssembly.add(forearmGroup);
+      charGroup.add(armAssembly);
     }
 
-    // 6. KAFA, YÜZ, BEYAZ SAÇLAR & RETRO GÖZLÜK
-    const headGroup = new THREE.Group();
-    headGroup.position.set(0, 1.76, 0);
+    // -------------------------------------------------------------
+    // 5. KAFA, HEYKELSİ YÜZ, BEYAZ SAÇLAR & RETRO AVIATOR GÖZLÜK
+    // -------------------------------------------------------------
+    const headMaster = new THREE.Group();
+    headMaster.position.set(0, 1.76, 0);
 
-    // Boyun
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.12, 10), skinMat);
+    // Boyun & Trapezius Kasları
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.092, 0.14, 14), skinMat);
     neck.position.y = -0.06;
-    headGroup.add(neck);
+    headMaster.add(neck);
 
-    // Kafa
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.165, 16, 16), skinMat);
-    head.position.set(0, 0.08, 0);
-    head.castShadow = true;
-    headGroup.add(head);
+    // Heykelsi Anatomik Yüz (Çene, Burun, Dudaklar, Göz Küreleri, Kulaklar)
+    const faceMesh = this.createSculptedHead({}, skinMat, hairMat);
+    headMaster.add(faceMesh);
 
-    // BEYAZ SAÇLAR (Görseldeki gibi arkaya taranmış dolgun beyaz saçlar)
-    const hairTop = new THREE.Mesh(new THREE.SphereGeometry(0.175, 16, 14, 0, Math.PI * 2, 0, Math.PI * 0.65), whiteHairMat);
-    hairTop.position.set(0, 0.09, -0.02);
-    headGroup.add(hairTop);
+    // BEYAZ BÜYÜK HACİMLİ ARKAYA TARANMIŞ SAÇLAR (Layered Flowing Hair Locks)
+    const hairGroup = new THREE.Group();
 
-    const hairBack = new THREE.Mesh(new THREE.SphereGeometry(0.168, 14, 12), whiteHairMat);
-    hairBack.position.set(0, 0.08, -0.05);
-    headGroup.add(hairBack);
+    // Üst Saç Kubbesi
+    const hairTop = new THREE.Mesh(
+      new THREE.SphereGeometry(0.138, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.68),
+      hairMat
+    );
+    hairTop.position.set(0, 0.06, -0.02);
+    hairGroup.add(hairTop);
 
-    // Favoriler (Yan beyaz saçlar)
-    for (let dir of [-1, 1]) {
-      const sideburn = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.08, 0.06), whiteHairMat);
-      sideburn.position.set(dir * 0.155, 0.08, 0.02);
-      headGroup.add(sideburn);
+    // Arkaya Taranmış Saç Bukleleri (Volumetric Hair Strands)
+    for (let i = 0; i < 9; i++) {
+      const lock = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.012, 0.16, 8), hairMat);
+      const angle = (i / 8 - 0.5) * 1.8;
+      lock.position.set(Math.sin(angle) * 0.085, 0.11 - Math.abs(angle) * 0.02, -0.04 - Math.abs(angle) * 0.03);
+      lock.rotation.set(Math.PI / 2.2, 0, -angle * 0.4);
+      hairGroup.add(lock);
     }
 
-    // BEYAZ KIR SAKAL / BIYIK
-    const mustache = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.03, 0.04), whiteHairMat);
-    mustache.position.set(0, 0.03, 0.16);
-    headGroup.add(mustache);
+    // Arka Ense Saçları
+    const hairBack = new THREE.Mesh(new THREE.SphereGeometry(0.128, 16, 12), hairMat);
+    hairBack.position.set(0, 0.02, -0.06);
+    hairGroup.add(hairBack);
 
-    // GÖZLER
+    // Şakaklar ve Favoriler (Sideburns)
     for (let dir of [-1, 1]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 8), new THREE.MeshBasicMaterial({ color: 0x1a1a1a }));
-      eye.position.set(dir * 0.055, 0.09, 0.15);
-      headGroup.add(eye);
+      const sideburn = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.09, 0.06), hairMat);
+      sideburn.position.set(dir * 0.118, 0.02, 0.02);
+      hairGroup.add(sideburn);
     }
 
-    // RETRO KALIN ÇERÇEVELİ GÖZLÜK (Stan Lee İmzası)
-    const glassesGroup = new THREE.Group();
-    glassesGroup.position.set(0, 0.09, 0.165);
+    headMaster.add(hairGroup);
 
-    // Sol & Sağ Çerçeve
+    // Beyaz Kır Pala Bıyık (Groomed White Mustache)
+    const mustache = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.008, 0.10, 8), hairMat);
+    mustache.position.set(0, -0.030, 0.128);
+    mustache.rotation.z = Math.PI / 2;
+    headMaster.add(mustache);
+
+    // İMZA RETRO AVIATOR GÖZLÜKLER (Çift Köprülü, Yarı Saydam Camlı)
+    const glasses = new THREE.Group();
+    glasses.position.set(0, 0.040, 0.115);
+
+    // Çift Burun Köprüsü
+    const bridge1 = new THREE.Mesh(new THREE.BoxGeometry(0.036, 0.005, 0.005), glassesMat);
+    bridge1.position.set(0, 0.015, 0);
+    const bridge2 = new THREE.Mesh(new THREE.BoxGeometry(0.030, 0.005, 0.005), glassesMat);
+    bridge2.position.set(0, 0.002, 0);
+    glasses.add(bridge1, bridge2);
+
     for (let dir of [-1, 1]) {
-      const frame = new THREE.Mesh(new THREE.TorusGeometry(0.038, 0.007, 8, 16), glassesMat);
-      frame.position.set(dir * 0.055, 0, 0);
-      glassesGroup.add(frame);
+      // Damla Çerçeve (Aviator Teardrop)
+      const frame = new THREE.Mesh(new THREE.TorusGeometry(0.030, 0.005, 8, 20), glassesMat);
+      frame.position.set(dir * 0.046, 0, 0);
+      frame.scale.set(1.0, 1.15, 1.0);
+      glasses.add(frame);
 
-      // Şeffaf Gözlük Camı
-      const lens = new THREE.Mesh(new THREE.CircleGeometry(0.035, 12), lensMat);
-      lens.position.set(dir * 0.055, 0, 0);
-      glassesGroup.add(lens);
+      // Parlak Saydam Cam
+      const lens = new THREE.Mesh(new THREE.CircleGeometry(0.028, 16), lensMat);
+      lens.position.set(dir * 0.046, 0, 0);
+      lens.scale.set(1.0, 1.15, 1.0);
+      glasses.add(lens);
+
+      // Kulak Arkasına Uzan Saplar (Temples)
+      const temple = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.006, 0.14), glassesMat);
+      temple.position.set(dir * 0.076, 0.010, -0.07);
+      glasses.add(temple);
     }
 
-    // Gözlük Burun Köprüsü
-    const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.008, 0.008), glassesMat);
-    bridge.position.set(0, 0.01, 0);
-    glassesGroup.add(bridge);
-
-    // Gözlük Sapları (Kulaklara doğru)
-    for (let dir of [-1, 1]) {
-      const temple = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.008, 0.14), glassesMat);
-      temple.position.set(dir * 0.095, 0, -0.07);
-      glassesGroup.add(temple);
-    }
-
-    headGroup.add(glassesGroup);
-    charGroup.add(headGroup);
+    headMaster.add(glasses);
+    charGroup.add(headMaster);
 
     return charGroup;
   }
 
-  // 2. GÖRSEL 2'DEKİ NPC KARAKTER MODELİ (DİĞER KÖYLÜLER)
+  // =========================================================================
+  // 2C. GTA SEVİYESİNDE OSMANLI KARAKTERLERİ (SİPAHİ, KÖYLÜ, İMAM, DEMİRCİ)
+  // =========================================================================
   createDetailedHumanNPC(config = {}) {
     const human = new THREE.Group();
-    const kaftanColor = config.kaftanColor || 0x4a3222;
-    const kaftanMat = new THREE.MeshStandardMaterial({ color: kaftanColor, roughness: 0.80 });
-    const turbanMat = new THREE.MeshStandardMaterial({ color: config.turbanColor || 0xf0eae0, roughness: 0.90 });
-    const hairMat = new THREE.MeshStandardMaterial({ color: config.hairColor || 0x1a1510, roughness: 0.85 });
+    const kaftanColor = config.kaftanColor || 0x3d281a;
+    const kaftanMat = new THREE.MeshStandardMaterial({
+      color: kaftanColor,
+      roughness: 0.75,
+      metalness: 0.05
+    });
+    const turbanMat = new THREE.MeshStandardMaterial({
+      color: config.turbanColor || 0xf2ece4,
+      roughness: 0.85
+    });
+    const hairMat = new THREE.MeshStandardMaterial({
+      color: config.hairColor || 0x181410,
+      roughness: 0.70
+    });
+    const skinMat = new THREE.MeshStandardMaterial({
+      color: 0xdeb887,
+      roughness: 0.55
+    });
+    const bootsMat = new THREE.MeshStandardMaterial({
+      color: 0x2b190e,
+      roughness: 0.45,
+      metalness: 0.15
+    });
 
-    // Gövde (Cübbe / Kaftan)
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.44, 1.10, 16), kaftanMat);
-    body.position.y = 0.95;
-    body.castShadow = true;
-    human.add(body);
-
-    // Kemer / Kuşak
-    const belt = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.04, 8, 16), this.materials.leather);
-    belt.position.y = 1.05;
-    belt.rotation.x = Math.PI / 2;
-    human.add(belt);
-
-    const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 0.06), this.materials.gold);
-    buckle.position.set(0, 1.05, 0.33);
-    human.add(buckle);
-
-    // Kollar (Doğal İnsan Duruşu / A-Pose)
+    // 1. Çarık / Yemeni / Deri Çizme
     for (let dir of [-1, 1]) {
-      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.07, 0.65, 12), kaftanMat);
-      arm.position.set(dir * 0.32, 1.15, 0);
-      arm.rotation.set(0.15, 0, -dir * 0.20);
-      arm.castShadow = true;
-      human.add(arm);
+      const boot = new THREE.Group();
+      boot.position.set(dir * 0.14, 0, 0.02);
 
-      // El
-      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 10), this.materials.skin);
-      hand.position.set(dir * 0.38, 0.82, 0.08);
-      human.add(hand);
+      const sole = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.04, 0.28), bootsMat);
+      sole.position.y = 0.02;
+      sole.castShadow = true;
+      boot.add(sole);
+
+      // Kıvrık Burunlu Osmanlı Çarığı
+      const toe = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.12, 8), bootsMat);
+      toe.position.set(0, 0.04, 0.14);
+      toe.rotation.x = Math.PI / 3;
+      boot.add(toe);
+
+      human.add(boot);
     }
 
-    // Bacaklar
+    // 2. Şalvar / Bacaklar
     for (let dir of [-1, 1]) {
-      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.45, 10), kaftanMat);
-      leg.position.set(dir * 0.14, 0.22, 0);
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.09, 0.82, 16), kaftanMat);
+      leg.position.set(dir * 0.14, 0.45, 0);
       leg.castShadow = true;
       human.add(leg);
     }
 
-    // Kafa & Yüz
+    // 3. Gövde & Katmanlı Osmanlı Kaftanı / Cübbesi
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.40, 1.05, 18), kaftanMat);
+    body.position.y = 1.02;
+    body.castShadow = true;
+    human.add(body);
+
+    // Altın İşlemeli Kaftan Ön Bordürü (Sırma Şerit)
+    const border = new THREE.Mesh(new THREE.BoxGeometry(0.04, 1.02, 0.02), this.materials.gold);
+    border.position.set(0, 1.02, 0.32);
+    human.add(border);
+
+    // Kuşak / İpek Kemer
+    const belt = new THREE.Mesh(new THREE.TorusGeometry(0.30, 0.05, 10, 20), this.materials.leather);
+    belt.position.y = 1.05;
+    belt.rotation.x = Math.PI / 2;
+    human.add(belt);
+
+    const buckle = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.07, 0.04), this.materials.gold);
+    buckle.position.set(0, 1.05, 0.34);
+    human.add(buckle);
+
+    // 4. Kollar ve 5 Parmaklı Eller
+    for (let dir of [-1, 1]) {
+      const armGroup = new THREE.Group();
+      armGroup.position.set(dir * 0.26, 1.48, 0);
+
+      // Omuz
+      const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.09, 12, 10), kaftanMat);
+      shoulder.castShadow = true;
+      armGroup.add(shoulder);
+
+      // Kol (Doğal A-Pose)
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.072, 0.58, 14), kaftanMat);
+      arm.position.set(dir * 0.06, -0.26, 0.02);
+      arm.rotation.set(0.14, 0, -dir * 0.18);
+      arm.castShadow = true;
+      armGroup.add(arm);
+
+      // 5 Parmaklı Anatomik El
+      const hand = this.createAnatomicalHand(skinMat, dir < 0);
+      hand.position.set(dir * 0.12, -0.56, 0.06);
+      hand.rotation.set(0.15, -dir * 0.3, 0);
+      armGroup.add(hand);
+
+      human.add(armGroup);
+    }
+
+    // 5. Heykelsi Yüz & Başlık (Sarık / Börk)
     const headGroup = new THREE.Group();
-    headGroup.position.y = 1.65;
+    headGroup.position.y = 1.72;
 
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.18, 14, 14), this.materials.skin);
-    headGroup.add(head);
+    const face = this.createSculptedHead(config, skinMat, hairMat);
+    headGroup.add(face);
 
-    // Sakal & Pala Bıyık (2. Görseldeki gibi)
+    // Sakal & Pala Bıyık
     if (config.hasBeard !== false) {
-      const beard = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.30, 8), hairMat);
-      beard.position.set(0, -0.12, 0.10);
-      beard.rotation.x = Math.PI / 3.5;
+      const beard = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.26, 10), hairMat);
+      beard.position.set(0, -0.10, 0.085);
+      beard.rotation.x = Math.PI / 3.8;
       headGroup.add(beard);
 
-      const mustache = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.05, 0.08), hairMat);
-      mustache.position.set(0, -0.02, 0.16);
+      const mustache = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.04, 0.06), hairMat);
+      mustache.position.set(0, -0.02, 0.135);
       headGroup.add(mustache);
     }
 
-    // Gözler
-    for (let x of [-0.06, 0.06]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 8), new THREE.MeshBasicMaterial({ color: 0x111111 }));
-      eye.position.set(x, 0.04, 0.16);
-      headGroup.add(eye);
-    }
-
-    // Başlık (Sarık veya Börk)
+    // Başlık
     if (config.headwear === 'bork') {
-      const bork = new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.30, 10), new THREE.MeshStandardMaterial({ color: 0x8b1e1e }));
-      bork.position.y = 0.22;
+      // Sipahi Börkü
+      const bork = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.32, 14), new THREE.MeshStandardMaterial({ color: 0x8b1e1e }));
+      bork.position.y = 0.20;
+      bork.rotation.x = -0.1;
       headGroup.add(bork);
     } else {
-      // Beyaz Sarık (2. Görseldeki gibi)
-      const turbanWrap = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.08, 8, 18), turbanMat);
-      turbanWrap.position.y = 0.14;
-      turbanWrap.rotation.x = Math.PI / 2;
-      headGroup.add(turbanWrap);
+      // Katmanlı Beyaz Sarık & Kırmızı Fes
+      const wrap = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.07, 10, 24), turbanMat);
+      wrap.position.y = 0.12;
+      wrap.rotation.x = Math.PI / 2;
+      headGroup.add(wrap);
 
-      const fez = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.20, 10), new THREE.MeshStandardMaterial({ color: 0x8b1e1e }));
-      fez.position.y = 0.24;
+      const fez = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.13, 0.18, 14), new THREE.MeshStandardMaterial({ color: 0x8b1e1e }));
+      fez.position.y = 0.20;
       headGroup.add(fez);
     }
 
