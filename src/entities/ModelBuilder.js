@@ -617,4 +617,40 @@ export class ModelBuilder {
     }
     return cluster;
   }
+
+  createPineTree() {
+    const tree = new THREE.Group();
+    
+    // Ağaç Gövdesi
+    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x4a3b2c });
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 2.5, 8), trunkMat);
+    trunk.position.y = 1.25;
+    trunk.castShadow = true;
+    trunk.receiveShadow = true;
+    tree.add(trunk);
+
+    // Yapraklar (Çam Konileri)
+    const leavesMat = new THREE.MeshLambertMaterial({ color: 0x1e3f20 });
+    
+    // 3 Katmanlı Çam Ağacı
+    const layer1 = new THREE.Mesh(new THREE.ConeGeometry(2, 3, 8), leavesMat);
+    layer1.position.y = 3;
+    layer1.castShadow = true;
+    layer1.receiveShadow = true;
+    tree.add(layer1);
+
+    const layer2 = new THREE.Mesh(new THREE.ConeGeometry(1.5, 2.5, 8), leavesMat);
+    layer2.position.y = 4.5;
+    layer2.castShadow = true;
+    layer2.receiveShadow = true;
+    tree.add(layer2);
+
+    const layer3 = new THREE.Mesh(new THREE.ConeGeometry(1, 2, 8), leavesMat);
+    layer3.position.y = 6;
+    layer3.castShadow = true;
+    layer3.receiveShadow = true;
+    tree.add(layer3);
+
+    return tree;
+  }
 }
