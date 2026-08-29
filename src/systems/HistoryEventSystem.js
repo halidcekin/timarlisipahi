@@ -39,7 +39,9 @@ export class HistoryEventSystem {
     if (isBigVictory) {
       const loot = 2200;
       gameState.timar.akce += loot;
-      gameState.sipahi.reputation += 35;
+      gameState.modifySancakReputation(35);
+      gameState.modifySquadLoyalty(30);
+      gameState.modifyReayaTrust(15);
       gameState.timar.annualIncome += 800; // Tımar genişletildi
 
       result = {
@@ -49,7 +51,7 @@ export class HistoryEventSystem {
         loot: [
           `💰 +${loot} Akçe Ganimet ve Bahşiş`,
           `📜 Tımar Yıllık Geliri +800 Akçe Arttırıldı (Büyük Tımar)`,
-          `⚜️ Padişah Nezdinde İtibar (+35)`,
+          `⚜️ Sancakbeyi ve Sultan İtibarı (+35)`,
           `🗡️ Şam Çeliği Murassa Kılıç Hediyesi`
         ]
       };
@@ -57,7 +59,8 @@ export class HistoryEventSystem {
     } else {
       const loot = 900;
       gameState.timar.akce += loot;
-      gameState.sipahi.reputation += 15;
+      gameState.modifySancakReputation(15);
+      gameState.modifySquadLoyalty(10);
 
       result = {
         title: '⚔️ Kanlı Niğbolu Meydanı',

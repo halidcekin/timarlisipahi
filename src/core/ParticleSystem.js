@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 /**
- * ParticleSystem - Mount & Blade II: Bannerlord Seviyesinde Yaşayan Atmosfer Parçacık Motoru
+ * ParticleSystem - Yüksek Kaliteli Yaşayan Atmosfer Parçacık Motoru
  * - Köy Konakları & Fırın Bacalarından Tüten Gerçekçi Dumanlar (Chimney Smoke)
  * - Demirci Rüstem Usta Örsünden Sıçrayan Kor Kıvılcımlar (Blacksmith Sparks)
  * - Kamp Ateşi, Ocak ve Meşalelerden Yükselen Közler (Fire Embers)

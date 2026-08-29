@@ -459,7 +459,7 @@ export class DialogueSystem {
       // 14. TELLAK HÜSEYİN AĞA (OSMANLI HAMAMI)
       tellak_talk: {
         npcName: 'Tellak Hüseyin Ağa',
-        npcRole: 'Hamam Tellağı & Masöz',
+        npcRole: 'Hamam Tellak Başı',
         icon: '🧖‍♂️',
         text: `"Sefa getirdin Sipahi Beyim! Gazalardan, talimlerden yorgun düşmüşsün. Mermer göbek taşımız sıcacıktır. Şöyle bir uzan da kemiklerini çatırdatıp, mis kokulu sabun köpüğü ve ak pak kese ile seni yenileyelim! (Hizmet Bedeli: 40 Akçe)"`,
         choices: [
@@ -496,7 +496,54 @@ export class DialogueSystem {
         ]
       },
 
-      // 15. HAMAM MÜŞTERİSİ REAYA
+      // 15. SU HAKKI VE DEĞİRMEN ARKI İHTİLAFI
+      water_dispute_talk: {
+        npcName: 'Değirmenci & Reaya Temsilcisi',
+        npcRole: 'Değirmen Arkı İhtilaf Heyeti',
+        icon: '💧',
+        text: `"Sipahi Beyim! Üst tarladaki komşu değirmen arkının bendini izinsiz kapatmış, suyumuz kesildi. Değirmen çarkı dönmez, unumuz öğütülmez oldu. Adaletle bir hüküm ver!"`,
+        onOpen: () => {
+          questSystem.advanceObjective('quest_water_dispute', 0);
+        },
+        choices: [
+          {
+            label: '⚖️ "Molla Şemseddin\'in şer\'i ve örfi hakemliğinde su nöbeti takvimi kurulsun."',
+            action: () => {
+              gameState.modifyReayaTrust(15);
+              gameState.modifyFaction('ulema', 15);
+              gameState.modifyFaction('reaya', 15);
+              questSystem.advanceObjective('quest_water_dispute', 1);
+              return {
+                text: `"Allah adaletinden razı olsun Gazi Bey! Su sırayla salınacak, ne değirmen duracak ne tarla kuruyacak."`,
+                choices: [{ label: 'Hak yerini bulsun, dirlik daim olsun.', action: null }]
+              };
+            }
+          },
+          {
+            label: '💰 "Bendi hemen açın, zararı olan hane için tımar sandığından 50 Akçe tamir ödeneği verilsin."',
+            action: () => {
+              if (gameState.timar.akce >= 50) {
+                gameState.timar.akce -= 50;
+                gameState.modifyReayaTrust(20);
+                gameState.modifySquadLoyalty(10);
+                questSystem.advanceObjective('quest_water_dispute', 1);
+                return {
+                  text: `"Cömert ve âdil sipahimiz! Bendi elbirliğiyle onarırız, duacınızız."`,
+                  choices: [{ label: 'Hayırlı işler ola.', action: null }]
+                };
+              }
+              gameState.addNotification('⚠️ Yetersiz akçe!', 'alert');
+              return null;
+            }
+          },
+          {
+            label: 'Şimdilik incelemem sürüyor, sükuneti koruyun.',
+            action: null
+          }
+        ]
+      },
+
+      // 16. HAMAM MÜŞTERİSİ REAYA
       hamam_musteri_talk: {
         npcName: 'Hamam Müşterisi',
         npcRole: 'Yıkanan Köylü',

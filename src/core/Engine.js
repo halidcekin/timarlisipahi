@@ -53,7 +53,7 @@ const ColorGradingShader = {
 
 /**
  * Engine - Mülk-i Osmanî: Tımarlı Sipahi 3D Gerçekçi PBR Aydınlatma & Render Motoru
- * - Mount & Blade II: Bannerlord Seviyesinde 24 Saatlik Sinematik Gökyüzü ve Işık Döngüsü
+ * - Yüksek Kalitede 24 Saatlik Sinematik Gökyüzü ve Işık Döngüsü
  * - 4K PCF Soft Shadows & ACES Filmic Tone Mapping
  * - SSAO, Unreal Bloom, SMAA & Color Grading Post-Processing Hattı
  * - Dinamik PMREM Çevresel Yansımaları (IBL) & Alev Titremeli Noktasal Meşale Işıkları

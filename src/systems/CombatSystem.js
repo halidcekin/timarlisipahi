@@ -132,12 +132,49 @@ export class CombatSystem {
     }
   }
 
-  processPlayerAttack() {
-    const playerPos = this.player.position;
-    const playerDir = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, this.player.yaw, 0));
+  /**
+   * Silah ve Zırh Türüne Göre Hasar Çarpanı Hesaplayıcı (Aşama 1 Standardı)
+   * - Slashing (Kılıç): Kumaşa %130, Plakaya %40
+   * - Piercing (Mızrak/Ok): Kumaşa %110, Plakaya %70 (At üstünde %160)
+   * - Blunt (Gürz/Savaş Çekici): Plakaya %150, Kumaşa %90
+   */
+  static calculateDamage(baseDamage, weaponType = 'slashing', armorType = 'leather', isMounted = false) {
+    let multiplier = 1.0;
 
+    switch (weaponType) {
+      case 'slashing':
+        if (armorType === 'cloth') multiplier = 1.3;
+        else if (armorType === 'leather') multiplier = 1.0;
+        else if (armorType === 'mail') multiplier = 0.75;
+        else if (armorType === 'plate') multiplier = 0.4;
+        break;
+      case 'piercing':
+        if (armorType === 'cloth') multiplier = 1.1;
+        else if (armorType === 'leather') multiplier = 1.0;
+        else if (armorType === 'mail') multiplier = 0.9;
+        else if (armorType === 'plate') multiplier = 0.7;
+        if (isMounted) multiplier *= 1.6;
+        break;
+      case 'blunt':
+        if (armorType === 'cloth') multiplier = 0.9;
+        else if (armorType === 'leather') multiplier = 1.0;
+        else if (armorType === 'mail') multiplier = 1.25;
+        else if (armorType === 'plate') multiplier = 1.5;
+        break;
+      default:
+        multiplier = 1.0;
+    }
+
+    return Math.max(1, Math.round(baseDamage * multiplier));
+  }
+
+  processPlayerAttack(customPos = null, customDir = null) {
+    const playerPos = customPos || this.player.position;
+    const playerDir = customDir || new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, this.player.yaw, 0));
     let hitCount = 0;
-    const baseDamage = 25 + gameState.sipahi.swordLevel * 8;
+    const rawBaseDamage = 25 + gameState.sipahi.swordLevel * 8;
+    const weaponType = gameState.sipahi.weaponType || 'slashing';
+    const isMounted = !!gameState.sipahi.isRiding;
 
     // 1. Düşmanlara vuruş kontrolü
     this.npcManager.enemies.forEach(enemy => {
@@ -150,7 +187,9 @@ export class CombatSystem {
 
         if (dot > 0.4) {
           hitCount++;
-          enemy.health -= baseDamage;
+          const enemyArmor = enemy.armorType || 'leather';
+          const finalDamage = CombatSystem.calculateDamage(rawBaseDamage, weaponType, enemyArmor, isMounted);
+          enemy.health -= finalDamage;
 
           soundManager.playSwordClash();
           this.player.addCameraShake(0.14);
@@ -159,7 +198,7 @@ export class CombatSystem {
           const hitPos = enemy.position.clone().add(new THREE.Vector3(0, 1.2, 0));
           this.spawnBloodAndDust(hitPos, true);
 
-          gameState.addNotification(`⚔️ ${enemy.name} darbe aldı! (-${baseDamage} Sıhhat)`, 'alert');
+          gameState.addNotification(`⚔️ ${enemy.name} darbe aldı! (-${finalDamage} Sıhhat | Zırh: ${enemyArmor})`, 'alert');
           enemy.position.addScaledVector(playerDir, 0.8);
 
           if (enemy.health <= 0) {
@@ -169,7 +208,7 @@ export class CombatSystem {
       }
     });
 
-    // 2. Köylü NPC'lere Vuruş Kontrolü (Reayaya Saldırı ve Asayiş Düşüşü)
+    // 2. Köylü NPC'lere Vuruş Kontrolü (Reayaya Saldırı ve Çiftbozan Riski)
     this.npcManager.npcs.forEach(npc => {
       if (npc.isDead) return;
 
@@ -180,7 +219,8 @@ export class CombatSystem {
 
         if (dot > 0.45) {
           hitCount++;
-          npc.health = (npc.health || 80) - baseDamage;
+          const finalDamage = CombatSystem.calculateDamage(rawBaseDamage, weaponType, 'cloth', isMounted);
+          npc.health = (npc.health || 80) - finalDamage;
 
           soundManager.playSwordClash();
           this.player.addCameraShake(0.12);
@@ -189,17 +229,21 @@ export class CombatSystem {
           const hitPos = npc.position.clone().add(new THREE.Vector3(0, 1.2, 0));
           this.spawnBloodAndDust(hitPos, true);
 
-          // Ağır Hüküm: Reayaya saldırmak asayiş ve morali yıkar
+          // Ağır Hüküm: Reayaya saldırmak asayiş, reaya güveni ve ulema itibarını yıkar
           gameState.timar.asayis = Math.max(0, gameState.timar.asayis - 12);
-          gameState.timar.morale = Math.max(0, gameState.timar.morale - 15);
-          gameState.addNotification(`⚠️ Reayaya el kaldırdın! ${npc.name} yaralandı! Asayiş ve köylü morali düştü.`, 'alert');
+          gameState.modifyReayaTrust(-15);
+          gameState.modifyFaction('reaya', -20);
+          gameState.modifyFaction('ulema', -10);
+          gameState.addNotification(`⚠️ Reayaya el kaldırdın! ${npc.name} yaralandı! Reaya güveni sarsıldı.`, 'alert');
 
           if (npc.health <= 0) {
             npc.isDead = true;
             npc.mesh.rotation.x = Math.PI / 2;
             npc.mesh.position.y = 0.2;
             gameState.timar.asayis = Math.max(0, gameState.timar.asayis - 25);
-            gameState.addNotification(`💀 Eyvah! ${npc.name} can verdi! Köyde isyan ve teessür hâkim.`, 'alert');
+            gameState.modifyReayaTrust(-30);
+            gameState.modifySancakReputation(-20);
+            gameState.addNotification(`💀 Eyvah! ${npc.name} can verdi! Köyde Çiftbozan tehlikesi büyüyor!`, 'alert');
           }
         }
       }
@@ -217,7 +261,8 @@ export class CombatSystem {
 
           if (dot > 0.35) {
             hitCount++;
-            dmg.health -= baseDamage;
+            const finalDamage = CombatSystem.calculateDamage(rawBaseDamage, weaponType, 'leather', isMounted);
+            dmg.health -= finalDamage;
             soundManager.playSwordClash();
             this.player.addCameraShake(0.08);
             this.applyDamageFlash(dmg.mesh);

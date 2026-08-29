@@ -44,9 +44,33 @@ export class GameState {
       swordDrawn: true,
       isBlocking: false,
       swordLevel: 1, // 1: Düz Tımar Kılıcı, 2: Şam Çeliği Kılıç, 3: Murassa Gazi Kılıcı
-      armorLevel: 1, // 1: Keçe ve Deri Zırh, 2: Örme Çelik Zırh, 3: Osmanlı Kazasker Zırhı
+      armorLevel: 1, // 1: Keçe ve Deri Zırh, 2: Örme Çelik Zırh, 3: Osmanlı Ağır Zırhı
+      equippedWeapon: 'sword', // 'sword' (slashing), 'spear' (piercing), 'mace' (blunt)
+      weaponType: 'slashing',
+      armorType: 'leather', // 'cloth', 'leather', 'mail', 'plate'
       horseType: 'Karayağız Anadolu Atı',
-      reputation: 60 // Padişah ve Sancakbeyi nezdindeki itibar
+      reputation: 60 // Geriye dönük uyumluluk için sancak itibarı alias'ı
+    };
+
+    // 3 Eksenli İtibar Sistemi (Aşama 1 Standardı)
+    this.reputation = {
+      reayaTrust: 75,       // Reaya Güveni (0-100) - Kritik Eşik: 15 (Çiftbozan riski)
+      sancakReputation: 60, // Sancakbeyi ve Divan İtibarı (0-100)
+      squadLoyalty: 80      // Cebelü ve Bölük Sadakati (0-100)
+    };
+
+    // Sosyal Fraksiyonlar & Dinamik Denge
+    this.factions = {
+      ulema: 85,  // Kadı & Din Alimleri (Hukuk, Adalet, Meşruiyet - Daima bilge & hayırhah)
+      ahiler: 70, // Zanaatkarlar & Esnaf Locası (Demirci, Attar, Pazar)
+      reaya: 75   // Köylüler & Çiftçiler (Tarımsal Üretim, Su arkları, Ambar)
+    };
+
+    // Erken Yenilgi (Fail-State)
+    this.failState = {
+      isGameOver: false,
+      reason: null,
+      title: null
     };
 
     // Tımar Arazisi & Ekonomi Durumu
@@ -77,51 +101,91 @@ export class GameState {
         swords: 2,
         shields: 2,
         bows: 1,
+        maces: 1,
         horses: 1
       }
     };
 
-    // Tarih ve Zaman Sistemi
+    // Tarih ve Zaman Sistemi (1396 İlkbahar Niğbolu Hazırlık Takvimi)
     this.time = {
-      year: 1394,
-      hijriYear: 796,
-      season: 'Güz (Hasat Mevsimi)',
-      seasonIndex: 2, // 0: Bahar, 1: Yaz, 2: Güz, 3: Kış
-      dayTimeHours: 12.0, // 0 - 24 saat
+      year: 1396,
+      hijriYear: 798,
+      season: 'İlkbahar (Ekim Zamanı)',
+      seasonIndex: 0, // 0: Bahar, 1: Yaz, 2: Güz, 3: Kış
+      dayTimeHours: 8.0, // Sabah 08:00 başlangıç
       daySpeed: 0.05, // Zaman akış katsayısı
       dayCount: 1
     };
 
-    // Aktif Ferman & Alternatif Tarih Seferleri
+    // Aktif Ferman & Niğbolu Kampanyası
     this.activeCampaign = {
       id: 'nigbolu_1396',
       title: '1396 Niğbolu Haçlı Seferi Fermanı',
       year: 1396,
       desc: 'Kral Sigismund komutasındaki Haçlı ordusu Tuna kıyılarını kuşattı! Sultan Yıldırım Bayezid Han tımarlı sipahileri orduya çağırıyor.',
       reqCebelu: 1,
-      rewardAkce: 1500,
-      rewardRep: 25,
+      rewardAkce: 1800,
+      rewardRep: 30,
       isResolved: false
     };
 
     // NPC İlişki Puanları
     this.relations = {
       kethuda: 70, // Köy Kethüdası Koca Yakub
-      imam: 80,    // Köy İmamı Molla Şemseddin
+      imam: 85,    // Köy İmamı ve Naibi Molla Şemseddin (Bilge & Adil)
       demirci: 65, // Demirci Rüstem Usta
       neighbor: 50,// Komşu Sipahi Sungur Gazi
       cebelu: 85   // Sadık Çırak Ali
     };
 
-    // Aktif Görev
+    // Aktif Görev Bilgisi (HUD & Event Sync)
+    this.quest = {
+      currentTitle: 'Tımar Teftişi ve Asayiş',
+      currentDescription: 'Köy kethüdası Koca Yakub veya Demirci Rüstem ile görüş, köyün asayişini sağla.',
+      objectives: ['Köy kethüdası Koca Yakub ile görüş'],
+      targetPosition: null
+    };
+
     this.currentQuest = {
-      id: 'inspect_timar',
+      id: 'quest_inspect',
       title: 'Tımar Teftişi ve Asayiş',
       desc: 'Köy kethüdası Koca Yakub veya Demirci Rüstem ile görüş, köyün asayişini sağla.',
       isCompleted: false
     };
 
     this.notifications = [];
+  }
+
+  modifyReayaTrust(amount) {
+    this.reputation.reayaTrust = Math.max(0, Math.min(100, this.reputation.reayaTrust + amount));
+    this.timar.morale = this.reputation.reayaTrust;
+    this.checkCiftbozan();
+  }
+
+  modifySancakReputation(amount) {
+    this.reputation.sancakReputation = Math.max(0, Math.min(100, this.reputation.sancakReputation + amount));
+    this.sipahi.reputation = this.reputation.sancakReputation;
+  }
+
+  modifySquadLoyalty(amount) {
+    this.reputation.squadLoyalty = Math.max(0, Math.min(100, this.reputation.squadLoyalty + amount));
+  }
+
+  modifyFaction(factionName, amount) {
+    if (this.factions[factionName] !== undefined) {
+      this.factions[factionName] = Math.max(0, Math.min(100, this.factions[factionName] + amount));
+    }
+  }
+
+  checkCiftbozan() {
+    if (this.reputation.reayaTrust <= 15 && !this.failState.isGameOver) {
+      this.failState.isGameOver = true;
+      this.failState.title = 'FERMAN-I AZİL: ÇİFTBOZAN VAKASI';
+      this.failState.reason = 'Reayanın güveni tükendi! Köylüler topraklarını terk edip şehirlere ve dağlara kaçtı (Çiftbozan). Üretim durduğu için Sancakbeyi fermanıyla tımar beratınız iptal edildi ve azledildiniz!';
+      this.addNotification('⚠️ DİKKAT: Reaya toprağı terk etti! Tımar beratınız azledildi!', 'alert');
+      return true;
+    }
+    return false;
   }
 
   addNotification(text, type = 'info') {
@@ -141,6 +205,7 @@ export class GameState {
     if (this.time.dayTimeHours >= 24) {
       this.time.dayTimeHours -= 24;
       this.time.dayCount++;
+      this.daysPassed++;
       // Günlük asayiş ve olay kontrolü
       if (this.time.dayCount % 10 === 0) {
         this.advanceSeason();
@@ -175,30 +240,6 @@ export class GameState {
         isResolved: false
       };
       this.addNotification('📜 Sultan Yıldırım Bayezid Han\'dan Niğbolu Seferi Fermanı Geldi!', 'alert');
-    } else if (this.time.year === 1398) {
-      this.activeCampaign = {
-        id: 'karaman_1398',
-        title: '1398 Karamanoğlu Üzerine Sefer',
-        year: 1398,
-        desc: 'Anadolu Türk birliğini tehdit eden Karamanoğlu Alaeddin Bey\'e karşı Konya ve Larende seferi düzenleniyor.',
-        reqCebelu: 2,
-        rewardAkce: 2200,
-        rewardRep: 25,
-        isResolved: false
-      };
-      this.addNotification('📜 Anadolu Seferi Fermanı Ulaştı!', 'alert');
-    } else if (this.time.year >= 1402) {
-      this.activeCampaign = {
-        id: 'ankara_1402',
-        title: '1402 Ankara Meydan Muharebesi (Büyük Karşılaşma)',
-        year: 1402,
-        desc: 'Emir Timur yüz bin kişilik ordusu ve zırhlı filleriyle Çubuk Ovası\'na indi. Kader savaşı başlıyor!',
-        reqCebelu: 2,
-        rewardAkce: 3500,
-        rewardRep: 50,
-        isResolved: false
-      };
-      this.addNotification('⚠️ DİKKAT: Emir Timur orduları Çubuk Ovasında! Sultan Bayezid Han harp düzeni alıyor!', 'alert');
     }
   }
 }

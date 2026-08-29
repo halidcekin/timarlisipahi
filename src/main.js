@@ -16,7 +16,7 @@ import { soundManager } from './core/AudioManager.js';
 import { steamManager } from './core/SteamManager.js';
 
 /**
- * Mülk-i Osmanî: Tımarlı Sipahi 3D - Mount & Blade II: Bannerlord Seviyesinde Açık Dünya Oyun Motoru
+ * Mülk-i Osmanî: Tımarlı Sipahi 3D - Yüksek Kaliteli Açık Dünya Oyun Motoru
  */
 export class Game {
   constructor() {
@@ -27,7 +27,7 @@ export class Game {
     this.engine = new Engine(this.canvas);
     this.input = new InputManager(this.canvas);
 
-    // 2. Bannerlord Parçacık Sistemi (Duman, Kıvılcım, Köz, Toz)
+    // 2. Gelişmiş Parçacık Sistemi (Duman, Kıvılcım, Köz, Toz)
     this.particles = new ParticleSystem(this.engine.scene);
 
     // 3. Prosedürel Kasaba, Zemin, Hayvanlar & Yataklar
@@ -249,8 +249,8 @@ export class Game {
       this.lastTime = now;
 
       try {
-        // 1. Gün & Zaman Akışı (24 Saatlik Döngü)
-        gameState.time.dayTimeHours = (gameState.time.dayTimeHours + delta * 0.1) % 24;
+        // 1. Gün & Zaman Akışı (24 Saatlik Döngü, Takvim ve Mevsim İlerlemesi)
+        gameState.updateTime(delta);
 
         // 2. Dinamik Gökyüzü, Güneş, Ay Döngüsü & Dinamik Gölge Takibi
         if (this.engine) {

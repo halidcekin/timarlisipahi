@@ -1,6 +1,6 @@
 # ⚔️ Mülk-i Osmanî: Tımarlı Sipahi 3D
 
-**14. Yüzyıl Osmanlı İmparatorluğu'nda geçen, Mount & Blade II: Bannerlord ilhamıyla geliştirilmiş açık dünya 3D aksiyon-RPG oyunu.**
+**14. Yüzyıl Osmanlı İmparatorluğu'nda geçen, AAA kalitesinde görsellik ve açık dünya 3D aksiyon-RPG deneyimi sunmayı hedefleyen bir proje.**
 
 Tımarlı Sipahi Gazi Murad Bey olarak Akçaoba köyünüzü yönetin, Sultan Yıldırım Bayezid Han'ın fermanıyla 1396 Niğbolu Haçlı Seferi'ne katılın ve Osmanlı'nın şanlı tarihini yaşayın.
 

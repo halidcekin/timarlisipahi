@@ -32,6 +32,17 @@ if (typeof document === 'undefined') {
   };
 }
 
+// LocalStorage Mock
+if (typeof localStorage === 'undefined') {
+  const storage = {};
+  global.localStorage = {
+    getItem: (key) => storage[key] || null,
+    setItem: (key, val) => { storage[key] = String(val); },
+    removeItem: (key) => { delete storage[key]; },
+    clear: () => { Object.keys(storage).forEach(k => delete storage[k]); }
+  };
+}
+
 import * as THREE from 'three';
 import { gameState } from '../src/core/GameState.js';
 import { ModelBuilder } from '../src/entities/ModelBuilder.js';
@@ -41,9 +52,11 @@ import { NPCManager } from '../src/entities/NPCManager.js';
 import { CombatSystem } from '../src/systems/CombatSystem.js';
 import { ArcherySystem } from '../src/systems/ArcherySystem.js';
 import { DialogueSystem } from '../src/systems/DialogueSystem.js';
+import { questSystem } from '../src/systems/QuestSystem.js';
+import { saveManager } from '../src/core/SaveManager.js';
 
 console.log('🧪 ==========================================');
-console.log('🧪 MÜLK-İ OSMANÎ: SİSTEM TESTLERİ');
+console.log('🧪 MÜLK-İ OSMANÎ: SİSTEMİK TEST SÜİTİ');
 console.log('🧪 ==========================================\n');
 
 let passedTests = 0;
@@ -147,6 +160,113 @@ for (let step = 0; step < 20; step++) {
 }
 
 assert(gameState.military.cebeluExperience > initialXP, 'Ok hedef tahtasına isabet etti ve tecrübe puanı kazanıldı');
+
+// -------------------------------------------------------------
+// TEST 6: Takvim & Zaman Akışı Otoritesi (1396 İlkbahar)
+// -------------------------------------------------------------
+assert(gameState.time.year === 1396, 'Oyun başlangıç yılı 1396 olarak ayarlandı');
+assert(gameState.time.hijriYear === 798, 'Hicri yıl 798 olarak senkronize edildi');
+assert(gameState.time.seasonIndex === 0, 'Başlangıç mevsimi İlkbahar');
+
+const initialDay = gameState.time.dayCount;
+// 24 saatlik döngü simülasyonu (8:00 + 400 * 0.05 = 28:00 -> Gün döngüsü tamamlanır)
+gameState.updateTime(400);
+assert(gameState.time.dayCount > initialDay, 'updateTime() çağrısı gün sayacını artırdı');
+
+// -------------------------------------------------------------
+// TEST 7: 3 Eksenli İtibar & Sosyal Fraksiyonlar
+// -------------------------------------------------------------
+assert(gameState.reputation.reayaTrust === 75, 'Reaya Güveni başlangıç değeri 75');
+assert(gameState.reputation.sancakReputation === 60, 'Sancak İtibarı başlangıç değeri 60');
+assert(gameState.reputation.squadLoyalty === 80, 'Bölük Sadakati başlangıç değeri 80');
+
+gameState.modifyReayaTrust(-10);
+assert(gameState.reputation.reayaTrust === 65, 'Reaya Güveni azaltma metodu çalıştı');
+
+gameState.modifyFaction('ulema', 10);
+assert(gameState.factions.ulema === 95, 'Kadı & Ulema fraksiyonu artırıldı (Bilge rehberler)');
+
+// -------------------------------------------------------------
+// TEST 8: Çiftbozan (Erken Fail-State) Mekaniği
+// -------------------------------------------------------------
+assert(gameState.failState.isGameOver === false, 'Başlangıçta oyun devam ediyor');
+gameState.modifyReayaTrust(-55); // 65 - 55 = 10 (Kritik eşik 15 altı)
+assert(gameState.failState.isGameOver === true, 'Reaya güveni 15 altına düşünce Çiftbozan tetiklendi');
+assert(gameState.failState.title.includes('ÇİFTBOZAN'), 'Çiftbozan azil fermanı başlığı üretildi');
+
+// Test sonrası oyunu sıfırla
+gameState.reset();
+
+// -------------------------------------------------------------
+// TEST 9: Veri Güdümlü Görev Durum Makinesi & Hedef Bilgisi
+// -------------------------------------------------------------
+const firstQuest = questSystem.getActiveQuest();
+assert(firstQuest !== null && firstQuest.id === 'quest_inspect', 'İlk aktif görev quest_inspect');
+
+const targetInfo = questSystem.getActiveTargetInfo(player.position);
+assert(targetInfo !== null, 'getActiveTargetInfo() başarıyla veri döndürdü');
+assert(targetInfo.questId === 'quest_inspect', 'Hedef bilgisi aktif görev ile eşleşti');
+assert(typeof targetInfo.distance === 'number', 'Hedef mesafesi sayı olarak hesaplandı');
+
+// Bölüm 1'i tamamla ve Bölüm 2 Su İhtilafı kilidinin açılmasını test et
+const waterQuestBefore = questSystem.getQuestById('quest_water_dispute');
+assert(waterQuestBefore.status === 'locked', 'Başlangıçta Su İhtilafı görevi kilitli');
+
+questSystem.advanceObjective('quest_inspect', 0);
+questSystem.advanceObjective('quest_inspect', 1);
+
+const inspectQuestAfter = questSystem.getQuestById('quest_inspect');
+assert(inspectQuestAfter.status === 'completed', 'quest_inspect başarıyla tamamlandı');
+
+const waterQuestAfter = questSystem.getQuestById('quest_water_dispute');
+assert(waterQuestAfter.status === 'available' || waterQuestAfter.status === 'active', 'quest_inspect bitince quest_water_dispute kilidi açıldı');
+
+// -------------------------------------------------------------
+// TEST 10: Silah & Zırh Hasar Matrisi (CombatSystem.calculateDamage)
+// -------------------------------------------------------------
+const swordCloth = CombatSystem.calculateDamage(50, 'slashing', 'cloth');
+const swordPlate = CombatSystem.calculateDamage(50, 'slashing', 'plate');
+assert(swordCloth > 50, `Kılıç kumaşa karşı yüksek hasar verdi (${swordCloth} > 50)`);
+assert(swordPlate < 50, `Kılıç ağır plaka zırha karşı düşük hasar verdi (${swordPlate} < 50)`);
+
+const macePlate = CombatSystem.calculateDamage(50, 'blunt', 'plate');
+const maceCloth = CombatSystem.calculateDamage(50, 'blunt', 'cloth');
+assert(macePlate > swordPlate, `Gürz plaka zırhı kılıçtan çok daha etkili deldi (${macePlate} > ${swordPlate})`);
+assert(maceCloth <= 50, `Gürz kumaşa karşı normal/künt hasar verdi (${maceCloth} <= 50)`);
+
+const spearMounted = CombatSystem.calculateDamage(50, 'piercing', 'plate', true);
+const spearFoot = CombatSystem.calculateDamage(50, 'piercing', 'plate', false);
+assert(spearMounted > spearFoot, `Mızrak atlı hücumda %60 daha fazla hasar verdi (${spearMounted} > ${spearFoot})`);
+
+// -------------------------------------------------------------
+// TEST 11: SaveManager Serileştirme & Deserialization
+// -------------------------------------------------------------
+gameState.timar.akce = 4321;
+gameState.sipahi.name = 'Test Gazi Murad';
+saveManager.saveGame('slot_1');
+
+// Durumu değiştir
+gameState.timar.akce = 100;
+gameState.sipahi.name = 'Başka Biri';
+
+// Kayıttan geri yükle
+saveManager.loadGame('slot_1');
+assert(gameState.timar.akce === 4321, 'SaveManager akçe miktarını başarıyla geri yükledi (4321)');
+assert(gameState.sipahi.name === 'Test Gazi Murad', 'SaveManager sipahi ismini başarıyla geri yükledi');
+
+// -------------------------------------------------------------
+// TEST 12: Harami Ölüm Olayı (onEnemyDefeated) & Görev Entegrasyonu
+// -------------------------------------------------------------
+const banditQuest = questSystem.getQuestById('quest_bandits');
+banditQuest.status = 'active';
+banditQuest.banditsDefeated = 0;
+
+questSystem.onEnemyKilled({ id: 'bandit_1', name: 'Harami Çapulcu' });
+assert(banditQuest.banditsDefeated === 1, 'Harami öldürülünce banditsDefeated sayacı arttı (1/3)');
+
+questSystem.onEnemyKilled({ id: 'bandit_2', name: 'Harami Okçu' });
+questSystem.onEnemyKilled({ id: 'bandit_3', name: 'Harami Elebaşı' });
+assert(banditQuest.status === 'completed', 'Tüm haramiler alt edilince quest_bandits tamamlandı');
 
 console.log('\n🧪 ==========================================');
 console.log(`🧪 TEST SONUCU: ${passedTests}/${totalTests} TEST BAŞARIYLA TAMAMLANDI!`);

@@ -6,7 +6,7 @@ import { VillagerAI } from './VillagerAI.js';
 import { gameState } from '../core/GameState.js';
 
 /**
- * NPCManager - Mount & Blade II: Bannerlord Seviyesinde Yaşayan ve Etkileşimli Köy Ahalisi
+ * NPCManager - Yüksek Kaliteli, Yaşayan ve Etkileşimli Köy Ahalisi
  * - Uyuyan, Yiyen, İçen, Tarlada/Örste/Kuyuda Çalışan 20+ Canlı Karakter
  * - 24 Saatlik Zaman Çizelgesi & Davranış Durum Makineleri (VillagerAI)
  */

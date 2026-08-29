@@ -11,7 +11,7 @@ export const VillagerState = {
 };
 
 /**
- * VillagerAI - Mount & Blade II: Bannerlord Seviyesinde Yaşayan Köylü Yapay Zekası
+ * VillagerAI - Yüksek Kaliteli Yaşayan Köylü Yapay Zekası
  * - 24 Saatlik Gerçek Zamanlı Davranış Çizelgesi (Daily Routine Schedule)
  * - Duruma Özel Prosedürel Rig Animasyonları (Örs Dövme, Orak Sallama, Kupa İçme, Sedirde Uzanma)
  * - Dinamik A-Noktası B-Noktası Yürüyüş ve Yönelme Fiziği
