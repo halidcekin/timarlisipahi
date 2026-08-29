@@ -80,7 +80,7 @@ export class Engine {
       powerPreference: 'high-performance'
     });
     this.renderer.setSize(this.width, this.height);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2.0));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.25));
     this.renderer.setClearColor(0x7bb5e3, 1.0);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -200,11 +200,11 @@ export class Engine {
     const renderPass = new RenderPass(this.scene, this.camera);
     this.composer.addPass(renderPass);
 
-    // 2. SSAO (Screen Space Ambient Occlusion) - Köşeler ve temas noktalarına derinlik gölgeleri
+    // 2. SSAO (Screen Space Ambient Occlusion) - Optimize Edilmiş Derinlik Gölgeleri
     const ssaoPass = new SSAOPass(this.scene, this.camera, this.width, this.height);
-    ssaoPass.kernelRadius = 16;
-    ssaoPass.minDistance = 0.002;
-    ssaoPass.maxDistance = 0.1;
+    ssaoPass.kernelRadius = 10;
+    ssaoPass.minDistance = 0.003;
+    ssaoPass.maxDistance = 0.08;
     this.composer.addPass(ssaoPass);
 
     // 3. Unreal Bloom - Güneş, Ateş, Meşale ve Kıvılcımlarda Işık Taşması

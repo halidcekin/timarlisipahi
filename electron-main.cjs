@@ -1,10 +1,17 @@
-﻿/**
+/**
  * Mülk-i Osmanî - Steam & Desktop Main Process (Electron)
  * Steamworks SDK, Tam Ekran, Gamepad ve VSync Desteği
  */
 const { app, BrowserWindow, Menu, globalShortcut } = require('electron');
 const path = require('path');
 const http = require('http');
+
+// GPU Donanım Hızlandırma ve Yüksek Performans Bayrakları
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
+app.commandLine.appendSwitch('high-dpi-support', '1');
 
 let mainWindow;
 
@@ -28,15 +35,21 @@ function createWindow() {
 
   mainWindow.maximize();
 
-  // Dev sunucusu kontrolü
-  const devUrl = 'http://localhost:3000';
+  // Vite Dev Sunucusu Kontrolü (Port 5173 veya 3000)
+  const devUrl = 'http://localhost:5173';
   const req = http.get(devUrl, (res) => {
     mainWindow.loadURL(devUrl);
   });
 
   req.on('error', () => {
-    const indexPath = path.join(__dirname, 'dist', 'index.html');
-    mainWindow.loadFile(indexPath);
+    const backupUrl = 'http://localhost:3000';
+    const backupReq = http.get(backupUrl, (res) => {
+      mainWindow.loadURL(backupUrl);
+    });
+    backupReq.on('error', () => {
+      const indexPath = path.join(__dirname, 'dist', 'index.html');
+      mainWindow.loadFile(indexPath);
+    });
   });
 
   // Geliştirici ve Yenileme Tuş Kısayolları (F5, Ctrl+R, F12)
