@@ -6,6 +6,17 @@ import * as THREE from 'three';
  */
 export class TextureGenerator {
   static cache = {};
+  static maxAnisotropy = 4;
+
+  static setAnisotropy(val) {
+    this.maxAnisotropy = val || 4;
+    for (const key in this.cache) {
+      if (this.cache[key] && this.cache[key].isTexture) {
+        this.cache[key].anisotropy = this.maxAnisotropy;
+        this.cache[key].needsUpdate = true;
+      }
+    }
+  }
 
   // 1. Gerçekçi Çimen, Toprak ve Yabani Ot Dokusu
   static createGrassTexture() {

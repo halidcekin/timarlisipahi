@@ -199,9 +199,10 @@ export class Game {
         // 1. Gün & Zaman Akışı (24 Saatlik Döngü)
         gameState.time.dayTimeHours = (gameState.time.dayTimeHours + delta * 0.1) % 24;
 
-        // 2. Dinamik Gökyüzü, Güneş ve Ay Döngüsü
+        // 2. Dinamik Gökyüzü, Güneş, Ay Döngüsü & Dinamik Gölge Takibi
         if (this.engine) {
-          this.engine.updateDayNight(gameState.time.dayTimeHours);
+          const playerPos = this.player ? this.player.position : null;
+          this.engine.updateDayNight(gameState.time.dayTimeHours, playerPos);
         }
 
         // 3. Atmosferik Parçacık Motoru (Duman, Kıvılcım, Köz, Toz)

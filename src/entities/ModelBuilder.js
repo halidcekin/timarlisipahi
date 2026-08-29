@@ -10,91 +10,93 @@ export class ModelBuilder {
     this.materials = {
       grass: new THREE.MeshStandardMaterial({
         map: TextureGenerator.createGrassTexture(),
-        roughness: 0.85,
-        metalness: 0.05
+        roughness: 0.88,
+        metalness: 0.02
       }),
       steppeGrass: new THREE.MeshStandardMaterial({
         map: TextureGenerator.createSteppeGrassBladeTexture(),
         transparent: true,
         alphaTest: 0.45,
         side: THREE.DoubleSide,
-        roughness: 0.75,
-        metalness: 0.02
+        roughness: 0.82,
+        metalness: 0.01
       }),
       path: new THREE.MeshStandardMaterial({
         map: TextureGenerator.createPathTexture(),
-        roughness: 0.80,
-        metalness: 0.05
+        roughness: 0.86,
+        metalness: 0.02
       }),
       wood: new THREE.MeshStandardMaterial({
         map: TextureGenerator.createWoodTexture(),
-        roughness: 0.75,
-        metalness: 0.05
+        roughness: 0.78,
+        metalness: 0.02
       }),
       house: new THREE.MeshStandardMaterial({
         map: TextureGenerator.createHousePlasterTexture(),
-        roughness: 0.85,
-        metalness: 0.02
+        roughness: 0.90,
+        metalness: 0.01
       }),
       armor: new THREE.MeshStandardMaterial({
         color: 0x2b4c6f, // Koyu Çelik / Mavi Osmanlı Zırhı
-        metalness: 0.65,
-        roughness: 0.30
+        metalness: 0.88,
+        roughness: 0.20
       }),
       stone: new THREE.MeshStandardMaterial({
         map: TextureGenerator.createStoneWallTexture(),
-        roughness: 0.80,
-        metalness: 0.05
+        roughness: 0.84,
+        metalness: 0.02
       }),
       wall: new THREE.MeshStandardMaterial({
         map: TextureGenerator.createStoneWallTexture(),
-        roughness: 0.85,
-        metalness: 0.05
+        roughness: 0.88,
+        metalness: 0.02
       }),
       damascusSteel: new THREE.MeshStandardMaterial({
         map: TextureGenerator.createDamascusSteelTexture(),
-        metalness: 0.90,
-        roughness: 0.15
+        metalness: 0.96,
+        roughness: 0.12
       }),
       chainmail: new THREE.MeshStandardMaterial({
-        color: 0x454d55,
-        metalness: 0.75,
-        roughness: 0.30
+        color: 0x5a636c,
+        metalness: 0.85,
+        roughness: 0.24
       }),
       gold: new THREE.MeshStandardMaterial({
         color: 0xd4af37,
+        metalness: 0.94,
+        roughness: 0.16
+      }),
+      metal: new THREE.MeshStandardMaterial({
+        color: 0x8a939c,
         metalness: 0.90,
         roughness: 0.18
       }),
-      metal: new THREE.MeshStandardMaterial({
-        color: 0x7c858e,
-        metalness: 0.85,
-        roughness: 0.25
-      }),
       roof: new THREE.MeshStandardMaterial({
         map: TextureGenerator.createRoofTileTexture(),
-        roughness: 0.70,
-        metalness: 0.05
+        roughness: 0.68,
+        metalness: 0.03
       }),
       domeBlue: new THREE.MeshStandardMaterial({
         color: 0x1d4e70, // Mavi Kurşun Mescid Kubbesi
-        roughness: 0.35,
-        metalness: 0.35
+        roughness: 0.28,
+        metalness: 0.65
       }),
       water: new THREE.MeshStandardMaterial({
-        color: 0x1c4d6f,
-        roughness: 0.10,
-        metalness: 0.80,
+        color: 0x153c57,
+        roughness: 0.04,
+        metalness: 0.04,
         transparent: true,
-        opacity: 0.85
+        opacity: 0.88
       }),
       skin: new THREE.MeshStandardMaterial({
         color: 0xdeb887,
-        roughness: 0.65
+        roughness: 0.70,
+        metalness: 0.0
       }),
       leather: new THREE.MeshStandardMaterial({
         color: 0x3d2412,
-        roughness: 0.75
+        roughness: 0.78,
+        metalness: 0.05
       })
     };
   }
