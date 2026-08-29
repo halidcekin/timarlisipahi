@@ -114,8 +114,11 @@ export class NPCManager {
       dialogueId: 'guard_talk'
     });
 
-    // 8. Orman Sınırındaki Harami / Eşkıya Grubu
+    // 8. Orman Sınırındaki Harami / Eşkıya Grubu (Kuzey Batı)
     this.spawnBandits();
+
+    // 9. Tarlalarda Çalışan Reaya (Köylüler)
+    this.spawnPeasants();
   }
 
   createHumanNPC(config) {
@@ -140,9 +143,9 @@ export class NPCManager {
 
   spawnBandits() {
     const banditCoords = [
-      [-75, 70],
-      [-82, 65],
-      [-70, 80]
+      [-78, -88],
+      [-84, -92],
+      [-75, -95]
     ];
 
     banditCoords.forEach((coord, idx) => {
@@ -172,6 +175,28 @@ export class NPCManager {
         maxHealth: 50,
         attackCooldown: 0,
         isDead: false
+      });
+    });
+  }
+
+  spawnPeasants() {
+    // Tarlalar etrafında çalışan köylüler (x: 40-60, z: 50-70)
+    const peasantCoords = [
+      { x: 45, z: 55, name: 'Çiftçi Hasan' },
+      { x: 55, z: 65, name: 'Irgat Veli' },
+      { x: 50, z: 45, name: 'Reaya Mahmud' }
+    ];
+
+    peasantCoords.forEach(c => {
+      this.createHumanNPC({
+        id: `peasant_${c.name}`,
+        name: c.name,
+        role: 'Tımar Reayası',
+        position: new THREE.Vector3(c.x, TownGenerator.getTerrainHeight(c.x, c.z), c.z),
+        kaftanColor: 0x5c4d3c, // Kirli Toprak Rengi
+        hairColor: 0x111111,
+        headwear: 'cap',
+        dialogueId: 'peasant_talk'
       });
     });
   }

@@ -108,6 +108,10 @@ export class Player {
   }
 
   update(delta, inputManager) {
+    // Sönümleme (Geri itilme / Knockback için sürtünme)
+    this.velocity.x -= this.velocity.x * 6.0 * delta;
+    this.velocity.z -= this.velocity.z * 6.0 * delta;
+
     const mouseDelta = inputManager.getMouseDelta();
     this.handleMouseLook(mouseDelta);
 
@@ -137,8 +141,8 @@ export class Player {
       const worldX = (moveDir.x * cosY + moveDir.z * sinY) * currentSpeed;
       const worldZ = (-moveDir.x * sinY + moveDir.z * cosY) * currentSpeed;
 
-      const newX = this.position.x + worldX * delta;
-      const newZ = this.position.z + worldZ * delta;
+      const newX = this.position.x + (worldX + this.velocity.x) * delta;
+      const newZ = this.position.z + (worldZ + this.velocity.z) * delta;
 
       if (!this.checkCollision(newX, this.position.z)) {
         this.position.x = newX;
@@ -154,6 +158,14 @@ export class Player {
           if (this.isRiding) soundManager.playHorseHoof();
           else soundManager.playFootstep();
         } catch (e) {}
+      }
+    } else {
+      // Eğer tuşlara basılmıyorsa ama knockback (velocity) varsa hareket et
+      if (Math.abs(this.velocity.x) > 0.1 || Math.abs(this.velocity.z) > 0.1) {
+        const newX = this.position.x + this.velocity.x * delta;
+        const newZ = this.position.z + this.velocity.z * delta;
+        if (!this.checkCollision(newX, this.position.z)) this.position.x = newX;
+        if (!this.checkCollision(this.position.x, newZ)) this.position.z = newZ;
       }
     }
 
