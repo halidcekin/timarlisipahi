@@ -369,6 +369,34 @@ export class QuestSystem {
           title: 'Gazi Sancakbeyi Naibi'
         },
         status: 'locked'
+      },
+
+      // 13. GAZİ CEBELÜ ALİ'Yİ KURTARMA (ZAMAN KISITLI ACİL VAZİFE)
+      {
+        id: 'quest_save_ali_leg',
+        title: '13. Can Yoldaşım: Gazi Cebelü Ali\'yi Hayatta Tut',
+        shortTitle: 'Gazi Ali\'yi Kurtar',
+        giver: 'Sadık Cebelü Ali (Yaralı)',
+        giverRole: 'Gazi Silahdar',
+        desc: 'Niğbolu\'da sana inen kılıca kendini siper edip bacağını kaybeden Sadık Cebelü Ali ölüm döşeğinde! 3 gün içinde merhem, koltuk değneği ve hekim bulamazsan vefat edecek ve ahali vefasızlığa isyan edecek!',
+        targetType: 'npc',
+        targetId: 'attar',
+        targetName: 'Attar Mehmet Efendi & Demirci Rüstem',
+        targetPos: new THREE.Vector3(-12, 0, 18),
+        icon: '🩹',
+        prerequisites: ['quest_campaign'],
+        objectives: [
+          { text: 'Attar Mehmet\'ten sarı kantaron dağlama yağı temin et', completed: false },
+          { text: 'Demirci Rüstem\'den demir tabanlı koltuk değneği sipariş et', completed: false },
+          { text: 'Molla Şemseddin ve hekimle Ali\'nin yarasını sarıp ayağa kaldır', completed: false }
+        ],
+        rewards: {
+          akce: 500,
+          reayaTrust: 30,
+          squadLoyalty: 40,
+          title: 'Vefakâr Gazi Sipahi'
+        },
+        status: 'locked'
       }
     ];
 

@@ -293,7 +293,10 @@ export class TownGenerator {
     const forge = this.modelBuilder.createBlacksmithShop();
     forge.position.set(-62, 0, 8);
     this.scene.add(forge);
-    this.addCollider(-62, 8, 12, 10);
+    // İçeri rahat giriş için sadece 3 duvara collider eklendi, ön cephe tamamen açık
+    this.addCollider(-62, 8 + 4.4, 11.5, 0.8); // Arka duvar
+    this.addCollider(-62 - 5.5, 8, 0.8, 9.2);  // Sol duvar
+    this.addCollider(-62 + 5.5, 8, 0.8, 9.2);  // Sağ duvar
 
     // Alevli Demirci Ocağı & Işık (Forge Fire)
     const forgeFire = new THREE.PointLight(0xff5500, 2.4, 18);

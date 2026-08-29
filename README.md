@@ -208,9 +208,34 @@ npm run build
 ✅ [BAŞARILI] 5 safha sonunda Niğbolu Muharebesi zaferle bitti
 ✅ [BAŞARILI] Niğbolu Seferi fermanı başarıyla sonuçlandırıldı
 ✅ [BAŞARILI] Zafer ganimeti ve padişah bahşişi kazanıldı
+✅ [BAŞARILI] Koca Yakub diyalog düğümü mevcut
+✅ [BAŞARILI] Koca Yakub defter ve öşür alt dallanması başarılı
+✅ [BAŞARILI] Yakub Ağa adaletli kararı onayladı
+✅ [BAŞARILI] Molla Şemseddin Haçlı kuşatması havadisini aktardı
+✅ [BAŞARILI] Demirci Rüstem Gürz vs Kılıç seçimi sundu
+✅ [BAŞARILI] Sipahi ağır şövalyeler için Gürz kuşandı
+✅ [BAŞARILI] Han casusunun parşömen haritası ele geçirildi
+✅ [BAŞARILI] Koca Dede 1389 Kosova gazâ vasiyetini aktardı
+✅ [BAŞARILI] Gazi Ali ihmal nedeniyle vefat etti
+✅ [BAŞARILI] Taşlanma linci Game Over tetiklendi
+✅ [BAŞARILI] Fail-state sebebi stoning_linch olarak kaydedildi
+✅ [BAŞARILI] Gazi Cebelü Ali dualarla ve koltuk değneğiyle hayatta kaldı
+✅ [BAŞARILI] Molla Şemseddin Ali'nin kurtulduğunu müjdeledi
+✅ [BAŞARILI] 1. Darbe sonrası 2. Saldırı (Dik Savurma) hazırlandı
+✅ [BAŞARILI] 2. Darbe sonrası 3. Saldırı (Çapraz Güçlü Vuruş) hazırlandı
+✅ [BAŞARILI] 3. Darbe sonrası 4. Saldırı (Dik Batırma/Saplama) hazırlandı
+✅ [BAŞARILI] 4. Darbe sonrası 1. Saldırıya (Yan Savurma) başa dönüldü
+✅ [BAŞARILI] 3 adet harami düşman mevcut
+✅ [BAŞARILI] Harami Elebaşı Kılçık Cafer canı en az 200 (Güçlendirildi)
+✅ [BAŞARILI] Harami Elebaşı saldırı gücü en az 25
+✅ [BAŞARILI] Demirci atölyesi tek parça katı collider engeli kaldırıldı
+✅ [BAŞARILI] Demirci atölyesi duvarları ayrı ayrı korundu ve kapı girişi açıldı
+✅ [BAŞARILI] Şehitlik durumunda Game Over tetiklendi
+✅ [BAŞARILI] Fail-state sebebi martyrdom olarak kaydedildi
+✅ [BAŞARILI] Şehadet başlığı doğru üretildi
 
 🧪 ==========================================
-🧪 TEST SONUCU: 72/72 TEST BAŞARIYLA TAMAMLANDI!
+🧪 TEST SONUCU: 97/97 TEST BAŞARIYLA TAMAMLANDI!
 🧪 ==========================================
 ```
 

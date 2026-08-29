@@ -1182,6 +1182,56 @@ export class UIManager {
 
     // 8. Bildirimler
     this.renderNotifications();
+
+    // 9. Fail-State & Yeniden Başlama Kontrolü (Taşlanma Linci / Şehitlik / Çiftbozan)
+    this.checkFailState();
+  }
+
+  checkFailState() {
+    if (!gameState.failState || !gameState.failState.isGameOver) return;
+
+    let overlay = document.getElementById('fail-state-overlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'fail-state-overlay';
+      overlay.style.position = 'fixed';
+      overlay.style.top = '0';
+      overlay.style.left = '0';
+      overlay.style.width = '100vw';
+      overlay.style.height = '100vh';
+      overlay.style.background = 'radial-gradient(circle, rgba(120, 0, 0, 0.95) 0%, rgba(20, 0, 0, 0.98) 100%)';
+      overlay.style.zIndex = '99999';
+      overlay.style.display = 'flex';
+      overlay.style.flexDirection = 'column';
+      overlay.style.alignItems = 'center';
+      overlay.style.justifyContent = 'center';
+      overlay.style.color = '#fff';
+      overlay.style.fontFamily = 'serif';
+      overlay.style.textAlign = 'center';
+      overlay.style.padding = '20px';
+      overlay.style.boxSizing = 'border-box';
+      document.body.appendChild(overlay);
+    }
+
+    const isStoning = gameState.failState.reason === 'stoning_linch';
+    overlay.innerHTML = `
+      <div style="font-size: 64px; margin-bottom: 20px;">
+        ${isStoning ? '🪨 🪨 🪨' : '🚩 ⚔️ 🚩'}
+      </div>
+      <h1 style="font-size: 36px; color: #ffcccc; margin-bottom: 16px; text-shadow: 0 4px 12px rgba(0,0,0,0.8);">
+        ${gameState.failState.title}
+      </h1>
+      <p style="font-size: 19px; max-width: 680px; line-height: 1.6; color: #e0d6c0; margin-bottom: 32px;">
+        ${gameState.failState.desc}
+      </p>
+      <button id="btn-restart-game" style="padding: 16px 42px; font-size: 22px; font-weight: bold; background: #8b0000; color: #fff; border: 2px solid #ff9999; border-radius: 8px; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.6);">
+        🔄 YENİDEN BAŞLA
+      </button>
+    `;
+
+    document.getElementById('btn-restart-game')?.addEventListener('click', () => {
+      window.location.reload();
+    });
   }
 
   renderNotifications() {

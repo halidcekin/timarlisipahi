@@ -433,14 +433,15 @@ export class NPCManager {
 
     banditCoords.forEach((coord, idx) => {
       const h = TownGenerator.getTerrainHeight(coord[0], coord[1]);
+      const isBoss = idx === 2;
       const mesh = this.modelBuilder.createDetailedHumanNPC({
-        kaftanColor: 0x241d18,
+        kaftanColor: isBoss ? 0x4a1212 : 0x241d18,
         hairColor: 0x111111,
-        headwear: 'cap',
+        headwear: isBoss ? 'turban' : 'cap',
         hasBeard: true
       });
 
-      const sword = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.95, 0.02), this.modelBuilder.materials.metal);
+      const sword = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.05, 0.03), this.modelBuilder.materials.metal);
       sword.position.set(0.55, 0.85, 0.3);
       sword.rotation.set(Math.PI / 4, 0, -Math.PI / 4);
       mesh.add(sword);
@@ -448,13 +449,16 @@ export class NPCManager {
       mesh.position.set(coord[0], h, coord[1]);
       this.scene.add(mesh);
 
+      const maxHp = isBoss ? 220 : 130 + idx * 20;
       this.enemies.push({
         id: `bandit_${idx}`,
-        name: `Harami Çapulcu #${idx + 1}`,
+        name: isBoss ? 'Harami Elebaşı Kılçık Cafer' : `Harami Çapulcu #${idx + 1}`,
         mesh: mesh,
         position: mesh.position,
-        health: 50,
-        maxHealth: 50,
+        health: maxHp,
+        maxHealth: maxHp,
+        armorType: isBoss ? 'mail' : 'leather',
+        attackDamage: isBoss ? 28 : 20,
         attackCooldown: 0,
         isDead: false
       });

@@ -132,11 +132,11 @@ export class Player {
       return false;
     }
 
-    // Kombo aşamasını belirle (Eğer aradan çok süre geçtiyse sıfırla)
+    // Kombo aşamasını belirle (Eğer aradan çok süre geçtiyse sıfırla - 4 Farklı Saldırı Formu)
     if (this.comboResetTimer <= 0) {
       this.comboStep = 0;
     } else {
-      this.comboStep = (this.comboStep + 1) % 3;
+      this.comboStep = (this.comboStep + 1) % 4;
     }
 
     this.isAttacking = true;
@@ -144,9 +144,9 @@ export class Player {
     this.queuedAttack = false;
     this.comboResetTimer = 1.4; // 1.4 saniye içinde devam edilirse kombo sürer
 
-    const staminaCost = this.comboStep === 2 ? 28 : 18;
+    const staminaCost = this.comboStep === 2 ? 26 : this.comboStep === 3 ? 22 : 16;
     gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - staminaCost);
-    this.staminaRegenDelay = 1.3; // Saldırı sonrası 1.3 saniye kuvvet dolumu durur
+    this.staminaRegenDelay = 1.2;
 
     try { soundManager.playSwordSwing(); } catch (e) {}
     return true;
@@ -331,67 +331,80 @@ export class Player {
       const p = this.attackProgress;
 
       if (this.comboStep === 0) {
-        // --- 1. KOMBO: Sağdan Sola Geniş Yatay Kesme ---
-        if (p < 0.3) {
-          // Geriye çekilme (Anticipation / Kurulma)
-          const ease = p / 0.3;
+        // --- 1. SALDIRI: Yan Savurma (Sağdan Sola Geniş Yatay Kesme) ---
+        if (p < 0.28) {
+          const ease = p / 0.28;
           sword.position.set(0.48 + ease * 0.15, -0.05 + ease * 0.1, -0.55 + ease * 0.1);
           sword.rotation.set(-0.2 + ease * 0.4, 0.4 + ease * 0.8, -0.3);
-        } else if (p < 0.75) {
-          // İleri savrulma (Slash)
-          const ease = (p - 0.3) / 0.45;
+        } else if (p < 0.72) {
+          const ease = (p - 0.28) / 0.44;
           const sinP = Math.sin(ease * Math.PI * 0.5);
           sword.position.set(0.63 - sinP * 0.95, 0.05 - sinP * 0.25, -0.45 - sinP * 0.35);
           sword.rotation.set(0.2 - sinP * 0.6, 1.2 - sinP * 2.4, -0.3 + sinP * 0.6);
         } else if (p < 1.0) {
-          // Toparlanma (Recovery)
-          const ease = (p - 0.75) / 0.25;
+          const ease = (p - 0.72) / 0.28;
           sword.position.set(-0.32 + ease * 0.68, -0.2 + ease * 0.14, -0.8 + ease * 0.18);
           sword.rotation.set(-0.4 + ease * 0.4, -1.2 + ease * 1.2, 0.3 - ease * 0.3);
         } else {
           this.finishAttackStep();
         }
       } else if (this.comboStep === 1) {
-        // --- 2. KOMBO: Sol Alttan Sağ Yukarı Ters Kesme (Upward Backhand) ---
-        if (p < 0.25) {
-          const ease = p / 0.25;
-          sword.position.set(-0.35 - ease * 0.1, -0.25 - ease * 0.1, -0.6);
-          sword.rotation.set(-0.5, -0.8 - ease * 0.3, 0.6);
+        // --- 2. SALDIRI: Dik Savurma (Yukarıdan Aşağıya Dikey Kesme) ---
+        if (p < 0.3) {
+          const ease = p / 0.3;
+          sword.position.set(0.28 - ease * 0.08, 0.1 + ease * 0.4, -0.55);
+          sword.rotation.set(0.1 + ease * 1.2, -0.2, -0.1);
         } else if (p < 0.7) {
-          const ease = (p - 0.25) / 0.45;
+          const ease = (p - 0.3) / 0.4;
           const sinP = Math.sin(ease * Math.PI * 0.5);
-          sword.position.set(-0.45 + sinP * 0.95, -0.35 + sinP * 0.65, -0.6 - sinP * 0.2);
-          sword.rotation.set(-0.5 + sinP * 1.2, -1.1 + sinP * 2.2, 0.6 - sinP * 1.2);
+          sword.position.set(0.2, 0.5 - sinP * 0.85, -0.55 - sinP * 0.3);
+          sword.rotation.set(1.3 - sinP * 2.2, -0.2, -0.1);
         } else if (p < 1.0) {
           const ease = (p - 0.7) / 0.3;
-          sword.position.set(0.5 - ease * 0.14, 0.3 - ease * 0.36, -0.8 + ease * 0.18);
-          sword.rotation.set(0.7 - ease * 0.7, 1.1 - ease * 1.1, -0.6 + ease * 0.6);
+          sword.position.set(0.2 + ease * 0.14, -0.35 + ease * 0.25, -0.85 + ease * 0.27);
+          sword.rotation.set(-0.9 + ease * 0.9, -0.2, -0.1);
         } else {
           this.finishAttackStep();
         }
-      } else {
-        // --- 3. KOMBO: Tepe İndirme (Heavy Overhead Strike & Chop) ---
-        if (p < 0.35) {
-          // Kılıcı iki elle baş üstüne kaldırma
-          const ease = p / 0.35;
-          sword.position.set(0.36 - ease * 0.16, -0.06 + ease * 0.45, -0.62 + ease * 0.2);
-          sword.rotation.set(ease * 1.3, -Math.PI / 8, -ease * 0.2);
+      } else if (this.comboStep === 2) {
+        // --- 3. SALDIRI: Çapraz Güçlü Vuruş (Sol Üstten Sağ Alta Çapraz İndirme) ---
+        if (p < 0.32) {
+          const ease = p / 0.32;
+          sword.position.set(-0.25 + ease * 0.1, 0.2 + ease * 0.35, -0.5);
+          sword.rotation.set(0.4 + ease * 0.9, 0.6, -0.5);
         } else if (p < 0.75) {
-          // Bütün vücut ağırlığıyla aşağıya indirme
-          const ease = (p - 0.35) / 0.4;
+          const ease = (p - 0.32) / 0.43;
           const sinP = Math.sin(ease * Math.PI * 0.5);
-          sword.position.set(0.2 - ease * 0.05, 0.39 - sinP * 0.85, -0.42 - sinP * 0.4);
-          sword.rotation.set(1.3 - sinP * 2.4, -Math.PI / 8, -0.2);
-          if (ease > 0.5 && !this._shakeTriggered) {
-            this.addCameraShake(0.06);
+          sword.position.set(-0.15 + sinP * 0.75, 0.55 - sinP * 0.95, -0.5 - sinP * 0.4);
+          sword.rotation.set(1.3 - sinP * 2.2, 0.6 - sinP * 1.4, -0.5 + sinP * 1.2);
+          if (ease > 0.45 && !this._shakeTriggered) {
+            this.addCameraShake(0.08);
             this._shakeTriggered = true;
           }
         } else if (p < 1.0) {
           const ease = (p - 0.75) / 0.25;
-          sword.position.set(0.15 + ease * 0.21, -0.46 + ease * 0.4, -0.82 + ease * 0.2);
-          sword.rotation.set(-1.1 + ease * 1.1, -Math.PI / 8, -0.2 + ease * 0.2);
+          sword.position.set(0.6 - ease * 0.26, -0.4 + ease * 0.3, -0.9 + ease * 0.32);
+          sword.rotation.set(-0.9 + ease * 0.9, -0.8 + ease * 0.8, 0.7 - ease * 0.7);
         } else {
           this._shakeTriggered = false;
+          this.finishAttackStep();
+        }
+      } else {
+        // --- 4. SALDIRI: Dik Batırma / Dürtme (Forward Thrust / Stab) ---
+        if (p < 0.25) {
+          const ease = p / 0.25;
+          sword.position.set(0.22, -0.05, -0.4 + ease * 0.15); // Geriye çekilip hedefe hizalanma
+          sword.rotation.set(0, 0, 0);
+        } else if (p < 0.65) {
+          const ease = (p - 0.25) / 0.4;
+          const sinP = Math.sin(ease * Math.PI * 0.5);
+          sword.position.set(0.18, -0.02, -0.25 - sinP * 0.95); // İleriye mızrak gibi saplama
+          sword.rotation.set(0.02, -0.02, 0.05);
+        } else if (p < 1.0) {
+          const ease = (p - 0.65) / 0.35;
+          sword.position.set(0.18 + ease * 0.16, -0.02 - ease * 0.08, -1.2 + ease * 0.62); // Hızla geri çekiş
+          sword.rotation.set(0.02 - ease * 0.02, -0.02, 0.05 - ease * 0.05);
+        } else {
           this.finishAttackStep();
         }
       }

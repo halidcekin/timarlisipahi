@@ -172,8 +172,8 @@ assert(gameState.time.hijriYear === 798, 'Hicri yıl 798 olarak senkronize edild
 assert(gameState.time.seasonIndex === 0, 'Başlangıç mevsimi İlkbahar');
 
 const initialDay = gameState.time.dayCount;
-// 24 saatlik döngü simülasyonu (8:00 + 400 * 0.05 = 28:00 -> Gün döngüsü tamamlanır)
-gameState.updateTime(400);
+// 24 saatlik döngü simülasyonu (8:00 + 6000 * 0.003 = 26:00 -> Gün döngüsü tamamlanır)
+gameState.updateTime(6000);
 assert(gameState.time.dayCount > initialDay, 'updateTime() çağrısı gün sayacını artırdı');
 
 // -------------------------------------------------------------
@@ -354,7 +354,7 @@ assert(yakubSonuc !== null && yakubSonuc.text.includes('Hızır yoldaşın olsun
 
 // 2. Molla Şemseddin (Kadı Naibi) Ferman ve Gazâ Fıkhı Dalı
 const imamData = DialogueSystem.getDialogueData('imam_talk');
-const imamFermanBranch = imamData.choices[1].action();
+const imamFermanBranch = imamData.choices[2].action();
 assert(imamFermanBranch !== null && imamFermanBranch.text.includes('Niğbolu Hisarı'), 'Molla Şemseddin Haçlı kuşatması havadisini aktardı');
 
 // 3. Ahi Demirci Rüstem Usta - Gürz ve Zırh Delme Sırrı
@@ -373,6 +373,93 @@ assert(hanciCasusBranch.text.includes('parşömene çizer') || hanciCasusBranch.
 const dedeData = DialogueSystem.getDialogueData('dede_talk');
 const dedeKosovaBranch = dedeData.choices[0].action();
 assert(dedeKosovaBranch.text.includes('Kosova') && dedeKosovaBranch.text.includes('Murad Han'), 'Koca Dede 1389 Kosova gazâ vasiyetini aktardı');
+
+// -------------------------------------------------------------
+// TEST 17: Cebelü Ali Kopan Bacak & Taşlanma Fail-State Testi
+// -------------------------------------------------------------
+gameState.aliStatus.legSevered = true;
+gameState.aliStatus.isSaved = false;
+gameState.aliStatus.isDead = false;
+gameState.aliStatus.daysRemaining = 1;
+gameState.failState = { isGameOver: false };
+
+// 1 gün daha geçsin -> Ali vefat eder ve taşlanma linci tetiklenir
+gameState.updateTime(8000);
+assert(gameState.aliStatus.isDead === true, 'Gazi Ali ihmal nedeniyle vefat etti');
+assert(gameState.failState.isGameOver === true, 'Taşlanma linci Game Over tetiklendi');
+assert(gameState.failState.reason === 'stoning_linch', 'Fail-state sebebi stoning_linch olarak kaydedildi');
+
+// Ali'yi kurtarma akışını test et
+gameState.aliStatus.isDead = false;
+gameState.aliStatus.isSaved = false;
+gameState.aliStatus.legSevered = true;
+gameState.failState.isGameOver = false;
+
+const attarData = DialogueSystem.getDialogueData('attar_talk');
+const kantaronChoice = attarData.choices[0]; // Dağlama yağı seçeneği
+gameState.timar.akce = 100;
+kantaronChoice.action();
+
+const demirciDataAli = DialogueSystem.getDialogueData('demirci_talk');
+const koltukDegnegiChoice = demirciDataAli.choices[1]; // Koltuk değneği seçeneği
+koltukDegnegiChoice.action();
+
+const imamDataAli = DialogueSystem.getDialogueData('imam_talk');
+const aliKurtarChoice = imamDataAli.choices[0]; // Yarasını sarma ve ayağa kaldırma
+const aliKurtarSonuc = aliKurtarChoice.action();
+assert(gameState.aliStatus.isSaved === true, 'Gazi Cebelü Ali dualarla ve koltuk değneğiyle hayatta kaldı');
+assert(aliKurtarSonuc.text.includes('Elhamdülillah'), 'Molla Şemseddin Ali\'nin kurtulduğunu müjdeledi');
+
+// -------------------------------------------------------------
+// TEST 18: 4 Kademeli Kılıç Animasyon ve Kombo Akışı
+// -------------------------------------------------------------
+player.comboStep = 0;
+player.comboResetTimer = 2.0;
+gameState.sipahi.stamina = 100;
+
+player.isAttacking = false;
+player.triggerAttack();
+assert(player.comboStep === 1, '1. Darbe sonrası 2. Saldırı (Dik Savurma) hazırlandı');
+
+gameState.sipahi.stamina = 100;
+player.isAttacking = false;
+player.triggerAttack();
+assert(player.comboStep === 2, '2. Darbe sonrası 3. Saldırı (Çapraz Güçlü Vuruş) hazırlandı');
+
+gameState.sipahi.stamina = 100;
+player.isAttacking = false;
+player.triggerAttack();
+assert(player.comboStep === 3, '3. Darbe sonrası 4. Saldırı (Dik Batırma/Saplama) hazırlandı');
+
+gameState.sipahi.stamina = 100;
+player.isAttacking = false;
+player.triggerAttack();
+assert(player.comboStep === 0, '4. Darbe sonrası 1. Saldırıya (Yan Savurma) başa dönüldü');
+
+// -------------------------------------------------------------
+// TEST 19: Güçlendirilmiş Harami Çetesi Özellikleri
+// -------------------------------------------------------------
+const toughBandits = npcManager.enemies.filter(e => e.id.startsWith('bandit_'));
+assert(toughBandits.length === 3, '3 adet harami düşman mevcut');
+const bossBandit = toughBandits.find(b => b.id === 'bandit_2');
+assert(bossBandit.maxHealth >= 200, 'Harami Elebaşı Kılçık Cafer canı en az 200 (Güçlendirildi)');
+assert(bossBandit.attackDamage >= 25, 'Harami Elebaşı saldırı gücü en az 25');
+
+// -------------------------------------------------------------
+// TEST 20: Demirci Binası Açık Kapı & Collider Doğrulaması
+// -------------------------------------------------------------
+const solidBlacksmithBox = town.colliders.some(c => c.minX === -68 && c.maxX === -56 && c.minZ === 3 && c.maxZ === 13);
+assert(!solidBlacksmithBox, 'Demirci atölyesi tek parça katı collider engeli kaldırıldı');
+const blacksmithWalls = town.colliders.filter(c => Math.abs(c.minX - (-67.5)) < 1 || Math.abs(c.maxX - (-56.5)) < 1 || Math.abs(c.maxZ - (12.4)) < 1);
+assert(blacksmithWalls.length >= 2, 'Demirci atölyesi duvarları ayrı ayrı korundu ve kapı girişi açıldı');
+
+// -------------------------------------------------------------
+// TEST 21: Niğbolu Şehitlik Fail-State Doğrulaması
+// -------------------------------------------------------------
+campaignBattleSystem.handlePlayerMartyrdom();
+assert(gameState.failState.isGameOver === true, 'Şehitlik durumunda Game Over tetiklendi');
+assert(gameState.failState.reason === 'martyrdom', 'Fail-state sebebi martyrdom olarak kaydedildi');
+assert(gameState.failState.title.includes('ŞEHİT'), 'Şehadet başlığı doğru üretildi');
 
 console.log('\n🧪 ==========================================');
 console.log(`🧪 TEST SONUCU: ${passedTests}/${totalTests} TEST BAŞARIYLA TAMAMLANDI!`);

@@ -114,6 +114,22 @@ export class DialogueSystem {
         },
         choices: [
           {
+            label: '🩹 "Hocam, kantaron merhemini ve koltuk değneğini getirdim; hekimlerle Gazi Ali\'nin bacağını sarıp ayağa kaldıralım!"',
+            action: () => {
+              gameState.aliStatus.isSaved = true;
+              gameState.modifySquadLoyalty(40);
+              gameState.modifyReayaTrust(30);
+              gameState.modifyFaction('ulema', 25);
+              questSystem.advanceObjective('quest_save_ali_leg', 2);
+              questSystem.completeQuest('quest_save_ali_leg');
+              soundManager.playVictoryJingle();
+              return {
+                text: `"Elhamdülillah! Yarasını dağladık, temiz sargılarla sardık ve koltuk değneğini teslim ettik. Ali evladımız gözlerini açtı, sana canı pahasına dua eder! Reaya vefa ve merhametini ayakta alkışlar!"`,
+                choices: [{ label: 'Çok şükür Ya Rabbi! Gazi yoldaşımız hayatta kaldı.', action: null }]
+              };
+            }
+          },
+          {
             label: '🤲 "Hocam, ordumuz, cebelülerimiz ve yaklaşan gazâlar için hayır dua ve nasihat eyle."',
             action: () => {
               gameState.modifySancakReputation(10);
@@ -202,6 +218,22 @@ export class DialogueSystem {
                 }
               ]
             })
+          },
+          {
+            label: '🩼 "Gazi Cebelü Ali için sağlam gürgenden demir tabanlı bir koltuk değneği yap Rüstem Usta (-40 Akçe)."',
+            action: () => {
+              if (gameState.timar.akce < 40) {
+                gameState.addNotification('⚠️ Yetersiz akçe!', 'alert');
+                return null;
+              }
+              gameState.timar.akce -= 40;
+              gameState.modifyFaction('ahiler', 15);
+              questSystem.advanceObjective('quest_save_ali_leg', 1);
+              return {
+                text: `"Can feda Ali oğlumuza! Demir tabanlı, oymalı gürgen ağacından taş gibi bir koltuk değneği yaptım. Gazi kardeşimiz ayağa kalkacaktır!"`,
+                choices: [{ label: 'Var ol Rüstem Usta!', action: null }]
+              };
+            }
           },
           {
             label: '🛡️ "Aşınan kılıç ve kalkanlarımızı tamir eyle (Maliyet: 30 Akçe)."',
@@ -436,6 +468,22 @@ export class DialogueSystem {
           questSystem.advanceObjective('quest_attar', 0);
         },
         choices: [
+          {
+            label: '🩹 "Gazi Cebelü Ali\'nin bacağı koptu, acil sarı kantaron ve dağlama yağı ver Mehmet Efendi! (-30 Akçe)"',
+            action: () => {
+              if (gameState.timar.akce < 30) {
+                gameState.addNotification('⚠️ Yetersiz akçe!', 'alert');
+                return null;
+              }
+              gameState.timar.akce -= 30;
+              gameState.modifyFaction('ahiler', 15);
+              questSystem.advanceObjective('quest_save_ali_leg', 0);
+              return {
+                text: `"Aman beyim tez yetiştir! İşte hakiki sarı kantaron ve dağlama macunu. İltihabı kurutur, kanı durdurur. Hemen bacağına sarın!"`,
+                choices: [{ label: 'Eyvallah Mehmet Efendi, dualarınızı eksik etmeyin!', action: null }]
+              };
+            }
+          },
           {
             label: '🧪 "Savaş için yara kapatıcı sarı kantaron yağı ve merhem tedarik et (-40 Akçe)."',
             action: () => {

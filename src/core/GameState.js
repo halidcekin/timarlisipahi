@@ -113,8 +113,17 @@ export class GameState {
       season: 'İlkbahar (Ekim Zamanı)',
       seasonIndex: 0, // 0: Bahar, 1: Yaz, 2: Güz, 3: Kış
       dayTimeHours: 8.0, // Sabah 08:00 başlangıç
-      daySpeed: 0.05, // Zaman akış katsayısı
+      daySpeed: 0.003, // Gerçekçi ve keyifli zaman akış katsayısı
       dayCount: 1
+    };
+
+    // Gazi Cebelü Ali - Kopan Bacak & Hayatta Tutma Durumu
+    this.aliStatus = {
+      isWounded: false,
+      legSevered: false,
+      daysRemaining: 3,
+      isSaved: false,
+      isDead: false
     };
 
     // Aktif Ferman & Niğbolu Kampanyası
@@ -206,11 +215,43 @@ export class GameState {
       this.time.dayTimeHours -= 24;
       this.time.dayCount++;
       this.daysPassed++;
+
+      // Gazi Cebelü Ali bacak bakım süresi takibi
+      if (this.aliStatus.legSevered && !this.aliStatus.isSaved && !this.aliStatus.isDead) {
+        this.aliStatus.daysRemaining--;
+        if (this.aliStatus.daysRemaining > 0) {
+          this.addNotification(`⚠️ DİKKAT: Gazi Ali'nin yarası iltihaplandı! Kalan mühlet: ${this.aliStatus.daysRemaining} gün.`, 'alert');
+        } else {
+          this.triggerAliDeathAndStoning();
+        }
+      }
+
       // Günlük asayiş ve olay kontrolü
       if (this.time.dayCount % 10 === 0) {
         this.advanceSeason();
       }
     }
+  }
+
+  triggerAliDeathAndStoning() {
+    this.aliStatus.isDead = true;
+    this.failState = {
+      isGameOver: true,
+      reason: 'stoning_linch',
+      title: '🪨 KÖYLÜLER TARAFINDAN TAŞLANARAK LİNÇ EDİLDİN!',
+      desc: 'Gaza meydanında senin canını kurtarmak için bacağını feda eden Sadık Cebelü Ali ihmal nedeniyle vefat etti. Ahali ve cebelü yoldaşları vefasızlığına isyan edip seni konak önünde taşlayarak linç etti.'
+    };
+    this.addNotification('💀 Sadık Cebelü Ali vefat etti! Ahali konağı bastı!', 'alert');
+  }
+
+  triggerMartyrdom() {
+    this.failState = {
+      isGameOver: true,
+      reason: 'martyrdom',
+      title: '🚩 TUNA BOYUNDA ŞEHİT DÜŞTÜN!',
+      desc: '1396 Niğbolu Meydan Muharebesi\'nde Haçlı ordusuna karşı gazâ ederken canını feda ettin. Şanın asırlarca yaşayacak.'
+    };
+    this.addNotification('🚩 Şehadet şerbetini içtin...', 'alert');
   }
 
   advanceSeason() {

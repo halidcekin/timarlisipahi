@@ -2,6 +2,7 @@ import { gameState } from '../core/GameState.js';
 import { soundManager } from '../core/AudioManager.js';
 import { trainingSystem } from './TrainingSystem.js';
 import { supplySystem } from './SupplySystem.js';
+import { questSystem } from './QuestSystem.js';
 
 /**
  * CampaignBattleSystem - 1396 Niğbolu Meydan Muharebesi ve Rumeli Seferi Motoru (Aşama 3 & 4)
@@ -143,6 +144,20 @@ export class CampaignBattleSystem {
     gameState.modifyReayaTrust(20);
     gameState.activeCampaign.isResolved = true;
 
+    // Savaşın Dramatik Bedeli: Cebelü Ali sipahisini kurtarırken bacağı koptu
+    gameState.aliStatus.legSevered = true;
+    gameState.aliStatus.isWounded = true;
+    gameState.aliStatus.daysRemaining = 3;
+    gameState.aliStatus.isSaved = false;
+    gameState.aliStatus.isDead = false;
+
+    // Ali'yi kurtarma acil vazifesini aktif et
+    const aliQuest = questSystem.getQuestById('quest_save_ali_leg');
+    if (aliQuest) {
+      aliQuest.status = 'active';
+      questSystem.syncWithGameState();
+    }
+
     try { soundManager.playVictoryJingle(); } catch (e) {}
 
     const outcome = {
@@ -154,12 +169,18 @@ export class CampaignBattleSystem {
       repGain,
       title: isGloriousVictory ? '🏆 NİĞBOLU ZAFER-İ CELÎLESİ (MUHAYYEL GAZÂ)' : '⚔️ NİĞBOLU MEYDAN ZAFERİ',
       desc: isGloriousVictory
-        ? `Tuna boyunda Haçlı şövalyeleri darmadağın edildi! Sultan Yıldırım Bayezid Han seni bizzat çadırına davet edip tebrik eyledi ve Şam Çeliği kılıç ihsan etti.`
-        : `Zorlu beş safhanın ardından Niğbolu Kalesi kurtarıldı. Zafer kazanıldı ve ordumuz Tuna'ya mührünü vurdu.`
+        ? `Tuna boyunda Haçlı şövalyeleri darmadağın edildi! Lakin Fransız şövalyesinin kılıcı sana inerken Sadık Cebelü Ali önüne atıldı ve sağ bacağı koptu! Onu Akçaoba'ya yetiştirdin, 3 gün içinde dağlama ve koltuk değneği tedarik etmezsen vefat edecek!`
+        : `Zorlu beş safhanın ardından Niğbolu Kalesi kurtarıldı. Zafer kazanıldı lakin Sadık Cebelü Ali ağır yaralandı ve bacağını kaybetti. Onu hayatta tutmalısın!`
     };
 
-    gameState.addNotification(`🏆 ZAFER: ${outcome.title} (+${lootAkce} Akçe, +${repGain} İtibar)`, 'success');
+    gameState.addNotification(`🏆 ZAFER KAZANILDI LAKİN ALİ AĞIR YARALANDI! (+${lootAkce} Akçe, +${repGain} İtibar)`, 'alert');
+    gameState.addNotification(`🚨 ACİL VAZİFE: Gazi Ali'yi Hayatta Tut (Kalan Mühlet: 3 Gün)!`, 'alert');
     return outcome;
+  }
+
+  handlePlayerMartyrdom() {
+    this.isBattleActive = false;
+    gameState.triggerMartyrdom();
   }
 }
 
