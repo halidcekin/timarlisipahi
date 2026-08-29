@@ -561,6 +561,74 @@ export class TownGenerator {
     this.scene.add(roadGroup);
   }
 
+  createFenceSegment(x, z, rotationY) {
+    const fence = new THREE.Group();
+    const postGeo = new THREE.CylinderGeometry(0.12, 0.12, 1.8);
+    const postMat = this.modelBuilder.materials.wood;
+    for (let dx of [-1.5, 0, 1.5]) {
+      const post = new THREE.Mesh(postGeo, postMat);
+      post.position.set(dx, 0.9, 0);
+      post.castShadow = true;
+      fence.add(post);
+    }
+    const plankGeo = new THREE.BoxGeometry(3.2, 0.15, 0.05);
+    for (let py of [0.6, 1.2]) {
+      const plank = new THREE.Mesh(plankGeo, postMat);
+      plank.position.set(0, py, 0.1);
+      plank.castShadow = true;
+      fence.add(plank);
+    }
+    fence.position.set(x, 0, z);
+    fence.rotation.y = rotationY;
+    this.scene.add(fence);
+    this.addCollider(x, z, 3.2, 0.4);
+  }
+
+  buildBanditCamp() {
+    const campX = -80;
+    const campZ = -80;
+    
+    // Kamp Ateşi
+    const fireLog = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 1.5), this.modelBuilder.materials.wood);
+    fireLog.position.set(campX, 0.2, campZ);
+    fireLog.rotation.z = Math.PI / 2;
+    this.scene.add(fireLog);
+
+    const fire = new THREE.PointLight(0xff5500, 2.5, 25);
+    fire.position.set(campX, 1.5, campZ);
+    this.scene.add(fire);
+    
+    // Harami Çadırları
+    const tentMat = new THREE.MeshStandardMaterial({ color: 0x3d352b, roughness: 0.9 });
+    const tentGeo = new THREE.ConeGeometry(2.8, 3.5, 4);
+    for (let i = 0; i < 4; i++) {
+        const tent = new THREE.Mesh(tentGeo, tentMat);
+        const tx = campX + (Math.random() - 0.5) * 20;
+        const tz = campZ + (Math.random() - 0.5) * 20;
+        if (Math.abs(tx - campX) < 4 && Math.abs(tz - campZ) < 4) continue;
+        tent.position.set(tx, 1.75, tz);
+        tent.rotation.y = Math.random() * Math.PI;
+        this.scene.add(tent);
+        this.addCollider(tx, tz, 4, 4);
+    }
+  }
+
+  populateNatureAndFoliage() {
+    for (let i = 0; i < 150; i++) {
+      const rx = (Math.random() - 0.5) * 400;
+      const rz = (Math.random() - 0.5) * 400;
+      
+      // Kasaba merkezi, kale ve yollara ağaç koyma
+      if (Math.abs(rx) < 90 && Math.abs(rz) < 90) continue;
+      if (rx > 120 && Math.abs(rz) < 50) continue; // Kale yolu
+      
+      const tree = this.modelBuilder.createPineTree();
+      tree.position.set(rx, TownGenerator.getTerrainHeight(rx, rz), rz);
+      this.scene.add(tree);
+      this.addCollider(rx, rz, 1.5, 1.5);
+    }
+  }
+
   update(delta) {
     // Yeldeğirmeni kanatlarını sürekli döndür
     this.animatedObjects.forEach(obj => {
