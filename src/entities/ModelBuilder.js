@@ -9,7 +9,6 @@ export class ModelBuilder {
   constructor() {
     this.materials = {
       grass: new THREE.MeshStandardMaterial({
-        color: 0x5a8648,
         map: TextureGenerator.createGrassTexture(),
         roughness: 0.85,
         metalness: 0.05
@@ -23,64 +22,64 @@ export class ModelBuilder {
         metalness: 0.02
       }),
       path: new THREE.MeshStandardMaterial({
-        color: 0xded8cc,
-        roughness: 0.90,
-        metalness: 0.02
+        map: TextureGenerator.createPathTexture(),
+        roughness: 0.80,
+        metalness: 0.05
       }),
       wood: new THREE.MeshStandardMaterial({
-        color: 0x5c3a21,
+        map: TextureGenerator.createWoodTexture(),
         roughness: 0.75,
         metalness: 0.05
       }),
       house: new THREE.MeshStandardMaterial({
-        color: 0xf0ebd8,
+        map: TextureGenerator.createHousePlasterTexture(),
         roughness: 0.85,
         metalness: 0.02
       }),
       armor: new THREE.MeshStandardMaterial({
-        color: 0x4fa0c0, // 2. Görseldeki Mavi Sipahi Zırhı
-        metalness: 0.50,
-        roughness: 0.35
+        color: 0x2b4c6f, // Koyu Çelik / Mavi Osmanlı Zırhı
+        metalness: 0.65,
+        roughness: 0.30
       }),
       stone: new THREE.MeshStandardMaterial({
-        color: 0x9e9a92,
-        roughness: 0.85,
+        map: TextureGenerator.createStoneWallTexture(),
+        roughness: 0.80,
         metalness: 0.05
       }),
       wall: new THREE.MeshStandardMaterial({
-        color: 0x8a8479,
-        roughness: 0.90,
+        map: TextureGenerator.createStoneWallTexture(),
+        roughness: 0.85,
         metalness: 0.05
       }),
       damascusSteel: new THREE.MeshStandardMaterial({
-        color: 0xb8e0f5, // 2. Görseldeki Parlak Çelik
-        metalness: 0.85,
+        map: TextureGenerator.createDamascusSteelTexture(),
+        metalness: 0.90,
         roughness: 0.15
       }),
       chainmail: new THREE.MeshStandardMaterial({
-        color: 0x55606a,
-        metalness: 0.70,
-        roughness: 0.35
+        color: 0x454d55,
+        metalness: 0.75,
+        roughness: 0.30
       }),
       gold: new THREE.MeshStandardMaterial({
         color: 0xd4af37,
-        metalness: 0.85,
-        roughness: 0.20
+        metalness: 0.90,
+        roughness: 0.18
       }),
       metal: new THREE.MeshStandardMaterial({
-        color: 0x8a929a,
-        metalness: 0.90,
+        color: 0x7c858e,
+        metalness: 0.85,
         roughness: 0.25
       }),
       roof: new THREE.MeshStandardMaterial({
-        color: 0xa63a24, // Alaturka Kiremit Çatı
+        map: TextureGenerator.createRoofTileTexture(),
         roughness: 0.70,
         metalness: 0.05
       }),
       domeBlue: new THREE.MeshStandardMaterial({
-        color: 0x2b5876, // 2. Görseldeki Mavi Cami Kubbesi
-        roughness: 0.40,
-        metalness: 0.30
+        color: 0x1d4e70, // Mavi Kurşun Mescid Kubbesi
+        roughness: 0.35,
+        metalness: 0.35
       }),
       water: new THREE.MeshStandardMaterial({
         color: 0x1c4d6f,
@@ -91,97 +90,110 @@ export class ModelBuilder {
       }),
       skin: new THREE.MeshStandardMaterial({
         color: 0xdeb887,
-        roughness: 0.70
+        roughness: 0.65
       }),
       leather: new THREE.MeshStandardMaterial({
-        color: 0x3d2614,
-        roughness: 0.80
+        color: 0x3d2412,
+        roughness: 0.75
       })
     };
   }
 
-  // 1. GÖRSEL 2'DEKİ 1. ŞAHIS MAVİ KOLLUKLU SİPAHİ KILIÇ RİGİ
+  // 1. GERÇEKÇİ 1. ŞAHIS ŞAM ÇELİĞİ SİPAHİ KILICI & ZIRHLI KOL RİGİ
   createFirstPersonSword() {
     const weaponRig = new THREE.Group();
 
-    // Sipahi Kolu (2. Görseldeki Canlı Mavi-Turkuaz Kol)
+    // 1. Sipahi Kolu & Zırhı (Sağ alttan gelen çelik/deri kolçak)
     const armGroup = new THREE.Group();
-    armGroup.position.set(0.38, -0.32, -0.42);
-    armGroup.rotation.set(Math.PI / 4.5, 0, -Math.PI / 12);
+    armGroup.position.set(0.36, -0.36, -0.45);
+    armGroup.rotation.set(Math.PI / 4.8, 0, -Math.PI / 10);
 
-    // Mavi Kolçak
-    const armGeo = new THREE.CylinderGeometry(0.11, 0.14, 0.90, 16);
+    // Koyu Çelik / Mavi Osmanlı Kolçağı
+    const armGeo = new THREE.CylinderGeometry(0.085, 0.115, 0.85, 16);
     const arm = new THREE.Mesh(armGeo, this.materials.armor);
+    arm.castShadow = true;
     armGroup.add(arm);
 
-    // Altın Bileklik Halkaları (2. Görseldeki Altın Detaylar)
-    const ring1 = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.022, 8, 18), this.materials.gold);
-    ring1.position.y = 0.20;
-    ring1.rotation.x = Math.PI / 2;
-    armGroup.add(ring1);
+    // Altın İşlemeli Kolçak Halkaları
+    for (let y of [0.15, 0.30]) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.095, 0.012, 8, 18), this.materials.gold);
+      ring.position.y = y;
+      ring.rotation.x = Math.PI / 2;
+      armGroup.add(ring);
+    }
 
-    const ring2 = new THREE.Mesh(new THREE.TorusGeometry(0.125, 0.020, 8, 18), this.materials.gold);
-    ring2.position.y = 0.35;
-    ring2.rotation.x = Math.PI / 2;
-    armGroup.add(ring2);
-
-    // Deri Eldiven
-    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.11, 12, 12), this.materials.leather);
-    hand.position.set(0, 0.48, 0);
+    // Deri Süvari Eldiveni
+    const hand = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.08), this.materials.leather);
+    hand.position.set(0, 0.44, 0);
     armGroup.add(hand);
 
     weaponRig.add(armGroup);
 
-    // 2. Kılıç (2. Görseldeki Altın Hilal Balçaklı Kavisli Kılıç)
+    // 2. Kavisli Osmanlı Sipahi Kılıcı (Şam Çeliği Yalmanlı Kılıç)
     const sword = new THREE.Group();
-    sword.position.set(0.36, -0.06, -0.62);
-    sword.rotation.set(0, 0, -Math.PI / 10);
+    sword.position.set(0.34, -0.10, -0.58);
+    sword.rotation.set(0.05, 0, -Math.PI / 12);
 
-    // Deri Kabza
-    const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.028, 0.38, 12), this.materials.leather);
+    // Deri Sarımlı Ergonomik Kabza
+    const hilt = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.022, 0.32, 12), this.materials.leather);
     sword.add(hilt);
 
     // Altın Kabza Başı (Topuz)
-    const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), this.materials.gold);
-    pommel.position.y = -0.21;
+    const pommel = new THREE.Mesh(new THREE.SphereGeometry(0.042, 12, 12), this.materials.gold);
+    pommel.position.y = -0.17;
     sword.add(pommel);
 
-    // Altın Hilal Balçak (2. Görseldeki Altın Kıvrımlar)
+    // Altın Hilal Balçak (İnce ve Zarif Kıvrımlı)
     const guardGroup = new THREE.Group();
-    guardGroup.position.y = 0.20;
+    guardGroup.position.y = 0.16;
 
-    const guardCenter = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 12), this.materials.gold);
+    const guardCenter = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.03, 0.04), this.materials.gold);
     guardGroup.add(guardCenter);
 
     for (let dir of [-1, 1]) {
-      const crescent = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.022, 8, 16, Math.PI * 0.5), this.materials.gold);
-      crescent.position.set(dir * 0.08, 0.03, 0);
-      crescent.rotation.z = dir * Math.PI / 1.5;
-      guardGroup.add(crescent);
+      const quillon = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.008, 0.16, 8), this.materials.gold);
+      quillon.position.set(dir * 0.09, 0.02, 0);
+      quillon.rotation.z = dir * (Math.PI / 2.8);
+      guardGroup.add(quillon);
+
+      const tipBall = new THREE.Mesh(new THREE.SphereGeometry(0.016, 8, 8), this.materials.gold);
+      tipBall.position.set(dir * 0.16, 0.05, 0);
+      guardGroup.add(tipBall);
     }
     sword.add(guardGroup);
 
-    // Kavisli Parlak Namlu (2. Görseldeki Açık Mavi-Beyaz Yalmanlı Kılıç)
+    // Kavisli Şam Çeliği (Damascus Steel) Namlu
     const bladeGroup = new THREE.Group();
-    bladeGroup.position.y = 0.25;
+    bladeGroup.position.y = 0.20;
 
-    for (let s = 0; s < 7; s++) {
-      const w = 0.065 + (s > 4 ? 0.015 : 0);
-      const seg = new THREE.Mesh(
-        new THREE.BoxGeometry(w, 0.22, 0.018),
+    const bladeCurve = [
+      { y: 0.15, x: 0.00, w: 0.052, t: 0.014 },
+      { y: 0.38, x: 0.01, w: 0.050, t: 0.013 },
+      { y: 0.62, x: 0.03, w: 0.048, t: 0.012 },
+      { y: 0.88, x: 0.06, w: 0.046, t: 0.011 },
+      { y: 1.12, x: 0.11, w: 0.055, t: 0.010 }, // Yalman (Genişleyen Kılıç Ucu)
+      { y: 1.34, x: 0.17, w: 0.052, t: 0.008 }
+    ];
+
+    bladeCurve.forEach((seg, i) => {
+      const segMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(seg.w, 0.26, seg.t),
         this.materials.damascusSteel
       );
-      seg.position.set(Math.sin(s * 0.12) * 0.05, 0.11 + s * 0.21, 0);
-      seg.rotation.z = -s * 0.025;
-      bladeGroup.add(seg);
-    }
+      segMesh.position.set(seg.x, seg.y, 0);
+      segMesh.rotation.z = -seg.x * 0.45;
+      segMesh.castShadow = true;
+      bladeGroup.add(segMesh);
+    });
 
+    // Sivri Kılıç Ucu
     const tip = new THREE.Mesh(
-      new THREE.ConeGeometry(0.045, 0.28, 6),
+      new THREE.ConeGeometry(0.032, 0.22, 4),
       this.materials.damascusSteel
     );
-    tip.position.set(0.07, 1.58, 0);
-    tip.rotation.z = -0.15;
+    tip.position.set(0.22, 1.54, 0);
+    tip.rotation.z = -0.32;
+    tip.castShadow = true;
     bladeGroup.add(tip);
 
     sword.add(bladeGroup);
@@ -294,29 +306,44 @@ export class ModelBuilder {
       charGroup.add(lapel);
     }
 
-    // 5. KOLLAR & BEYAZ GÖMLEK MANŞETLERİ & ELLER
+    // 5. KOLLAR & BEYAZ GÖMLEK MANŞETLERİ & DOĞAL DURUŞ (A-POSE)
     for (let dir of [-1, 1]) {
       const armGroup = new THREE.Group();
-      armGroup.position.set(dir * 0.25, 1.58, 0);
+      armGroup.position.set(dir * 0.24, 1.56, 0);
 
-      // Ceket Kolu (Siyah) - Görseldeki gibi iki yana açık T-duruşu
-      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.065, 0.58, 12), jacketMat);
-      arm.position.set(dir * 0.28, -0.12, 0);
-      arm.rotation.z = -dir * (Math.PI / 2.3);
-      arm.castShadow = true;
-      armGroup.add(arm);
+      // Omuz Başı (Ceket Omuzluğu)
+      const shoulder = new THREE.Mesh(new THREE.SphereGeometry(0.08, 10, 10), jacketMat);
+      shoulder.castShadow = true;
+      armGroup.add(shoulder);
+
+      // Üst Kol (Ceket Kolu) - Aşağı doğru doğal 15° eğim
+      const upperArm = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.068, 0.34, 12), jacketMat);
+      upperArm.position.set(dir * 0.04, -0.16, 0.02);
+      upperArm.rotation.set(0.12, 0, -dir * 0.18);
+      upperArm.castShadow = true;
+      armGroup.add(upperArm);
+
+      // Dirsek & Ön Kol
+      const forearmGroup = new THREE.Group();
+      forearmGroup.position.set(dir * 0.08, -0.32, 0.04);
+      forearmGroup.rotation.set(0.22, 0, -dir * 0.08); // Hafif öne ve içe kıvrım
+
+      const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.062, 0.28, 12), jacketMat);
+      forearm.position.y = -0.12;
+      forearm.castShadow = true;
+      forearmGroup.add(forearm);
 
       // Beyaz Gömlek Manşeti
-      const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.06, 12), shirtMat);
-      cuff.position.set(dir * 0.54, -0.22, 0);
-      cuff.rotation.z = -dir * (Math.PI / 2.3);
-      armGroup.add(cuff);
+      const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.064, 0.04, 12), shirtMat);
+      cuff.position.y = -0.26;
+      forearmGroup.add(cuff);
 
-      // Eller (Ten rengi)
-      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.062, 10, 10), skinMat);
-      hand.position.set(dir * 0.60, -0.24, 0);
-      armGroup.add(hand);
+      // Eller (Ten rengi, doğal hafif kapalı duruş)
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 10), skinMat);
+      hand.position.set(0, -0.31, 0.01);
+      forearmGroup.add(hand);
 
+      armGroup.add(forearmGroup);
       charGroup.add(armGroup);
     }
 
@@ -421,17 +448,17 @@ export class ModelBuilder {
     buckle.position.set(0, 1.05, 0.33);
     human.add(buckle);
 
-    // Kollar (2. Görseldeki Açık Kollar)
+    // Kollar (Doğal İnsan Duruşu / A-Pose)
     for (let dir of [-1, 1]) {
-      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.65, 12), kaftanMat);
-      arm.position.set(dir * 0.38, 1.20, 0);
-      arm.rotation.z = dir * 0.35;
+      const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.07, 0.65, 12), kaftanMat);
+      arm.position.set(dir * 0.32, 1.15, 0);
+      arm.rotation.set(0.15, 0, -dir * 0.20);
       arm.castShadow = true;
       human.add(arm);
 
       // El
-      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 10), this.materials.skin);
-      hand.position.set(dir * 0.52, 0.95, 0);
+      const hand = new THREE.Mesh(new THREE.SphereGeometry(0.065, 10, 10), this.materials.skin);
+      hand.position.set(dir * 0.38, 0.82, 0.08);
       human.add(hand);
     }
 
@@ -490,11 +517,11 @@ export class ModelBuilder {
     return human;
   }
 
-  // 3. GÖRSEL 2'DEKİ SAFRANBOLU EVİ
+  // 3. TARİHİ SAFRANBOLU KONAĞI & EVİ (CUMBALI, AHŞAP HATILLI, KAFES PENCERELİ)
   createOttomanHouse(w = 8, l = 7, h = 6.5, hasCumba = true) {
     const house = new THREE.Group();
 
-    // Zemin Kat (Açık Taş)
+    // 1. Zemin Kat (Tarihi Taş Duvar Temeli)
     const groundH = h * 0.45;
     const groundMesh = new THREE.Mesh(new THREE.BoxGeometry(w, groundH, l), this.materials.stone);
     groundMesh.position.y = groundH / 2;
@@ -502,7 +529,13 @@ export class ModelBuilder {
     groundMesh.receiveShadow = true;
     house.add(groundMesh);
 
-    // Üst Kat (Beyaz Kireç Sıva + Ahşap Karkas)
+    // Zemin Kat Ahşap Giriş Kapısı
+    const door = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.2, 0.1), this.materials.wood);
+    door.position.set(0, 1.1, l / 2 + 0.05);
+    door.castShadow = true;
+    house.add(door);
+
+    // 2. Üst Kat (Kerpiç/Kireç Sıva + Ahşap Çıkmalı Cumba)
     const upperH = h * 0.55;
     const upperW = hasCumba ? w * 1.08 : w;
     const upperL = hasCumba ? l * 1.12 : l;
@@ -513,16 +546,44 @@ export class ModelBuilder {
     upperMesh.receiveShadow = true;
     house.add(upperMesh);
 
-    // Ahşap Hatıllar (Çerçeveler)
-    for (let x of [-upperW / 2, upperW / 2]) {
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(0.15, upperH, 0.15), this.materials.wood);
-      beam.position.set(x, groundH + upperH / 2, upperL / 2);
-      house.add(beam);
+    // Cumba Altı Ahşap Destek Payandaları (Struts)
+    if (hasCumba) {
+      for (let x of [-w * 0.35, 0, w * 0.35]) {
+        const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.4, 6), this.materials.wood);
+        strut.position.set(x, groundH - 0.45, l / 2 + 0.35);
+        strut.rotation.x = Math.PI / 4.5;
+        strut.castShadow = true;
+        house.add(strut);
+      }
     }
 
-    // Kırmızı Kiremit Çatı
-    const roofH = 2.4;
-    const roofMesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(upperW, upperL) * 0.85, roofH, 4), this.materials.roof);
+    // Ahşap Hatıllar & Köşe Kirişleri
+    for (let x of [-upperW / 2, upperW / 2]) {
+      for (let z of [-upperL / 2, upperL / 2]) {
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(0.18, upperH, 0.18), this.materials.wood);
+        beam.position.set(x, groundH + upperH / 2, z);
+        house.add(beam);
+      }
+    }
+
+    // Kafesli Ahşap Pencereler (Ön ve Yan Cepheler)
+    const windowMat = new THREE.MeshStandardMaterial({ color: 0x1a2530, roughness: 0.2, metalness: 0.6 });
+    for (let wx of [-upperW * 0.28, upperW * 0.28]) {
+      const win = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.3, 0.08), windowMat);
+      win.position.set(wx, groundH + upperH * 0.55, upperL / 2 + 0.05);
+
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.45, 0.05), this.materials.wood);
+      frame.position.set(wx, groundH + upperH * 0.55, upperL / 2 + 0.03);
+      house.add(frame, win);
+    }
+
+    // 3. Alaturka Oluklu Kiremit Geniş Saçaklı Çatı
+    const roofH = 2.6;
+    const roofOverhang = 1.25;
+    const roofMesh = new THREE.Mesh(
+      new THREE.ConeGeometry(Math.max(upperW, upperL) * 0.82 * roofOverhang, roofH, 4),
+      this.materials.roof
+    );
     roofMesh.position.y = h + roofH / 2;
     roofMesh.rotation.y = Math.PI / 4;
     roofMesh.castShadow = true;
@@ -532,51 +593,83 @@ export class ModelBuilder {
   }
 
   createSipahiMansion() {
-    const mansion = this.createOttomanHouse(12, 10, 8, true);
+    const mansion = this.createOttomanHouse(13, 11, 8.5, true);
 
     const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 5, 8), this.materials.wood);
-    pole.position.set(4.5, 9.5, 4.5);
+    pole.position.set(5.0, 10.5, 5.0);
     mansion.add(pole);
 
-    const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.1), new THREE.MeshStandardMaterial({
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.4), new THREE.MeshStandardMaterial({
       color: 0x8b1e1e,
       side: THREE.DoubleSide
     }));
-    flag.position.set(5.5, 11, 4.5);
+    flag.position.set(6.2, 12, 5.0);
     mansion.add(flag);
 
     return mansion;
   }
 
-  // 4. GÖRSEL 2'DEKİ MAVİ KUBBELİ MESCİD / CAMİ
+  // 4. TARİHİ OSMANLI MESCİDİ & ŞADIRVANLI CAMİ
   createMosque() {
     const mosque = new THREE.Group();
 
-    // Taş Gövde
-    const base = new THREE.Mesh(new THREE.BoxGeometry(11, 6, 11), this.materials.stone);
-    base.position.y = 3;
+    // Kesme Taş Ana Gövde
+    const base = new THREE.Mesh(new THREE.BoxGeometry(12, 6.5, 12), this.materials.stone);
+    base.position.y = 3.25;
     base.castShadow = true;
+    base.receiveShadow = true;
     mosque.add(base);
 
-    // 2. Görseldeki Mavi Yarım Küre Kubbe
+    // Kemerli Giriş Portali
+    const portal = new THREE.Mesh(new THREE.BoxGeometry(4, 4.5, 1.2), this.materials.stone);
+    portal.position.set(0, 2.25, 6.4);
+    const door = new THREE.Mesh(new THREE.BoxGeometry(2.0, 3.2, 0.1), this.materials.wood);
+    door.position.set(0, 1.6, 6.9);
+    mosque.add(portal, door);
+
+    // Kubbe Kasnağı (Sekizgen Taş Taban)
+    const drum = new THREE.Mesh(new THREE.CylinderGeometry(5.2, 5.5, 1.4, 8), this.materials.stone);
+    drum.position.y = 7.2;
+    drum.castShadow = true;
+    mosque.add(drum);
+
+    // Kurşun Mavi Ana Kubbe
     const dome = new THREE.Mesh(
-      new THREE.SphereGeometry(5.0, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.SphereGeometry(5.4, 28, 18, 0, Math.PI * 2, 0, Math.PI / 2),
       this.materials.domeBlue
     );
-    dome.position.y = 6;
+    dome.position.y = 7.8;
+    dome.castShadow = true;
     mosque.add(dome);
 
-    // Minare
-    const minaret = new THREE.Group();
-    minaret.position.set(6.2, 0, 6.2);
+    // Kubbe Alemi (Hilal)
+    const alem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.8), this.materials.gold);
+    alem.position.y = 13.8;
+    const crescent = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.04, 8, 16, Math.PI * 1.5), this.materials.gold);
+    crescent.position.y = 14.6;
+    mosque.add(alem, crescent);
 
-    const minBody = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.3, 16, 16), this.materials.stone);
-    minBody.position.y = 8;
+    // Tarihi Taş Minare & Şerefe
+    const minaret = new THREE.Group();
+    minaret.position.set(7.0, 0, 7.0);
+
+    const minBase = new THREE.Mesh(new THREE.BoxGeometry(2.8, 4.0, 2.8), this.materials.stone);
+    minBase.position.y = 2.0;
+    minaret.add(minBase);
+
+    const minBody = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.35, 16, 16), this.materials.stone);
+    minBody.position.y = 11.5;
     minBody.castShadow = true;
     minaret.add(minBody);
 
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(1.1, 4, 16), this.materials.domeBlue);
-    cone.position.y = 17.8;
+    // Şerefe (Balkon)
+    const balcony = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.2, 1.2, 16), this.materials.stone);
+    balcony.position.y = 19.5;
+    minaret.add(balcony);
+
+    // Minare Külahı
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(1.2, 4.5, 16), this.materials.domeBlue);
+    cone.position.y = 22.8;
     minaret.add(cone);
 
     mosque.add(minaret);

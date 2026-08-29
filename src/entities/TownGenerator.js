@@ -58,21 +58,46 @@ export class TownGenerator {
   }
 
   createTerrainAndPaths() {
-    // Geniş Yeşil Çim Zemin
-    const terrainGeo = new THREE.PlaneGeometry(300, 300);
+    // 1. Geniş Organik Çim Zemin (PBR Çim & Toprak Dokulu)
+    const terrainGeo = new THREE.PlaneGeometry(350, 350, 32, 32);
     terrainGeo.rotateX(-Math.PI / 2);
     const terrain = new THREE.Mesh(terrainGeo, this.modelBuilder.materials.grass);
     terrain.position.y = -0.05;
     terrain.receiveShadow = true;
     this.scene.add(terrain);
 
-    // 2. Görseldeki Beyaz Taş Parke Köy Meydanı
-    const squareGeo = new THREE.PlaneGeometry(60, 80);
+    // 2. Tarihi Köy Meydanı Arnavut Kaldırımı (PBR Taş Parke Dokusu)
+    const squareGeo = new THREE.PlaneGeometry(65, 85, 16, 16);
     squareGeo.rotateX(-Math.PI / 2);
     const square = new THREE.Mesh(squareGeo, this.modelBuilder.materials.path);
-    square.position.set(0, 0, 0);
+    square.position.set(0, 0.01, 0);
     square.receiveShadow = true;
     this.scene.add(square);
+
+    // 3. Meydan Kenarı Organik Çim Kümeleri & Yabani Çiçekler
+    this.populateGrassClumps();
+  }
+
+  populateGrassClumps() {
+    const clumpGeo = new THREE.PlaneGeometry(1.2, 0.9);
+    for (let i = 0; i < 60; i++) {
+      const x = (Math.random() - 0.5) * 80;
+      const z = (Math.random() - 0.5) * 90;
+      // Meydanın tam ortasında olmasın, kenarlarda ve ev diplerinde olsun
+      if (Math.abs(x) < 12 && Math.abs(z) < 18) continue;
+
+      const clump = new THREE.Group();
+      for (let r = 0; r < 3; r++) {
+        const blade = new THREE.Mesh(clumpGeo, this.modelBuilder.materials.steppeGrass);
+        blade.rotation.y = (r * Math.PI) / 3;
+        blade.position.y = 0.45;
+        clump.add(blade);
+      }
+      clump.position.set(x, 0, z);
+      const s = 0.7 + Math.random() * 0.5;
+      clump.scale.set(s, s, s);
+      this.scene.add(clump);
+    }
   }
 
   buildMosqueAndSquare() {
@@ -82,7 +107,7 @@ export class TownGenerator {
     this.scene.add(mosque);
     this.addCollider(10, -4, 12, 12);
 
-    // Çeşme
+    // Çeşme / Şadırvan
     const fountain = this.modelBuilder.createVillageFountain();
     fountain.position.set(-8, 0, 4);
     this.scene.add(fountain);
@@ -104,7 +129,7 @@ export class TownGenerator {
     ];
 
     houseCoords.forEach((coord, idx) => {
-      const house = this.modelBuilder.createOttomanHouse(8, 7, 6, idx % 2 === 0);
+      const house = this.modelBuilder.createOttomanHouse(8.5, 7.5, 6.8, idx % 2 === 0);
       house.position.set(coord.x, 0, coord.z);
       house.rotation.y = coord.rot;
       this.scene.add(house);
@@ -120,31 +145,104 @@ export class TownGenerator {
   }
 
   buildProps() {
-    // Pazar Tezgahları
-    const stall = new THREE.Group();
-    const table = new THREE.Mesh(new THREE.BoxGeometry(3, 0.9, 1.6), this.modelBuilder.materials.wood);
-    table.position.y = 0.45;
-    stall.add(table);
-    const awning = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.1, 2.2), new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.8 }));
-    awning.position.set(0, 2.3, 0);
-    stall.add(awning);
-    stall.position.set(-14, 0, -2);
-    this.scene.add(stall);
+    // 1. Zengin Ahşap Pazar Tezgahları
+    const stallCoords = [
+      { x: -14, z: -2, rot: 0 },
+      { x: -14, z: 6, rot: 0.15 }
+    ];
 
-    // Meşaleler
-    const torchPositions = [[-4, 8], [4, 8], [0, -15]];
+    stallCoords.forEach(pos => {
+      const stall = new THREE.Group();
+      // Ahşap Masa
+      const table = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.9, 1.8), this.modelBuilder.materials.wood);
+      table.position.y = 0.45;
+      table.castShadow = true;
+      stall.add(table);
+
+      // Gölgelik Direkleri
+      for (let dx of [-1.5, 1.5]) {
+        for (let dz of [-0.8, 0.8]) {
+          const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.2, 6), this.modelBuilder.materials.wood);
+          pole.position.set(dx, 1.1, dz);
+          stall.add(pole);
+        }
+      }
+
+      // Kırmızı/Altın Çizgili Gölgelik Kumaşı
+      const awning = new THREE.Mesh(
+        new THREE.BoxGeometry(3.5, 0.1, 2.2),
+        new THREE.MeshStandardMaterial({ color: 0x8b1e1e, roughness: 0.8 })
+      );
+      awning.position.set(0, 2.25, 0);
+      awning.castShadow = true;
+      stall.add(awning);
+
+      stall.position.set(pos.x, 0, pos.z);
+      stall.rotation.y = pos.rot;
+      this.scene.add(stall);
+      this.addCollider(pos.x, pos.z, 3.6, 2.2);
+    });
+
+    // 2. Ahşap Fıçılar (Barrels)
+    const barrelCoords = [
+      { x: -11, z: -3.5 },
+      { x: -11.8, z: -4.2 },
+      { x: 18, z: 6 },
+      { x: 17.2, z: 7.2 },
+      { x: -6, z: 5.5 }
+    ];
+
+    barrelCoords.forEach(b => {
+      const barrel = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 1.0, 12), this.modelBuilder.materials.wood);
+      body.position.y = 0.5;
+      body.castShadow = true;
+      barrel.add(body);
+
+      // Demir Çemberler
+      for (let y of [0.25, 0.75]) {
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.02, 6, 16), this.modelBuilder.materials.metal);
+        ring.position.y = y;
+        ring.rotation.x = Math.PI / 2;
+        barrel.add(ring);
+      }
+
+      barrel.position.set(b.x, 0, b.z);
+      this.scene.add(barrel);
+      this.addCollider(b.x, b.z, 1.0, 1.0);
+    });
+
+    // 3. Saman Balyaları & Çuvallar (Konağın ve Evlerin Önünde)
+    const hayCoords = [
+      { x: 6, z: -20 },
+      { x: 7.5, z: -19.5 },
+      { x: -18, z: 12 }
+    ];
+
+    const hayMat = new THREE.MeshStandardMaterial({ color: 0xc8aa60, roughness: 0.95 });
+    hayCoords.forEach(h => {
+      const bale = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 1.8), hayMat);
+      bale.position.set(h.x, 0.45, h.z);
+      bale.rotation.y = Math.random() * Math.PI;
+      bale.castShadow = true;
+      this.scene.add(bale);
+      this.addCollider(h.x, h.z, 1.5, 1.8);
+    });
+
+    // 4. Meşaleler & Işıklar
+    const torchPositions = [[-4, 8], [4, 8], [0, -15], [8, 0]];
     torchPositions.forEach(pos => {
       const torch = new THREE.Group();
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 2.6, 6), this.modelBuilder.materials.wood);
-      pole.position.y = 1.3;
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 2.8, 6), this.modelBuilder.materials.wood);
+      pole.position.y = 1.4;
       torch.add(pole);
 
-      const flame = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff6600 }));
-      flame.position.y = 2.7;
+      const flame = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff7700 }));
+      flame.position.y = 2.9;
       torch.add(flame);
 
-      const light = new THREE.PointLight(0xff7722, 1.5, 12);
-      light.position.y = 2.8;
+      const light = new THREE.PointLight(0xff8833, 1.6, 14);
+      light.position.y = 3.0;
       torch.add(light);
 
       torch.position.set(pos[0], 0, pos[1]);

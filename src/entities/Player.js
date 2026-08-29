@@ -352,12 +352,12 @@ export class Player {
       sword.rotation.set(Math.PI / 4, -Math.PI / 6, Math.PI / 4);
     } else {
       // Dinamik Gerçekçi Nefes Alma & Adım Sallantısı
-      const bobX = isMoving ? Math.cos(time * 3) * 0.035 : Math.cos(time * 1.2) * 0.008;
-      const bobY = isMoving ? Math.sin(time * 6) * 0.045 : Math.sin(time * 2.4) * 0.012;
-      const sway = isMoving ? Math.sin(time * 3) * 0.04 : 0;
+      const bobX = isMoving ? Math.cos(time * 3) * 0.025 : Math.cos(time * 1.2) * 0.006;
+      const bobY = isMoving ? Math.sin(time * 6) * 0.035 : Math.sin(time * 2.4) * 0.009;
+      const sway = isMoving ? Math.sin(time * 3) * 0.03 : 0;
 
-      sword.position.set(0.36 + bobX, -0.06 + bobY, -0.62);
-      sword.rotation.set(bobY * 2.2, bobX * 2.2 + sway, -Math.PI / 10);
+      sword.position.set(0.34 + bobX, -0.10 + bobY, -0.58);
+      sword.rotation.set(0.05 + bobY * 1.8, -Math.PI / 12 + bobX * 1.8 + sway, -0.05);
     }
   }
 
