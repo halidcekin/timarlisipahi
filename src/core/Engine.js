@@ -85,7 +85,7 @@ export class Engine {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.35;
+    this.renderer.toneMappingExposure = 0.95;
 
     // Anizotropik Doku Filtrelemesi
     const maxAniso = this.renderer.capabilities.getMaxAnisotropy() || 4;
@@ -102,17 +102,17 @@ export class Engine {
   }
 
   setupLighting() {
-    // 1. Doğal Ortam Işığı
-    this.ambientLight = new THREE.AmbientLight(0xfff5e6, 0.95);
+    // 1. Doğal Ortam Işığı (Düşük tutulmalı - IBL zaten ortam ışığı veriyor)
+    this.ambientLight = new THREE.AmbientLight(0xfff5e6, 0.35);
     this.scene.add(this.ambientLight);
 
     // 2. Yarımküre Işığı
-    this.hemiLight = new THREE.HemisphereLight(0xdcebf8, 0x483a24, 1.15);
+    this.hemiLight = new THREE.HemisphereLight(0xdcebf8, 0x483a24, 0.55);
     this.hemiLight.position.set(0, 150, 0);
     this.scene.add(this.hemiLight);
 
     // 3. Ana Güneş Işığı (Dinamik Takip Eden Gölge Haritası)
-    this.sunLight = new THREE.DirectionalLight(0xfff0d4, 2.6);
+    this.sunLight = new THREE.DirectionalLight(0xfff0d4, 1.8);
     this.sunLight.position.set(110, 130, 80);
     this.sunLight.castShadow = true;
 
@@ -139,7 +139,7 @@ export class Engine {
     this.scene.add(this.moonLight.target);
 
     // 5. Dolgu Güneş Işığı
-    this.fillLight = new THREE.DirectionalLight(0x8eb4d4, 0.75);
+    this.fillLight = new THREE.DirectionalLight(0x8eb4d4, 0.30);
     this.fillLight.position.set(-80, 70, -60);
     this.scene.add(this.fillLight);
   }
@@ -209,9 +209,9 @@ export class Engine {
 
     // 3. Unreal Bloom - Güneş, Ateş, Meşale ve Kıvılcımlarda Işık Taşması
     const bloomPass = new UnrealBloomPass(new THREE.Vector2(this.width, this.height), 1.2, 0.4, 0.85);
-    bloomPass.threshold = 0.55;
-    bloomPass.strength = 0.45;
-    bloomPass.radius = 0.5;
+    bloomPass.threshold = 0.82;
+    bloomPass.strength = 0.18;
+    bloomPass.radius = 0.35;
     this.composer.addPass(bloomPass);
 
     // 4. Color Grading Shader (Sinematik Renk & Kontrast Tonlama)
@@ -285,6 +285,8 @@ export class Engine {
         }
         this.currentEnvRT = this.pmremGenerator.fromEquirectangular(this.skyTex);
         this.scene.environment = this.currentEnvRT.texture;
+        // IBL çevresel yansıma şiddetini düşük tut (aşırı parlama önlemi)
+        this.scene.environmentIntensity = 0.35;
       }
     }
   }
@@ -321,12 +323,12 @@ export class Engine {
     if (sunY > 10) {
       // Gündüz
       const dayFactor = Math.min(1.0, sunY / 100);
-      this.sunLight.intensity = 1.1 + dayFactor * 1.7;
-      this.ambientLight.intensity = 0.55 + dayFactor * 0.40;
+      this.sunLight.intensity = 0.8 + dayFactor * 1.0;
+      this.ambientLight.intensity = 0.25 + dayFactor * 0.15;
       this.moonLight.intensity = 0.0;
-      this.renderer.toneMappingExposure = 1.15 + dayFactor * 0.25;
+      this.renderer.toneMappingExposure = 0.85 + dayFactor * 0.15;
       this.scene.fog.color.setHex(0xcce2f0);
-      if (bloomPass) bloomPass.strength = 0.25 + (1.0 - dayFactor) * 0.4;
+      if (bloomPass) bloomPass.strength = 0.10 + (1.0 - dayFactor) * 0.15;
 
       // Color Grading (Gündüz & Şafak Tonlaması)
       if (this.colorGradingPass) {
@@ -350,11 +352,11 @@ export class Engine {
     } else {
       // Gece
       this.sunLight.intensity = 0.0;
-      this.ambientLight.intensity = 0.26;
-      this.moonLight.intensity = 0.75;
-      this.renderer.toneMappingExposure = 0.88;
+      this.ambientLight.intensity = 0.12;
+      this.moonLight.intensity = 0.40;
+      this.renderer.toneMappingExposure = 0.70;
       this.scene.fog.color.setHex(0x0c1524);
-      if (bloomPass) bloomPass.strength = 0.35; // Geceleri meşaleler ve ateşler parlar
+      if (bloomPass) bloomPass.strength = 0.20; // Geceleri meşaleler ve ateşler parlar
 
       // Color Grading (Gece Mistik Lacivert Tonlaması)
       if (this.colorGradingPass) {
@@ -378,11 +380,11 @@ export class Engine {
   updatePointLights(time, hour) {
     let nightMultiplier = 1.0;
     if (hour >= 20.0 || hour < 5.5) {
-      nightMultiplier = 1.6; // Geceleyin meşaleler çok belirgin
+      nightMultiplier = 1.2; // Geceleyin meşaleler belirgin
     } else if (hour >= 8.0 && hour <= 17.0) {
-      nightMultiplier = 0.6; // Öğlen güneşinde hafif arka plan aydınlığı
+      nightMultiplier = 0.15; // Gündüz meşaleleri neredeyse görünmez
     } else {
-      nightMultiplier = 1.15; // Şafak / Alacakaranlık
+      nightMultiplier = 0.6; // Şafak / Alacakaranlık
     }
 
     for (let i = 0; i < this.pointLights.length; i++) {
