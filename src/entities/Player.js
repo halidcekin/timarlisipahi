@@ -96,7 +96,7 @@ export class Player {
   }
 
   triggerAttack() {
-    if (this.isBlocking) return false;
+    if (this.isRiding) return false;
 
     // Eğer saldırı ortasındaysa ve sonuna yaklaşıldıysa sıradaki komboyu sıraya al
     if (this.isAttacking) {
@@ -106,8 +106,8 @@ export class Player {
       return false;
     }
 
-    if (gameState.sipahi.stamina < 12) {
-      gameState.addNotification('Kuvvetin tükendi!', 'alert');
+    if (gameState.sipahi.stamina < 15) {
+      gameState.addNotification('⚡ Kuvvetin tükendi! Dinlenmelisin.', 'alert');
       return false;
     }
 
@@ -123,8 +123,9 @@ export class Player {
     this.queuedAttack = false;
     this.comboResetTimer = 1.4; // 1.4 saniye içinde devam edilirse kombo sürer
 
-    const staminaCost = this.comboStep === 2 ? 18 : 12;
+    const staminaCost = this.comboStep === 2 ? 28 : 18;
     gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - staminaCost);
+    this.staminaRegenDelay = 1.3; // Saldırı sonrası 1.3 saniye kuvvet dolumu durur
 
     try { soundManager.playSwordSwing(); } catch (e) {}
     return true;
@@ -133,6 +134,9 @@ export class Player {
   setBlocking(isBlocking) {
     this.isBlocking = isBlocking;
     gameState.sipahi.isBlocking = isBlocking;
+    if (isBlocking) {
+      this.staminaRegenDelay = 0.8;
+    }
   }
 
   update(delta, inputManager) {
@@ -149,19 +153,31 @@ export class Player {
     if (inputManager.isKeyDown('KeyA')) moveDir.x -= 1;
     if (inputManager.isKeyDown('KeyD')) moveDir.x += 1;
 
-    const isRunning = inputManager.isKeyDown('ShiftLeft') || inputManager.isKeyDown('ShiftRight');
+    const isMoving = moveDir.lengthSq() > 0;
+    const isRunning = (inputManager.isKeyDown('ShiftLeft') || inputManager.isKeyDown('ShiftRight')) && isMoving;
     let currentSpeed = this.walkSpeed;
 
     if (this.isRiding) {
       currentSpeed = this.horseSpeed;
     } else if (isRunning && gameState.sipahi.stamina > 5) {
       currentSpeed = this.runSpeed;
-      gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - delta * 12);
-    } else {
-      gameState.sipahi.stamina = Math.min(gameState.sipahi.maxStamina, gameState.sipahi.stamina + delta * 15);
+      // Koşarken saniyede 22 kuvvet harcar
+      gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - delta * 22);
+      this.staminaRegenDelay = 0.9;
+    } else if (this.isBlocking) {
+      currentSpeed = this.walkSpeed * 0.55; // Kalkan/kılıç bloğunda yavaş yürüyüş
+      gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - delta * 8);
+      this.staminaRegenDelay = 1.0;
     }
 
-    if (moveDir.lengthSq() > 0) {
+    // Kuvvet Yenilenmesi (Regen Delay Sistemi)
+    if (this.staminaRegenDelay > 0) {
+      this.staminaRegenDelay -= delta;
+    } else if (!isRunning && !this.isBlocking) {
+      gameState.sipahi.stamina = Math.min(gameState.sipahi.maxStamina, gameState.sipahi.stamina + delta * 16);
+    }
+
+    if (isMoving) {
       moveDir.normalize();
       const sinY = Math.sin(this.yaw);
       const cosY = Math.cos(this.yaw);
@@ -197,10 +213,12 @@ export class Player {
       }
     }
 
-    if (inputManager.isKeyDown('Space') && this.isGrounded && !this.isRiding && gameState.sipahi.stamina > 20) {
+    // Zıplama & Kuvvet Tüketimi
+    if (inputManager.isKeyDown('Space') && this.isGrounded && !this.isRiding && gameState.sipahi.stamina >= 20) {
       this.velocity.y = this.jumpForce;
       this.isGrounded = false;
-      gameState.sipahi.stamina -= 20;
+      gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - 20);
+      this.staminaRegenDelay = 1.2;
     }
 
     this.velocity.y -= this.gravity * delta;

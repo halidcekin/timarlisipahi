@@ -1268,35 +1268,230 @@ export class ModelBuilder {
     const tree = new THREE.Group();
     
     // Ağaç Gövdesi
-    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x4a3b2c });
-    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 2.5, 8), trunkMat);
+    const trunkMat = new THREE.MeshStandardMaterial({ color: 0x422814, roughness: 0.85 });
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.45, 2.5, 8), trunkMat);
     trunk.position.y = 1.25;
     trunk.castShadow = true;
     trunk.receiveShadow = true;
     tree.add(trunk);
 
     // Yapraklar (Çam Konileri)
-    const leavesMat = new THREE.MeshLambertMaterial({ color: 0x1e3f20 });
+    const leavesMat = new THREE.MeshStandardMaterial({ color: 0x1b3e1f, roughness: 0.75 });
     
     // 3 Katmanlı Çam Ağacı
-    const layer1 = new THREE.Mesh(new THREE.ConeGeometry(2, 3, 8), leavesMat);
+    const layer1 = new THREE.Mesh(new THREE.ConeGeometry(2.2, 3.2, 8), leavesMat);
     layer1.position.y = 3;
     layer1.castShadow = true;
     layer1.receiveShadow = true;
     tree.add(layer1);
 
-    const layer2 = new THREE.Mesh(new THREE.ConeGeometry(1.5, 2.5, 8), leavesMat);
-    layer2.position.y = 4.5;
+    const layer2 = new THREE.Mesh(new THREE.ConeGeometry(1.7, 2.6, 8), leavesMat);
+    layer2.position.y = 4.6;
     layer2.castShadow = true;
     layer2.receiveShadow = true;
     tree.add(layer2);
 
-    const layer3 = new THREE.Mesh(new THREE.ConeGeometry(1, 2, 8), leavesMat);
-    layer3.position.y = 6;
+    const layer3 = new THREE.Mesh(new THREE.ConeGeometry(1.1, 2.2, 8), leavesMat);
+    layer3.position.y = 6.2;
     layer3.castShadow = true;
     layer3.receiveShadow = true;
     tree.add(layer3);
 
     return tree;
+  }
+
+  // 11. TARİHİ OSMANLI SERVİ AĞACI (CYPRESS TREE)
+  createCypressTree() {
+    const tree = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.32, 2.2, 8), this.materials.wood);
+    trunk.position.y = 1.1;
+    trunk.castShadow = true;
+    tree.add(trunk);
+
+    const foliageMat = new THREE.MeshStandardMaterial({ color: 0x183820, roughness: 0.80 });
+    const foliage = new THREE.Mesh(new THREE.ConeGeometry(1.2, 7.5, 12), foliageMat);
+    foliage.position.y = 4.8;
+    foliage.castShadow = true;
+    tree.add(foliage);
+
+    return tree;
+  }
+
+  // 12. TARİHİ OSMANLI KEMERLİ TAŞ KÖPRÜSÜ
+  createStoneArchBridge(length = 24, width = 6.5) {
+    const bridge = new THREE.Group();
+
+    // Köprü Zemin Yolu (Kavisli Eğimli Taş Parke)
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(width, 0.8, length), this.materials.path);
+    deck.position.y = 2.8;
+    deck.castShadow = true;
+    deck.receiveShadow = true;
+    bridge.add(deck);
+
+    // Taş Kemerler (Arch Supports)
+    for (let z of [-length * 0.28, length * 0.28]) {
+      const archPillar = new THREE.Mesh(new THREE.CylinderGeometry(width * 0.48, width * 0.52, 3.2, 12), this.materials.stone);
+      archPillar.position.set(0, 1.4, z);
+      archPillar.castShadow = true;
+      bridge.add(archPillar);
+    }
+
+    // Taş Korkuluklar (Parapets)
+    for (let dir of [-1, 1]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.1, length), this.materials.stone);
+      rail.position.set(dir * (width / 2 - 0.25), 3.6, 0);
+      rail.castShadow = true;
+      bridge.add(rail);
+
+      // Korkuluk Babaları (Post Finials)
+      for (let pz of [-length / 2, 0, length / 2]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.65, 1.35, 0.65), this.materials.stone);
+        post.position.set(dir * (width / 2 - 0.25), 3.75, pz);
+        post.castShadow = true;
+        bridge.add(post);
+      }
+    }
+
+    return bridge;
+  }
+
+  // 13. KÖY SU KUYUSU (WELL)
+  createWaterWell() {
+    const well = new THREE.Group();
+
+    // Taş Kuyu Gövdesi
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.3, 1.1, 14), this.materials.stone);
+    base.position.y = 0.55;
+    base.castShadow = true;
+    well.add(base);
+
+    // Kuyu İçi Su
+    const water = new THREE.Mesh(new THREE.CircleGeometry(0.95, 12), this.materials.water);
+    water.position.y = 0.85;
+    water.rotation.x = -Math.PI / 2;
+    well.add(water);
+
+    // Ahşap Çatı Direkleri
+    for (let dir of [-1, 1]) {
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.6, 6), this.materials.wood);
+      pole.position.set(dir * 1.0, 1.6, 0);
+      pole.castShadow = true;
+      well.add(pole);
+    }
+
+    // Ahşap Çıkrık & Halat
+    const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.1, 8), this.materials.wood);
+    axle.position.set(0, 2.1, 0);
+    axle.rotation.z = Math.PI / 2;
+    well.add(axle);
+
+    const bucket = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.15, 0.35, 8), this.materials.wood);
+    bucket.position.set(0, 1.3, 0);
+    well.add(bucket);
+
+    // Kiremit Çatı
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(1.7, 1.2, 4), this.materials.roof);
+    roof.position.y = 3.1;
+    roof.rotation.y = Math.PI / 4;
+    roof.castShadow = true;
+    well.add(roof);
+
+    return well;
+  }
+
+  // 14. TARİHİ OSMANLI MEZAR TAŞI (SARIKLI KAVUKLU ŞAHİDE)
+  createOttomanTombstone() {
+    const tomb = new THREE.Group();
+    const marbleMat = new THREE.MeshStandardMaterial({ color: 0xe6e0d4, roughness: 0.65 });
+
+    // Mezar Mermer Kaidesi
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.25, 1.8), marbleMat);
+    base.position.y = 0.12;
+    base.castShadow = true;
+    tomb.add(base);
+
+    // Mezar Taşı Şahidesi (Dikilitaş)
+    const stela = new THREE.Mesh(new THREE.BoxGeometry(0.24, 1.2, 0.12), marbleMat);
+    stela.position.set(0, 0.75, -0.75);
+    stela.castShadow = true;
+    tomb.add(stela);
+
+    // Sarıklı Başlık
+    const turban = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.06, 8, 16), marbleMat);
+    turban.position.set(0, 1.40, -0.75);
+    turban.rotation.x = Math.PI / 2;
+    tomb.add(turban);
+
+    return tomb;
+  }
+
+  // 15. AHŞAP AT ARABASI (WAGON / CART)
+  createWagon() {
+    const wagon = new THREE.Group();
+
+    // Ahşap Kasa
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.65, 3.4), this.materials.wood);
+    bed.position.y = 0.85;
+    bed.castShadow = true;
+    wagon.add(bed);
+
+    // Ahşap Parmaklıklı Tekerlekler (4 Adet)
+    for (let dx of [-1.05, 1.05]) {
+      for (let dz of [-1.1, 1.1]) {
+        const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.48, 0.06, 8, 16), this.materials.wood);
+        wheel.position.set(dx, 0.52, dz);
+        wheel.rotation.y = Math.PI / 2;
+        wheel.castShadow = true;
+        wagon.add(wheel);
+      }
+    }
+
+    // Saman ve Çuvallar
+    const hayMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.9 });
+    const load = new THREE.Mesh(new THREE.SphereGeometry(0.85, 8, 6), hayMat);
+    load.position.set(0, 1.35, 0.2);
+    load.scale.set(1.0, 0.7, 1.4);
+    wagon.add(load);
+
+    return wagon;
+  }
+
+  // 16. KÖY GİRİŞ KAPISI & KALEVİ AHŞAP HİSAR
+  createVillageGate() {
+    const gateGroup = new THREE.Group();
+
+    // Sol & Sağ Taş Kuleler
+    for (let dir of [-1, 1]) {
+      const tower = new THREE.Mesh(new THREE.BoxGeometry(2.5, 6.5, 2.5), this.materials.stone);
+      tower.position.set(dir * 4.5, 3.25, 0);
+      tower.castShadow = true;
+      gateGroup.add(tower);
+
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(2.0, 2.2, 4), this.materials.roof);
+      roof.position.set(dir * 4.5, 7.5, 0);
+      roof.rotation.y = Math.PI / 4;
+      gateGroup.add(roof);
+
+      // Meşaleler
+      const torch = new THREE.PointLight(0xff7722, 1.8, 14);
+      torch.position.set(dir * 3.2, 4.0, 1.3);
+      gateGroup.add(torch);
+    }
+
+    // Üst Ahşap Köprü / Kemer
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(7.0, 0.8, 2.0), this.materials.wood);
+    lintel.position.set(0, 5.8, 0);
+    lintel.castShadow = true;
+    gateGroup.add(lintel);
+
+    // Kırmızı Osmanlı Sancağı
+    const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.6, 1.0), new THREE.MeshStandardMaterial({
+      color: 0x8b1e1e,
+      side: THREE.DoubleSide
+    }));
+    flag.position.set(0, 6.8, 0);
+    gateGroup.add(flag);
+
+    return gateGroup;
   }
 }

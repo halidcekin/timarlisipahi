@@ -2,7 +2,14 @@ import * as THREE from 'three';
 import { ModelBuilder } from './ModelBuilder.js';
 
 /**
- * TownGenerator - 2. Görseldeki Orijinal Köy Meydanı, Mavi Kubbeli Cami ve Safranbolu Kasabası
+ * TownGenerator - Akçaoba Tımarı & Osmanlı Köyü Devasa 3D Dünya Üreticisi
+ * - Geniş Yeşil Vadi, Kıvrımlı Nehir & Kemerli Taş Köprü
+ * - Mavi Kubbeli Ulu Mescid, Hazire (Servili Mezarlık) & Mermer Şadırvan
+ * - Büyük Sipahi Konağı, At Tavlası, Talimgâh & Gözetleme Kulesi
+ * - 12+ Tarihi Safranbolu Evi, Cumbalar, Ahşap Hatıllar & Bacalar
+ * - Demirci Rüstem Usta Atölyesi, Su Kuyusu, Köy Hanı & Pazar Çarşısı
+ * - Yeldeğirmeni, Çitlerle Çevrili Buğday Tarlaları, Saman Balyaları & At Arabaları
+ * - Köy Giriş Kapısı, Sancak Kalesi & Orman İçi Harami Kampı
  */
 export class TownGenerator {
   constructor(scene) {
@@ -15,39 +22,52 @@ export class TownGenerator {
   }
 
   static getTerrainHeight(x, z) {
-    return 0; // 2. Görseldeki gibi düzgün ve ferah meydan zemini
+    // Vadi tabanı düz, nehir yatağı hafif alçak
+    if (x > -50 && x < -40) return -0.4;
+    // Değirmen tepesi hafif yükselti
+    if (x > 35 && x < 55 && z > -50 && z < -30) return 1.2;
+    return 0;
+  }
+
+  addCollider(x, z, width, depth) {
+    this.colliders.push({
+      minX: x - width / 2,
+      maxX: x + width / 2,
+      minZ: z - depth / 2,
+      maxZ: z + depth / 2
+    });
   }
 
   generateTown() {
-    // 1. Zemin (2. Görseldeki Açık Taş Parke Yolu ve Yeşil Çimenler)
-    this.createTerrainAndPaths();
+    // 1. Zemin, Yollar, Nehir & Ufuk Dağları
+    this.createLandscapeAndRiver();
 
-    // 2. Mavi Kubbeli Mescid / Cami (2. Görselde Koca Yakub'un hemen sağ arkasında yükseliyor!)
-    this.buildMosqueAndSquare();
+    // 2. Merkez Meydan: Ulu Mescid, Şadırvan, Meclis & Hazire
+    this.buildCenterSquare();
 
-    // 3. Sipahi Konağı ve Çevre Evler
-    this.buildHouses();
+    // 3. Kuzey Quarter: Sipahi Konağı, Tavla, Talimgâh & Kule
+    this.buildSipahiQuarter();
 
-    // 4. Demirci ve Pazar Tezgahları
-    this.buildProps();
+    // 4. Batı Quarter: Nehir, Kemerli Taş Köprü & Demirci Atölyesi
+    this.buildBlacksmithAndBridge();
 
-    // 5. Çam Ağaçları
-    this.populateTrees();
+    // 5. Güney Quarter: Köy Çarşısı, Han, Su Kuyusu & Giriş Kapısı
+    this.buildMarketAndVillageGate();
 
-    // 7. Tarım Arazileri (Buğday Tarlaları)
-    this.buildFarms();
+    // 6. Doğu Quarter: Yeldeğirmeni & Geniş Buğday Tarlaları
+    this.buildWindmillAndFarms();
 
-    // 8. Orman İçi Harami Kampı
+    // 7. Safranbolu Evleri & Mahalle Dokusu (12+ Farklı Konak)
+    this.buildResidentialHouses();
+
+    // 8. Sancak Kalesi & Doğu Taş Yolu
+    this.buildCastleDistrict();
+
+    // 9. Harami / Eşkıya Kampı (Kuzeybatı Ormanı)
     this.buildBanditCamp();
 
-    // 9. Devasa Sancak Kalesi (Haritanın Doğu Ucunda)
-    this.buildCastle();
-
-    // 10. Köyden Kaleye Uzanan Taş Yol
-    this.buildStoneRoadToCastle();
-
-    // 11. Sipahi Talimgâhı
-    this.buildTrainingGrounds();
+    // 10. Çevre Bitki Örtüsü (120+ Çam, Servi, Meşe, Çim & Çiçekler)
+    this.populateNatureAndFoliage();
 
     return {
       colliders: this.colliders,
@@ -57,16 +77,35 @@ export class TownGenerator {
     };
   }
 
-  createTerrainAndPaths() {
-    // 1. Geniş Organik Çim Zemin (PBR Çim & Toprak Dokulu)
-    const terrainGeo = new THREE.PlaneGeometry(350, 350, 32, 32);
+  // ---------------------------------------------------------------------------
+  // 1. ZEMİN, NEHİR, TAŞ YOLLAR & UFUK DAĞLARI
+  // ---------------------------------------------------------------------------
+  createLandscapeAndRiver() {
+    // Geniş Yeşil Çim Zemin (500x500)
+    const terrainGeo = new THREE.PlaneGeometry(550, 550, 40, 40);
     terrainGeo.rotateX(-Math.PI / 2);
     const terrain = new THREE.Mesh(terrainGeo, this.modelBuilder.materials.grass);
     terrain.position.y = -0.05;
     terrain.receiveShadow = true;
     this.scene.add(terrain);
 
-    // 2. Tarihi Köy Meydanı Arnavut Kaldırımı (PBR Taş Parke Dokusu)
+    // Kıvrımlı Nehir Yatağı (Batı Vadisi: x: -45 boyunca kuzeyden güneye)
+    const riverGeo = new THREE.PlaneGeometry(16, 450);
+    riverGeo.rotateX(-Math.PI / 2);
+    const river = new THREE.Mesh(riverGeo, this.modelBuilder.materials.water);
+    river.position.set(-45, -0.25, 0);
+    this.scene.add(river);
+
+    // Nehir Kenarı Kıyı Taşları ve Çakılları
+    for (let z = -180; z <= 180; z += 18) {
+      for (let side of [-1, 1]) {
+        const rock = this.modelBuilder.createMossyRock(0.8 + Math.random() * 0.6);
+        rock.position.set(-45 + side * 8.5, 0.1, z + (Math.random() - 0.5) * 8);
+        this.scene.add(rock);
+      }
+    }
+
+    // Ana Köy Meydanı Arnavut Kaldırımı (65x85)
     const squareGeo = new THREE.PlaneGeometry(65, 85, 16, 16);
     squareGeo.rotateX(-Math.PI / 2);
     const square = new THREE.Mesh(squareGeo, this.modelBuilder.materials.path);
@@ -74,442 +113,390 @@ export class TownGenerator {
     square.receiveShadow = true;
     this.scene.add(square);
 
-    // 3. Meydan Kenarı Organik Çim Kümeleri & Yabani Çiçekler
-    this.populateGrassClumps();
-  }
+    // Bağlantı Taş Yolları
+    const roadConfigs = [
+      { x: 0, z: 65, w: 10, l: 60, rot: 0 },         // Güney Çarşı ve Giriş Kapısı Yolu
+      { x: 0, z: -35, w: 12, l: 30, rot: 0 },        // Kuzey Konağı Yolu
+      { x: -25, z: 0, w: 9, l: 35, rot: Math.PI / 2 },// Batı Köprü Yolu
+      { x: 50, z: 0, w: 8, l: 80, rot: Math.PI / 2 } // Doğu Tarlalar ve Kale Yolu
+    ];
 
-  populateGrassClumps() {
-    const clumpGeo = new THREE.PlaneGeometry(1.2, 0.9);
-    for (let i = 0; i < 60; i++) {
-      const x = (Math.random() - 0.5) * 80;
-      const z = (Math.random() - 0.5) * 90;
-      // Meydanın tam ortasında olmasın, kenarlarda ve ev diplerinde olsun
-      if (Math.abs(x) < 12 && Math.abs(z) < 18) continue;
+    roadConfigs.forEach(r => {
+      const roadGeo = new THREE.PlaneGeometry(r.w, r.l);
+      roadGeo.rotateX(-Math.PI / 2);
+      const road = new THREE.Mesh(roadGeo, this.modelBuilder.materials.path);
+      road.position.set(r.x, 0.012, r.z);
+      road.rotation.y = r.rot;
+      road.receiveShadow = true;
+      this.scene.add(road);
+    });
 
-      const clump = new THREE.Group();
-      for (let r = 0; r < 3; r++) {
-        const blade = new THREE.Mesh(clumpGeo, this.modelBuilder.materials.steppeGrass);
-        blade.rotation.y = (r * Math.PI) / 3;
-        blade.position.y = 0.45;
-        clump.add(blade);
-      }
-      clump.position.set(x, 0, z);
-      const s = 0.7 + Math.random() * 0.5;
-      clump.scale.set(s, s, s);
-      this.scene.add(clump);
+    // Ufuk Dağları (360 Derece Çevreleyen Görkemli Dağ Sıraları)
+    const mountainMat = new THREE.MeshStandardMaterial({
+      color: 0x3d4e5a,
+      roughness: 0.95
+    });
+    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 10) {
+      const dist = 240 + Math.random() * 30;
+      const mx = Math.cos(angle) * dist;
+      const mz = Math.sin(angle) * dist;
+      const mH = 50 + Math.random() * 45;
+      const mW = 60 + Math.random() * 40;
+
+      const mountain = new THREE.Mesh(new THREE.ConeGeometry(mW, mH, 6), mountainMat);
+      mountain.position.set(mx, mH / 2 - 5, mz);
+      mountain.rotation.y = Math.random() * Math.PI;
+      this.scene.add(mountain);
     }
   }
 
-  buildMosqueAndSquare() {
-    // 2. Görselde Koca Yakub'un hemen sağ arkasında yükselen Mavi Kubbeli Cami (x: 10, z: -4)
+  // ---------------------------------------------------------------------------
+  // 2. MERKEZ MEYDAN: CAMİ, ŞADIRVAN, HAZİRE & KOCA YAKUB ALANI
+  // ---------------------------------------------------------------------------
+  buildCenterSquare() {
+    // Mavi Kubbeli Ulu Mescid (x: 12, z: -4)
     const mosque = this.modelBuilder.createMosque();
-    mosque.position.set(10, 0, -4);
+    mosque.position.set(12, 0, -4);
     this.scene.add(mosque);
-    this.addCollider(10, -4, 12, 12);
+    this.addCollider(12, -4, 14, 14);
 
-    // Çeşme / Şadırvan
+    // Mermer Şadırvan & Su Havuzu (x: -8, z: 4)
     const fountain = this.modelBuilder.createVillageFountain();
     fountain.position.set(-8, 0, 4);
     this.scene.add(fountain);
-  }
+    this.addCollider(-8, 4, 3.5, 3.5);
 
-  buildHouses() {
-    // Sipahi Konağı (Kuzey)
-    const mansion = this.modelBuilder.createSipahiMansion();
-    mansion.position.set(0, 0, -28);
-    this.scene.add(mansion);
-    this.addCollider(0, -28, 14, 12);
+    // Mescid Yanı Hazire (Tarihi Servi Ağaçlı Osmanlı Mezarlığı: x: 25, z: -6)
+    const hazireGroup = new THREE.Group();
+    for (let tx = 0; tx < 3; tx++) {
+      for (let tz = 0; tz < 3; tz++) {
+        const tomb = this.modelBuilder.createOttomanTombstone();
+        tomb.position.set(22 + tx * 3.2, 0, -12 + tz * 3.6);
+        hazireGroup.add(tomb);
+      }
+    }
 
-    // Çevre Safranbolu Evleri
-    const houseCoords = [
-      { x: -22, z: 8, rot: 0.3 },
-      { x: -20, z: -15, rot: -0.2 },
-      { x: 24, z: 12, rot: -0.4 },
-      { x: 26, z: -20, rot: 0.2 }
+    // Hazireyi Çevreleyen Zarif Servi Ağaçları
+    const cypressCoords = [
+      { x: 19, z: -14 }, { x: 31, z: -14 },
+      { x: 19, z: -3 }, { x: 31, z: -3 }
     ];
-
-    houseCoords.forEach((coord, idx) => {
-      const house = this.modelBuilder.createOttomanHouse(8.5, 7.5, 6.8, idx % 2 === 0);
-      house.position.set(coord.x, 0, coord.z);
-      house.rotation.y = coord.rot;
-      this.scene.add(house);
-      this.addCollider(coord.x, coord.z, 9, 8);
+    cypressCoords.forEach(c => {
+      const cypress = this.modelBuilder.createCypressTree();
+      cypress.position.set(c.x, 0, c.z);
+      hazireGroup.add(cypress);
+      this.addCollider(c.x, c.z, 1.5, 1.5);
     });
 
-    // Tımarlı Sipahi Atı (Konağın Yanında)
-    const horse = this.modelBuilder.createHorse(0x28190e);
-    horse.position.set(4, 0, -18);
+    this.scene.add(hazireGroup);
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3. KUZEY QUARTER: SİPAHİ KONAĞI, AT TAVLASI, TALİMGÂH & GÖZCÜ KULESİ
+  // ---------------------------------------------------------------------------
+  buildSipahiQuarter() {
+    // 2 Katlı Büyük Sipahi Konağı (x: 0, z: -32)
+    const mansion = this.modelBuilder.createSipahiMansion();
+    mansion.position.set(0, 0, -32);
+    this.scene.add(mansion);
+    this.addCollider(0, -32, 16, 14);
+
+    // At Tavlası & Samanlık (Konağın Sol Yanı: x: -14, z: -30)
+    const stable = new THREE.Group();
+    const sBase = new THREE.Mesh(new THREE.BoxGeometry(9, 4.2, 7), this.modelBuilder.materials.wood);
+    sBase.position.y = 2.1;
+    sBase.castShadow = true;
+    stable.add(sBase);
+
+    const sRoof = new THREE.Mesh(new THREE.ConeGeometry(7, 2.5, 4), this.modelBuilder.materials.roof);
+    sRoof.position.y = 5.2;
+    sRoof.rotation.y = Math.PI / 4;
+    stable.add(sRoof);
+    stable.position.set(-14, 0, -30);
+    this.scene.add(stable);
+    this.addCollider(-14, -30, 10, 8);
+
+    // Tımarlı Sipahi Savaş Atı (x: 4, z: -20)
+    const horse = this.modelBuilder.createHorse(0x2b180d);
+    horse.position.set(4, 0, -20);
     horse.rotation.y = Math.PI / 4;
     this.scene.add(horse);
     this.horseEntity = horse;
+
+    // Sipahi Talimgâhı (Okçuluk Hedefleri & Kılıç Kuklaları: x: 14, z: -28)
+    for (let i = 0; i < 3; i++) {
+      // Hedef Tahtası
+      const target = new THREE.Group();
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.2), this.modelBuilder.materials.wood);
+      post.position.y = 1.1;
+      const board = new THREE.Mesh(new THREE.CylinderGeometry(0.65, 0.65, 0.1, 16), new THREE.MeshStandardMaterial({ color: 0xe0d6c0 }));
+      board.position.set(0, 1.4, 0.08);
+      board.rotation.x = Math.PI / 2;
+      const bullseye = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0x9e1e1e }));
+      bullseye.position.set(0, 1.4, 0.10);
+      bullseye.rotation.x = Math.PI / 2;
+      target.add(post, board, bullseye);
+      target.position.set(12 + i * 2.5, 0, -28);
+      this.scene.add(target);
+    }
+
+    // Ahşap Gözetleme Kulesi (x: -18, z: -45)
+    const watchtower = new THREE.Group();
+    const tPoles = [-1.5, 1.5];
+    tPoles.forEach(dx => {
+      tPoles.forEach(dz => {
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 9, 8), this.modelBuilder.materials.wood);
+        pole.position.set(dx, 4.5, dz);
+        pole.castShadow = true;
+        watchtower.add(pole);
+      });
+    });
+
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2.2, 4.2), this.modelBuilder.materials.wood);
+    cabin.position.y = 9.2;
+    const cRoof = new THREE.Mesh(new THREE.ConeGeometry(3.5, 2.2, 4), this.modelBuilder.materials.roof);
+    cRoof.position.y = 11.4;
+    cRoof.rotation.y = Math.PI / 4;
+    watchtower.add(cabin, cRoof);
+    watchtower.position.set(-18, 0, -45);
+    this.scene.add(watchtower);
+    this.addCollider(-18, -45, 5, 5);
   }
 
-  buildProps() {
-    // 1. Zengin Ahşap Pazar Tezgahları
-    const stallCoords = [
-      { x: -14, z: -2, rot: 0 },
-      { x: -14, z: 6, rot: 0.15 }
+  // ---------------------------------------------------------------------------
+  // 4. BATI QUARTER: KEMERLİ TAŞ KÖPRÜ & DEMİRCİ RÜSTEM USTA ATÖLYESİ
+  // ---------------------------------------------------------------------------
+  buildBlacksmithAndBridge() {
+    // Tarihi Kemerli Taş Köprü (x: -45, z: 0)
+    const bridge = this.modelBuilder.createStoneArchBridge(26, 7.5);
+    bridge.position.set(-45, 0, 0);
+    this.scene.add(bridge);
+    this.addCollider(-45, 0, 8, 26);
+
+    // Demirci Rüstem Usta Atölyesi (x: -62, z: 8)
+    const forge = this.modelBuilder.createBlacksmithShop();
+    forge.position.set(-62, 0, 8);
+    this.scene.add(forge);
+    this.addCollider(-62, 8, 12, 10);
+
+    // Alevli Demirci Ocağı & Işık (Forge Fire)
+    const forgeFire = new THREE.PointLight(0xff5500, 2.4, 18);
+    forgeFire.position.set(-62, 2.2, 8);
+    this.scene.add(forgeFire);
+
+    // Demirci Örsü (Anvil) & Su Teknesi
+    const anvilMat = new THREE.MeshStandardMaterial({ color: 0x24282c, metalness: 0.9, roughness: 0.25 });
+    const anvil = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 1.2), anvilMat);
+    anvil.position.set(-58, 0.4, 6);
+    this.scene.add(anvil);
+  }
+
+  // ---------------------------------------------------------------------------
+  // 5. GÜNEY QUARTER: ÇARŞI, KÖY HANI, SU KUYUSU & KÖY GİRİŞ KAPISI
+  // ---------------------------------------------------------------------------
+  buildMarketAndVillageGate() {
+    // 1. Köy Hanı / Kıraathanesi (x: -16, z: 28)
+    const inn = this.modelBuilder.createOttomanHouse(11, 9, 7.2, true);
+    inn.position.set(-16, 0, 28);
+    this.scene.add(inn);
+    this.addCollider(-16, 28, 12, 10);
+
+    // Han Önü Açık Hava Sedirleri ve Masalar
+    for (let mx of [-10, -6]) {
+      const table = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 1.4), this.modelBuilder.materials.wood);
+      table.position.set(mx, 0.4, 24);
+      table.castShadow = true;
+      this.scene.add(table);
+
+      for (let sx of [-1.2, 1.2]) {
+        const stool = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), this.modelBuilder.materials.wood);
+        stool.position.set(mx + sx, 0.25, 24);
+        this.scene.add(stool);
+      }
+    }
+
+    // 2. Köy Su Kuyusu (x: 8, z: 26)
+    const well = this.modelBuilder.createWaterWell();
+    well.position.set(8, 0, 26);
+    this.scene.add(well);
+    this.addCollider(8, 26, 3, 3);
+
+    // 3. Pazar Tezgahları (Bazaar Stalls)
+    const stalls = [
+      { x: -10, z: 14, color: 0x8b1e1e },
+      { x: 10, z: 16, color: 0x1d4e70 },
+      { x: 12, z: 32, color: 0x8b6508 }
     ];
 
-    stallCoords.forEach(pos => {
+    stalls.forEach(s => {
       const stall = new THREE.Group();
-      // Ahşap Masa
-      const table = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.9, 1.8), this.modelBuilder.materials.wood);
-      table.position.y = 0.45;
-      table.castShadow = true;
-      stall.add(table);
+      const tbl = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.9, 1.8), this.modelBuilder.materials.wood);
+      tbl.position.y = 0.45;
+      stall.add(tbl);
 
-      // Gölgelik Direkleri
-      for (let dx of [-1.5, 1.5]) {
-        for (let dz of [-0.8, 0.8]) {
-          const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.2, 6), this.modelBuilder.materials.wood);
-          pole.position.set(dx, 1.1, dz);
-          stall.add(pole);
-        }
-      }
-
-      // Kırmızı/Altın Çizgili Gölgelik Kumaşı
-      const awning = new THREE.Mesh(
-        new THREE.BoxGeometry(3.5, 0.1, 2.2),
-        new THREE.MeshStandardMaterial({ color: 0x8b1e1e, roughness: 0.8 })
-      );
-      awning.position.set(0, 2.25, 0);
-      awning.castShadow = true;
+      const awning = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.1, 2.2), new THREE.MeshStandardMaterial({ color: s.color, roughness: 0.8 }));
+      awning.position.y = 2.3;
       stall.add(awning);
 
-      stall.position.set(pos.x, 0, pos.z);
-      stall.rotation.y = pos.rot;
+      stall.position.set(s.x, 0, s.z);
       this.scene.add(stall);
-      this.addCollider(pos.x, pos.z, 3.6, 2.2);
+      this.addCollider(s.x, s.z, 3.5, 2.2);
     });
 
-    // 2. Ahşap Fıçılar (Barrels)
-    const barrelCoords = [
-      { x: -11, z: -3.5 },
-      { x: -11.8, z: -4.2 },
-      { x: 18, z: 6 },
-      { x: 17.2, z: 7.2 },
-      { x: -6, z: 5.5 }
-    ];
+    // 4. Ahşap At Arabaları (Wagons)
+    const wagon1 = this.modelBuilder.createWagon();
+    wagon1.position.set(16, 0, 38);
+    wagon1.rotation.y = 0.35;
+    this.scene.add(wagon1);
+    this.addCollider(16, 38, 3, 4);
 
-    barrelCoords.forEach(b => {
-      const barrel = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.48, 1.0, 12), this.modelBuilder.materials.wood);
-      body.position.y = 0.5;
-      body.castShadow = true;
-      barrel.add(body);
+    // 5. Köy Giriş Kapısı & Hisar Çitleri (x: 0, z: 75)
+    const gate = this.modelBuilder.createVillageGate();
+    gate.position.set(0, 0, 75);
+    this.scene.add(gate);
+    this.addCollider(0, 75, 14, 4);
 
-      // Demir Çemberler
-      for (let y of [0.25, 0.75]) {
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.46, 0.02, 6, 16), this.modelBuilder.materials.metal);
-        ring.position.y = y;
-        ring.rotation.x = Math.PI / 2;
-        barrel.add(ring);
-      }
-
-      barrel.position.set(b.x, 0, b.z);
-      this.scene.add(barrel);
-      this.addCollider(b.x, b.z, 1.0, 1.0);
-    });
-
-    // 3. Saman Balyaları & Çuvallar (Konağın ve Evlerin Önünde)
-    const hayCoords = [
-      { x: 6, z: -20 },
-      { x: 7.5, z: -19.5 },
-      { x: -18, z: 12 }
-    ];
-
-    const hayMat = new THREE.MeshStandardMaterial({ color: 0xc8aa60, roughness: 0.95 });
-    hayCoords.forEach(h => {
-      const bale = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.9, 1.8), hayMat);
-      bale.position.set(h.x, 0.45, h.z);
-      bale.rotation.y = Math.random() * Math.PI;
-      bale.castShadow = true;
-      this.scene.add(bale);
-      this.addCollider(h.x, h.z, 1.5, 1.8);
-    });
-
-    // 4. Meşaleler & Işıklar
-    const torchPositions = [[-4, 8], [4, 8], [0, -15], [8, 0]];
-    torchPositions.forEach(pos => {
-      const torch = new THREE.Group();
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 2.8, 6), this.modelBuilder.materials.wood);
-      pole.position.y = 1.4;
-      torch.add(pole);
-
-      const flame = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff7700 }));
-      flame.position.y = 2.9;
-      torch.add(flame);
-
-      const light = new THREE.PointLight(0xff8833, 1.6, 14);
-      light.position.y = 3.0;
-      torch.add(light);
-
-      torch.position.set(pos[0], 0, pos[1]);
-      this.scene.add(torch);
-    });
-  }
-
-  buildTrainingGrounds() {
-    // Okçuluk Hedef Tahtaları (Kale Avlusu - x: 180, z: 0 bazlı)
-    const targetPositions = [
-      { x: 175, z: -12 },
-      { x: 175, z: -8 },
-      { x: 175, z: -4 }
-    ];
-
-    targetPositions.forEach(pos => {
-      const targetGroup = new THREE.Group();
-      
-      // Stand ayakları
-      const leg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.8), this.modelBuilder.materials.wood);
-      leg1.rotation.z = Math.PI / 8;
-      leg1.position.set(-0.4, 0.8, 0);
-      
-      const leg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.8), this.modelBuilder.materials.wood);
-      leg2.rotation.z = -Math.PI / 8;
-      leg2.position.set(0.4, 0.8, 0);
-      
-      // Hedef Tahtası Yuvarlağı
-      const board = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.6, 0.6, 0.1, 16),
-        new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.9 })
-      );
-      board.rotation.x = Math.PI / 2;
-      board.position.set(0, 1.2, 0.1);
-      
-      // Kırmızı Merkez
-      const bullseye = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.2, 0.2, 0.12, 12),
-        new THREE.MeshStandardMaterial({ color: 0xcc2222, roughness: 0.8 })
-      );
-      bullseye.rotation.x = Math.PI / 2;
-      bullseye.position.set(0, 1.2, 0.12);
-      
-      targetGroup.add(leg1, leg2, board, bullseye);
-      targetGroup.position.set(pos.x, 0, pos.z);
-      targetGroup.rotation.y = Math.PI / 1.1;
-      this.scene.add(targetGroup);
-    });
-
-    // Kılıç Eğitim Kuklaları (Wooden Dummies) (Kale Avlusu)
-    const dummyPositions = [
-      { x: 175, z: -10 },
-      { x: 175, z: -6 }
-    ];
-
-    dummyPositions.forEach(pos => {
-      const dummyGroup = new THREE.Group();
-      
-      // Ana gövde kazığı
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.0), this.modelBuilder.materials.wood);
-      pole.position.y = 1.0;
-      
-      // Omuz / Kollar
-      const arms = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.15, 0.15), this.modelBuilder.materials.wood);
-      arms.position.y = 1.4;
-      
-      // Kafa kısmı
-      const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.35), this.modelBuilder.materials.wood);
-      head.position.y = 1.9;
-      
-      dummyGroup.add(pole, arms, head);
-      dummyGroup.position.set(pos.x, 0, pos.z);
-      this.scene.add(dummyGroup);
-      this.addCollider(pos.x, pos.z, 1.5, 1.5);
-    });
-  }
-
-  populateTrees() {
-    // Çevre Çam Ağaçları
-    for (let i = 0; i < 40; i++) {
-      const x = (Math.random() - 0.5) * 200;
-      const z = (Math.random() - 0.5) * 200;
-      
-      // Köy meydanına ve tarlalara ağaç koyma
-      if (Math.abs(x) < 40 && Math.abs(z) < 40) continue;
-      if (x > 140 && Math.abs(z) < 50) continue; // Kale yolu temiz
-      if (x > 20 && x < 80 && z > 30 && z < 90) continue; // Tarlalar temiz
-      
-      const tree = this.modelBuilder.createPineTree();
-      tree.position.set(x, 0, z);
-      
-      const scale = 0.8 + Math.random() * 0.6;
-      tree.scale.set(scale, scale, scale);
-      tree.rotation.y = Math.random() * Math.PI;
-      
-      this.scene.add(tree);
-      this.addCollider(x, z, 2, 2);
+    // Giriş Çitleri (Palisades)
+    for (let x = -35; x <= 35; x += 4) {
+      if (Math.abs(x) < 6) continue; // Kapı boşluğu
+      this.createFenceSegment(x, 75, 0);
     }
   }
 
-  buildFarms() {
-    // Köyün doğu/güney-doğu tarafında çitlerle çevrili tarlalar (x: 40, z: 60 civarı)
-    const farmCenter = { x: 50, z: 60 };
-    
-    // Tarla Zemin Dokusu (Koyu kahverengi toprak)
-    const soilGeo = new THREE.PlaneGeometry(40, 40);
+  // ---------------------------------------------------------------------------
+  // 6. DOĞU QUARTER: YELDEĞİRMENİ & BUĞDAY TARLALARI
+  // ---------------------------------------------------------------------------
+  buildWindmillAndFarms() {
+    // Yeldeğirmeni (x: 48, z: -38 - Tepe Üzerinde)
+    const windmill = this.modelBuilder.createWindmill();
+    windmill.position.set(48, 0, -38);
+    this.scene.add(windmill);
+    this.addCollider(48, -38, 9, 9);
+    this.animatedObjects.push(windmill);
+
+    // Çitlerle Çevrili Geniş Buğday Tarlaları (x: 55, z: 35 to 85)
+    const farmCenter = { x: 55, z: 50 };
+    const soilGeo = new THREE.PlaneGeometry(45, 55);
     soilGeo.rotateX(-Math.PI / 2);
-    const soilMat = new THREE.MeshStandardMaterial({ color: 0x3d2817, roughness: 1.0 });
-    const soil = new THREE.Mesh(soilGeo, soilMat);
-    soil.position.set(farmCenter.x, 0.05, farmCenter.z);
+    const soil = new THREE.Mesh(soilGeo, new THREE.MeshStandardMaterial({ color: 0x3b2614, roughness: 1.0 }));
+    soil.position.set(farmCenter.x, 0.03, farmCenter.z);
     this.scene.add(soil);
 
-    // Etrafına basit tahta çitler
-    for (let i = -20; i <= 20; i += 4) {
-      // Kuzey - Güney
-      this.createFenceSegment(farmCenter.x + i, farmCenter.z - 20, 0);
-      this.createFenceSegment(farmCenter.x + i, farmCenter.z + 20, 0);
-      // Doğu - Batı
-      this.createFenceSegment(farmCenter.x - 20, farmCenter.z + i, Math.PI / 2);
-      this.createFenceSegment(farmCenter.x + 20, farmCenter.z + i, Math.PI / 2);
+    // Tarla Çitleri
+    for (let x = -22; x <= 22; x += 4) {
+      this.createFenceSegment(farmCenter.x + x, farmCenter.z - 27, 0);
+      this.createFenceSegment(farmCenter.x + x, farmCenter.z + 27, 0);
+    }
+    for (let z = -27; z <= 27; z += 4) {
+      this.createFenceSegment(farmCenter.x - 22, farmCenter.z + z, Math.PI / 2);
+      this.createFenceSegment(farmCenter.x + 22, farmCenter.z + z, Math.PI / 2);
     }
 
-    // Ekili mahsuller (Sarı Buğdaylar)
-    const wheatMat = new THREE.MeshStandardMaterial({ color: 0xdaa520, roughness: 0.9 });
-    const wheatGeo = new THREE.BoxGeometry(0.2, 0.8, 0.2);
-    for (let i = 0; i < 150; i++) {
-      const wx = farmCenter.x + (Math.random() - 0.5) * 36;
-      const wz = farmCenter.z + (Math.random() - 0.5) * 36;
+    // 250+ Altın Buğday Başağı
+    const wheatMat = new THREE.MeshStandardMaterial({ color: 0xd4af37, roughness: 0.85 });
+    const wheatGeo = new THREE.BoxGeometry(0.18, 0.95, 0.18);
+    for (let i = 0; i < 220; i++) {
+      const wx = farmCenter.x + (Math.random() - 0.5) * 40;
+      const wz = farmCenter.z + (Math.random() - 0.5) * 50;
       const wheat = new THREE.Mesh(wheatGeo, wheatMat);
-      wheat.position.set(wx, 0.4, wz);
+      wheat.position.set(wx, 0.48, wz);
       wheat.rotation.y = Math.random() * Math.PI;
       this.scene.add(wheat);
     }
   }
 
-  createFenceSegment(x, z, rot) {
-    const group = new THREE.Group();
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.2), this.modelBuilder.materials.wood);
-    post.position.set(0, 0.6, 0);
-    const plank1 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.15, 0.05), this.modelBuilder.materials.wood);
-    plank1.position.set(2, 0.8, 0);
-    const plank2 = new THREE.Mesh(new THREE.BoxGeometry(4, 0.15, 0.05), this.modelBuilder.materials.wood);
-    plank2.position.set(2, 0.4, 0);
-    
-    group.add(post, plank1, plank2);
-    group.position.set(x, 0, z);
-    group.rotation.y = rot;
-    this.scene.add(group);
-  }
+  // ---------------------------------------------------------------------------
+  // 7. SAFRANBOLU KONAKLARI & MAHALLE DOKUSU (12+ EV)
+  // ---------------------------------------------------------------------------
+  buildResidentialHouses() {
+    const houseConfigs = [
+      // Merkez & Meydan Çevresi
+      { x: -22, z: 8, w: 8.5, l: 7.5, h: 6.8, rot: 0.35 },
+      { x: -20, z: -15, w: 8.0, l: 7.0, h: 6.5, rot: -0.25 },
+      { x: 26, z: 12, w: 9.0, l: 8.0, h: 7.0, rot: -0.45 },
+      { x: 28, z: -22, w: 8.5, l: 7.5, h: 6.8, rot: 0.25 },
 
-  buildBanditCamp() {
-    // Haritanın kuzey-batı derinlikleri
-    const campX = -80;
-    const campZ = -90;
+      // Güney Çarşı Mahallesi
+      { x: -24, z: 42, w: 8.0, l: 7.0, h: 6.5, rot: 0.15 },
+      { x: -22, z: 58, w: 8.5, l: 7.5, h: 6.8, rot: -0.20 },
+      { x: 24, z: 48, w: 9.0, l: 8.0, h: 7.0, rot: -0.30 },
+      { x: 22, z: 65, w: 8.0, l: 7.0, h: 6.5, rot: 0.40 },
 
-    // Kamp Ateşi
-    const fireGroup = new THREE.Group();
-    // Odunlar
-    for (let i = 0; i < 4; i++) {
-      const log = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.2), this.modelBuilder.materials.wood);
-      log.rotation.x = Math.PI / 2;
-      log.rotation.z = (Math.PI / 4) * i;
-      log.position.y = 0.1;
-      fireGroup.add(log);
-    }
-    // Alev ve Işık
-    const flame = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff3300 }));
-    flame.position.y = 0.4;
-    const light = new THREE.PointLight(0xff5500, 2.0, 30);
-    light.position.y = 1.0;
-    fireGroup.add(flame, light);
-    fireGroup.position.set(campX, 0, campZ);
-    this.scene.add(fireGroup);
+      // Batı Köprübaşı & Nehir Boyu
+      { x: -32, z: -25, w: 8.0, l: 7.0, h: 6.5, rot: 0.60 },
+      { x: -30, z: 22, w: 8.5, l: 7.5, h: 6.8, rot: -0.50 },
 
-    // Yırtık Çadırlar
-    const tentPositions = [
-      { x: campX - 5, z: campZ - 4, rot: 0.5 },
-      { x: campX + 6, z: campZ - 3, rot: -0.5 },
-      { x: campX, z: campZ + 6, rot: 3.14 }
+      // Doğu Değirmen Yolu
+      { x: 32, z: -45, w: 8.0, l: 7.0, h: 6.5, rot: 0.10 },
+      { x: 28, z: 32, w: 8.5, l: 7.5, h: 6.8, rot: -0.15 }
     ];
 
-    tentPositions.forEach(pos => {
-      const tentGeo = new THREE.ConeGeometry(2.5, 3.5, 4);
-      const tentMat = new THREE.MeshStandardMaterial({ color: 0x4a4a4a, roughness: 0.9 });
-      const tent = new THREE.Mesh(tentGeo, tentMat);
-      tent.position.set(pos.x, 1.75, pos.z);
-      tent.rotation.y = Math.PI / 4 + pos.rot;
-      this.scene.add(tent);
-      this.addCollider(pos.x, pos.z, 3.5, 3.5);
+    houseConfigs.forEach((cfg, idx) => {
+      const house = this.modelBuilder.createOttomanHouse(cfg.w, cfg.l, cfg.h, idx % 2 === 0);
+      house.position.set(cfg.x, 0, cfg.z);
+      house.rotation.y = cfg.rot;
+      this.scene.add(house);
+      this.addCollider(cfg.x, cfg.z, cfg.w + 1, cfg.l + 1);
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // 8. SANCAK KALESİ & DOĞU TAŞ YOLU
+  // ---------------------------------------------------------------------------
+  buildCastleDistrict() {
+    this.buildCastle();
+    this.buildStoneRoadToCastle();
+  }
+
   buildCastle() {
-    // Sancak Kalesi (Köyden uzakta tepe üzerinde kale)
     const castleX = 180;
     const castleZ = 0;
-
     const castleGroup = new THREE.Group();
 
-    // Taş Zemin / Avlu
+    // Taş Avlu
     const yardGeo = new THREE.PlaneGeometry(60, 60);
     yardGeo.rotateX(-Math.PI / 2);
     const yard = new THREE.Mesh(yardGeo, this.modelBuilder.materials.wall);
     yard.position.set(0, 0.1, 0);
     castleGroup.add(yard);
 
-    // Ana Surlar (Dört taraf)
-    const wallGeo = new THREE.BoxGeometry(60, 6, 2);
+    // Ana Surlar (Dört Taraf)
+    const wallGeo = new THREE.BoxGeometry(60, 7.5, 2.5);
     const wallN = new THREE.Mesh(wallGeo, this.modelBuilder.materials.wall);
-    wallN.position.set(0, 3, -30);
+    wallN.position.set(0, 3.75, -30);
     const wallS = new THREE.Mesh(wallGeo, this.modelBuilder.materials.wall);
-    wallS.position.set(0, 3, 30);
-    const wallE = new THREE.Mesh(new THREE.BoxGeometry(2, 6, 60), this.modelBuilder.materials.wall);
-    wallE.position.set(30, 3, 0);
-    
-    // Batı Duvarı (Kapı var)
-    const wallW1 = new THREE.Mesh(new THREE.BoxGeometry(2, 6, 26), this.modelBuilder.materials.wall);
-    wallW1.position.set(-30, 3, -17);
-    const wallW2 = new THREE.Mesh(new THREE.BoxGeometry(2, 6, 26), this.modelBuilder.materials.wall);
-    wallW2.position.set(-30, 3, 17);
-    
-    // Kemerli Kapı
-    const gateGeo = new THREE.BoxGeometry(2, 4, 8);
-    const gateMat = new THREE.MeshStandardMaterial({ color: 0x3d2817 }); // Koyu Ahşap Kapı
-    const gate = new THREE.Mesh(gateGeo, gateMat);
-    gate.position.set(-30, 2, 0);
+    wallS.position.set(0, 3.75, 30);
+    const wallE = new THREE.Mesh(new THREE.BoxGeometry(2.5, 7.5, 60), this.modelBuilder.materials.wall);
+    wallE.position.set(30, 3.75, 0);
+
+    const wallW1 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 7.5, 26), this.modelBuilder.materials.wall);
+    wallW1.position.set(-30, 3.75, -17);
+    const wallW2 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 7.5, 26), this.modelBuilder.materials.wall);
+    wallW2.position.set(-30, 3.75, 17);
+
+    // Kapı
+    const gate = new THREE.Mesh(new THREE.BoxGeometry(2.6, 5, 8), new THREE.MeshStandardMaterial({ color: 0x2b190e }));
+    gate.position.set(-30, 2.5, 0);
 
     castleGroup.add(wallN, wallS, wallE, wallW1, wallW2, gate);
 
-    // Nöbetçi Kuleleri (4 Köşe)
-    const towerGeo = new THREE.CylinderGeometry(3, 3, 10, 8);
-    const corners = [
-      { x: -30, z: -30 }, { x: 30, z: -30 },
-      { x: 30, z: 30 }, { x: -30, z: 30 }
-    ];
-    
+    // 4 Köşe Nöbetçi Kuleleri
+    const corners = [{ x: -30, z: -30 }, { x: 30, z: -30 }, { x: 30, z: 30 }, { x: -30, z: 30 }];
     corners.forEach(c => {
-      const tower = new THREE.Mesh(towerGeo, this.modelBuilder.materials.wall);
-      tower.position.set(c.x, 5, c.z);
-      
-      // Kule Çatısı
-      const roof = new THREE.Mesh(new THREE.ConeGeometry(3.5, 4, 8), new THREE.MeshStandardMaterial({ color: 0x8b1e1e })); // Kırmızı çatı
-      roof.position.set(c.x, 12, c.z);
-      
+      const tower = new THREE.Mesh(new THREE.CylinderGeometry(3.5, 3.8, 12, 10), this.modelBuilder.materials.wall);
+      tower.position.set(c.x, 6, c.z);
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(4.2, 4.5, 10), this.modelBuilder.materials.roof);
+      roof.position.set(c.x, 14.2, c.z);
       castleGroup.add(tower, roof);
     });
 
     // Ana Hisar (Keep)
-    const keepGeo = new THREE.BoxGeometry(20, 15, 20);
-    const keep = new THREE.Mesh(keepGeo, this.modelBuilder.materials.wall);
-    keep.position.set(10, 7.5, 0);
+    const keep = new THREE.Mesh(new THREE.BoxGeometry(22, 16, 22), this.modelBuilder.materials.wall);
+    keep.position.set(10, 8, 0);
     castleGroup.add(keep);
-
-    // Kırmızı Sancaklar (Bayraklar)
-    const flagPositions = [{ x: -30, z: -10 }, { x: -30, z: 10 }];
-    flagPositions.forEach(p => {
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 4), this.modelBuilder.materials.wood);
-      pole.position.set(p.x, 8, p.z);
-      const flag = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.5), new THREE.MeshBasicMaterial({ color: 0xcc0000, side: THREE.DoubleSide }));
-      flag.position.set(p.x + 1, 9, p.z);
-      castleGroup.add(pole, flag);
-    });
 
     castleGroup.position.set(castleX, 0, castleZ);
     this.scene.add(castleGroup);
-
-    // Çarpışma Alanları
     this.addCollider(castleX, castleZ - 30, 60, 2); // N
     this.addCollider(castleX, castleZ + 30, 60, 2); // S
     this.addCollider(castleX + 30, castleZ, 2, 60); // E
@@ -574,14 +561,12 @@ export class TownGenerator {
     this.scene.add(roadGroup);
   }
 
-  addCollider(x, z, w, d) {
-    this.colliders.push({
-      minX: x - w / 2,
-      maxX: x + w / 2,
-      minZ: z - d / 2,
-      maxZ: z + d / 2
+  update(delta) {
+    // Yeldeğirmeni kanatlarını sürekli döndür
+    this.animatedObjects.forEach(obj => {
+      if (obj.userData && obj.userData.blades) {
+        obj.userData.blades.rotation.z += delta * 0.75;
+      }
     });
   }
-
-  update(delta) {}
 }

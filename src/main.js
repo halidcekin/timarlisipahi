@@ -196,30 +196,35 @@ export class Game {
         // 1. Gün & Zaman Akışı
         gameState.time.dayTimeHours = (gameState.time.dayTimeHours + delta * 0.1) % 24;
 
-        // 2. Oyuncu Fiziği ve Hareketi
+        // 2. Çevre & Yeldeğirmeni Animasyonu
+        if (this.town) {
+          this.town.update(delta);
+        }
+
+        // 3. Oyuncu Fiziği ve Hareketi
         if (this.player && this.input) {
           this.player.update(delta, this.input);
         }
 
-        // 3. NPC & Düşman Yapay Zekası
+        // 4. NPC & Düşman Yapay Zekası
         if (this.npcManager && this.player) {
           this.npcManager.update(delta, this.player.position);
         }
 
-        // 4. Dövüş ve Vuruş Sistemi
+        // 5. Dövüş ve Vuruş Sistemi
         if (this.combat) {
           this.combat.update(delta);
         }
 
-        // 5. HUD ve Pusula Güncellemesi
+        // 6. HUD ve Pusula Güncellemesi
         if (this.ui && this.player && this.engine && this.npcManager) {
           this.ui.update(this.player.position, this.engine.camera, this.player.yaw, this.npcManager.npcs, this.npcManager.enemies);
         }
 
-        // 6. Etkileşim İpucu Kontrolü
+        // 7. Etkileşim İpucu Kontrolü
         this.updateInteractionPrompts();
 
-        // 7. Arzuhal ve Dilekçe Sistemi Zamanlayıcısı
+        // 8. Arzuhal ve Dilekçe Sistemi Zamanlayıcısı
         petitionSystem.update(delta);
       } catch (err) {
         console.warn('Oyun mantığı döngü uyarısı:', err);
