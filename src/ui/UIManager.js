@@ -264,16 +264,21 @@ export class UIManager {
 
     // Arzuhal Butonları
     if (this.dom.btnAcceptPetition) {
-      this.dom.btnAcceptPetition.addEventListener('click', () => {
+      this.dom.btnAcceptPetition.addEventListener('click', (e) => {
+        e.stopPropagation();
         if (petitionSystem.acceptPetition()) {
           this.updateTimarBookUI();
+          this.updateHUD();
         }
       });
     }
 
     if (this.dom.btnRejectPetition) {
-      this.dom.btnRejectPetition.addEventListener('click', () => {
-        this.openRejectionModal();
+      this.dom.btnRejectPetition.addEventListener('click', (e) => {
+        e.stopPropagation();
+        petitionSystem.rejectPetition();
+        this.updateTimarBookUI();
+        this.updateHUD();
       });
     }
 
@@ -566,6 +571,7 @@ export class UIManager {
       const p = gameState.currentPetition;
       if (p) {
         this.dom.petitionSection.classList.remove('hidden');
+        this.dom.petitionSection.style.display = 'block';
         this.dom.petitionTitle.textContent = `📜 ${p.title}`;
         this.dom.petitionDesc.textContent = `"${p.desc}"`;
         this.dom.petitionCostAkce.textContent = `Maliyet: ${p.costAkce} Akçe`;
@@ -573,6 +579,7 @@ export class UIManager {
         this.dom.petitionTime.textContent = `Süre: ${p.timeDays} Gün`;
       } else {
         this.dom.petitionSection.classList.add('hidden');
+        this.dom.petitionSection.style.display = 'none';
       }
     }
   }
