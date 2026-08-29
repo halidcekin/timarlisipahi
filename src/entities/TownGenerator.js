@@ -34,6 +34,9 @@ export class TownGenerator {
     // 5. Çam Ağaçları
     this.populateTrees();
 
+    // 6. Sipahi Talimgâhı (Okçuluk & Kılıç Kuklaları)
+    this.buildTrainingGrounds();
+
     return {
       colliders: this.colliders,
       animatedObjects: this.animatedObjects,
@@ -134,6 +137,76 @@ export class TownGenerator {
 
       torch.position.set(pos[0], 0, pos[1]);
       this.scene.add(torch);
+    });
+  }
+
+  buildTrainingGrounds() {
+    // Okçuluk Hedef Tahtaları
+    const targetPositions = [
+      { x: -28, z: 22 },
+      { x: -25, z: 22 },
+      { x: -22, z: 22 }
+    ];
+
+    targetPositions.forEach(pos => {
+      const targetGroup = new THREE.Group();
+      
+      // Stand ayakları
+      const leg1 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.8), this.modelBuilder.materials.wood);
+      leg1.rotation.z = Math.PI / 8;
+      leg1.position.set(-0.4, 0.8, 0);
+      
+      const leg2 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.8), this.modelBuilder.materials.wood);
+      leg2.rotation.z = -Math.PI / 8;
+      leg2.position.set(0.4, 0.8, 0);
+      
+      // Hedef Tahtası Yuvarlağı
+      const board = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.6, 0.6, 0.1, 16),
+        new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.9 })
+      );
+      board.rotation.x = Math.PI / 2;
+      board.position.set(0, 1.2, 0.1);
+      
+      // Kırmızı Merkez
+      const bullseye = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.2, 0.2, 0.12, 12),
+        new THREE.MeshStandardMaterial({ color: 0xcc2222, roughness: 0.8 })
+      );
+      bullseye.rotation.x = Math.PI / 2;
+      bullseye.position.set(0, 1.2, 0.12);
+      
+      targetGroup.add(leg1, leg2, board, bullseye);
+      targetGroup.position.set(pos.x, 0, pos.z);
+      targetGroup.rotation.y = Math.PI / 1.1;
+      this.scene.add(targetGroup);
+    });
+
+    // Kılıç Eğitim Kuklaları (Wooden Dummies)
+    const dummyPositions = [
+      { x: -16, z: 28 },
+      { x: -12, z: 28 }
+    ];
+
+    dummyPositions.forEach(pos => {
+      const dummyGroup = new THREE.Group();
+      
+      // Ana gövde kazığı
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.0), this.modelBuilder.materials.wood);
+      pole.position.y = 1.0;
+      
+      // Omuz / Kollar
+      const arms = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.15, 0.15), this.modelBuilder.materials.wood);
+      arms.position.y = 1.4;
+      
+      // Kafa kısmı
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.4, 0.35), this.modelBuilder.materials.wood);
+      head.position.y = 1.9;
+      
+      dummyGroup.add(pole, arms, head);
+      dummyGroup.position.set(pos.x, 0, pos.z);
+      this.scene.add(dummyGroup);
+      this.addCollider(pos.x, pos.z, 1.5, 1.5);
     });
   }
 
