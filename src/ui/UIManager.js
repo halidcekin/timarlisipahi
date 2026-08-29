@@ -159,50 +159,58 @@ export class UIManager {
 
   bindEvents() {
     // Ses Aç / Kapa
-    this.dom.btnToggleSound.addEventListener('click', () => {
-      const isUnmuted = soundManager.toggleMute();
-      this.dom.btnToggleSound.textContent = isUnmuted ? '🔊' : '🔇';
-    });
+    if (this.dom.btnToggleSound) {
+      this.dom.btnToggleSound.addEventListener('click', () => {
+        const isUnmuted = soundManager.toggleMute();
+        this.dom.btnToggleSound.textContent = isUnmuted ? '🔊' : '🔇';
+      });
+    }
 
     // Başlangıç Ekranı Olayları
-    this.dom.btnRandomizeWorld.addEventListener('click', () => {
-      gameState.reset();
-      questSystem.syncWithGameState();
-      this.updateStartScreenInfo();
-    });
+    if (this.dom.btnRandomizeWorld) {
+      this.dom.btnRandomizeWorld.addEventListener('click', () => {
+        gameState.reset();
+        questSystem.syncWithGameState();
+        this.updateStartScreenInfo();
+      });
+    }
 
-    this.dom.btnStartGame.addEventListener('click', () => {
-      try {
-        soundManager.init();
-      } catch (e) {
-        console.warn('Audio init error:', e);
-      }
-      if (this.dom.startScreen) {
-        this.dom.startScreen.classList.add('hidden');
-        this.dom.startScreen.style.display = 'none';
-      }
-      gameState.addNotification('Mülk-i Osmanî\'ye Hoş Geldiniz! Tımar toprağınıza ayak bastınız.', 'success');
-      try {
-        soundManager.playVictoryJingle();
-      } catch (e) {}
-
-      // Canvas'a odaklanma
-      const canvas = document.getElementById('webgl-canvas');
-      if (canvas) {
+    if (this.dom.btnStartGame) {
+      this.dom.btnStartGame.addEventListener('click', () => {
         try {
-          canvas.requestPointerLock();
+          soundManager.init();
+        } catch (e) {
+          console.warn('Audio init error:', e);
+        }
+        if (this.dom.startScreen) {
+          this.dom.startScreen.classList.add('hidden');
+          this.dom.startScreen.style.display = 'none';
+        }
+        gameState.addNotification('Mülk-i Osmanî\'ye Hoş Geldiniz! Tımar toprağınıza ayak bastınız.', 'success');
+        try {
+          soundManager.playVictoryJingle();
         } catch (e) {}
-      }
-    });
+
+        // Canvas'a odaklanma
+        const canvas = document.getElementById('webgl-canvas');
+        if (canvas) {
+          try {
+            canvas.requestPointerLock();
+          } catch (e) {}
+        }
+      });
+    }
 
     // Modalleri Kapatma Butonları
-    this.dom.dialogueCloseBtn.addEventListener('click', () => this.closeDialogue());
-    this.dom.timarCloseBtn.addEventListener('click', () => this.toggleTimarModal(false));
-    this.dom.mapCloseBtn.addEventListener('click', () => this.toggleMapModal(false));
-    this.dom.questCloseBtn.addEventListener('click', () => this.toggleQuestModal(false));
-    this.dom.btnBattleOk.addEventListener('click', () => {
-      this.dom.battleResultModal.classList.add('hidden');
-    });
+    if (this.dom.dialogueCloseBtn) this.dom.dialogueCloseBtn.addEventListener('click', () => this.closeDialogue());
+    if (this.dom.timarCloseBtn) this.dom.timarCloseBtn.addEventListener('click', () => this.toggleTimarModal(false));
+    if (this.dom.mapCloseBtn) this.dom.mapCloseBtn.addEventListener('click', () => this.toggleMapModal(false));
+    if (this.dom.questCloseBtn) this.dom.questCloseBtn.addEventListener('click', () => this.toggleQuestModal(false));
+    if (this.dom.btnBattleOk) {
+      this.dom.btnBattleOk.addEventListener('click', () => {
+        this.dom.battleResultModal.classList.add('hidden');
+      });
+    }
 
     // Aktif Görev Paneline Tıklanınca Görev Defterini Aç
     if (this.dom.activeQuestPill) {
@@ -212,35 +220,47 @@ export class UIManager {
     }
 
     // Tımar Defteri Buton Aksiyonları
-    this.dom.btnCollectTax.addEventListener('click', () => {
-      TimarSystem.collectAnnualTax();
-      this.updateTimarBookUI();
-    });
+    if (this.dom.btnCollectTax) {
+      this.dom.btnCollectTax.addEventListener('click', () => {
+        TimarSystem.collectAnnualTax();
+        this.updateTimarBookUI();
+      });
+    }
 
-    this.dom.btnPatrolVillage.addEventListener('click', () => {
-      TimarSystem.patrolVillage();
-      this.updateTimarBookUI();
-    });
+    if (this.dom.btnPatrolVillage) {
+      this.dom.btnPatrolVillage.addEventListener('click', () => {
+        TimarSystem.patrolVillage();
+        this.updateTimarBookUI();
+      });
+    }
 
-    this.dom.btnFeastVillagers.addEventListener('click', () => {
-      TimarSystem.feastVillagers();
-      this.updateTimarBookUI();
-    });
+    if (this.dom.btnFeastVillagers) {
+      this.dom.btnFeastVillagers.addEventListener('click', () => {
+        TimarSystem.feastVillagers();
+        this.updateTimarBookUI();
+      });
+    }
 
-    this.dom.btnTrainCebelu.addEventListener('click', () => {
-      TimarSystem.trainCebelu();
-      this.updateTimarBookUI();
-    });
+    if (this.dom.btnTrainCebelu) {
+      this.dom.btnTrainCebelu.addEventListener('click', () => {
+        TimarSystem.trainCebelu();
+        this.updateTimarBookUI();
+      });
+    }
 
-    this.dom.btnBlacksmithArmor.addEventListener('click', () => {
-      TimarSystem.upgradeArmorAndSword();
-      this.updateTimarBookUI();
-    });
+    if (this.dom.btnBlacksmithArmor) {
+      this.dom.btnBlacksmithArmor.addEventListener('click', () => {
+        TimarSystem.upgradeArmorAndSword();
+        this.updateTimarBookUI();
+      });
+    }
 
-    this.dom.btnHorseBreed.addEventListener('click', () => {
-      TimarSystem.breedWarHorse();
-      this.updateTimarBookUI();
-    });
+    if (this.dom.btnHorseBreed) {
+      this.dom.btnHorseBreed.addEventListener('click', () => {
+        TimarSystem.breedWarHorse();
+        this.updateTimarBookUI();
+      });
+    }
 
     // Arzuhal Butonları
     if (this.dom.btnAcceptPetition) {
