@@ -176,6 +176,7 @@
         <div class="timar-card">
           <h3>📊 Hâsılat & Reaya Cetveli</h3>
           <div class="data-row"><span>Köy Nüfusu / Reaya:</span><strong id="tb-hane-count">24 Hane</strong></div>
+          <div class="data-row"><span>Boşta Irgat / Amele:</span><strong id="tb-irgat-count">8 Kişi</strong></div>
           <div class="data-row"><span>Yıllık Öşür (Buğday/Arpa):</span><strong id="tb-grain-val">850 Akçe</strong></div>
           <div class="data-row"><span>Ağnam & Çift Resmi:</span><strong id="tb-sheep-val">420 Akçe</strong></div>
           <div class="data-row"><span>Kovan & Değirmen Rüsumu:</span><strong id="tb-misc-val">180 Akçe</strong></div>
@@ -190,6 +191,21 @@
           <div class="data-row"><span>Sipahi Teçhizatı:</span><strong id="tb-equipment">Şam Çeliği Kılıç & Zırh</strong></div>
           <div class="data-row"><span>Savaş Atı Cinsi:</span><strong id="tb-horse-type">Karayağız Türkmen Atı</strong></div>
           <div class="data-row highlight"><span>Köy Asayişi / Moral:</span><strong id="tb-morale">85% / 80%</strong></div>
+        </div>
+      </div>
+
+      <!-- Arzuhaller Bölümü -->
+      <div id="petition-section" class="timar-petition-box hidden" style="background: rgba(139,30,30,0.1); border: 1px solid #8b1e1e; padding: 10px; margin: 15px; border-radius: 4px;">
+        <h3 id="petition-title" style="color: #8b1e1e; margin-top: 0;">📜 Yeni Arzuhal (Dilekçe)</h3>
+        <p id="petition-desc" style="font-style: italic; margin-bottom: 10px;">Ahali senden medet umar Beyim...</p>
+        <div class="petition-costs" style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 10px;">
+          <span id="petition-cost-akce">Maliyet: 0 Akçe</span>
+          <span id="petition-cost-irgat">Gereken Irgat: 0</span>
+          <span id="petition-time">Süre: 0 Gün</span>
+        </div>
+        <div class="petition-actions" style="display: flex; gap: 10px;">
+          <button id="btn-accept-petition" class="parchment-btn gold-btn" style="flex:1;">✅ Kabul Et (Ferman Buyur)</button>
+          <button id="btn-reject-petition" class="parchment-btn" style="flex:1;">❌ Reddet</button>
         </div>
       </div>
 
@@ -249,6 +265,64 @@
             <button id="btn-travel-forest" class="travel-btn">🌲 Orman Harami Sığınağı</button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SİPAHİ RET GEREKÇESİ MODAL -->
+  <div id="rejection-reason-modal" class="modal-backdrop hidden">
+    <div class="parchment-window" style="max-width: 520px;">
+      <div class="parchment-header">
+        <div class="parchment-tughra">⚖️</div>
+        <h2>SİPAHİ RET FERMANI & GEREKÇESİ</h2>
+        <button id="rejection-close-btn" class="close-btn">✕</button>
+      </div>
+
+      <div class="dialogue-body" style="padding: 15px;">
+        <p style="margin-bottom: 8px; font-size: 14px; color: #5a1e1e;">
+          <strong>Ahalinin Arzuhali:</strong> <span id="rejection-petition-name">Su Değirmeni</span>
+        </p>
+        <p style="font-size: 13px; margin-bottom: 12px; opacity: 0.85;">
+          Kadı Efendi ve Köy İhtiyar Heyeti beyan edeceğiniz fermanı inceleyecektir. Haklı, adil veya ordu/hazine maslahatına uygun bir gerekçe sunarsanız ahali gücenmeyecektir.
+        </p>
+
+        <textarea id="rejection-reason-input" rows="4" style="width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.7); border: 2px solid #8b1e1e; border-radius: 4px; padding: 10px; font-family: inherit; font-size: 14px; resize: vertical;" placeholder="Fermanınızı ve ret gerekçenizi buraya yazınız (Örn: Gaza seferi için akçeler ordu levazımına tahsis edilmiştir, bahara kadar sabır buyurula...)"></textarea>
+
+        <div id="rejection-loading" class="hidden" style="text-align: center; padding: 10px; color: #8b1e1e; font-weight: bold;">
+          ⏳ Kadı ve Ahali Heyeti fermanı mütalaa ediyor (Gemini Yapay Zeka)...
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 15px;">
+          <button id="btn-submit-rejection" class="parchment-btn gold-btn" style="flex: 2;">📜 Divana Bildir & İlan Et</button>
+          <button id="btn-cancel-rejection" class="parchment-btn" style="flex: 1;">Vazgeç</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KADI VE AHALİ HEYETİ HÜKMÜ MODAL -->
+  <div id="kadi-verdict-modal" class="modal-backdrop hidden">
+    <div class="parchment-window" style="max-width: 500px; text-align: center;">
+      <div class="parchment-header" style="justify-content: center;">
+        <div class="parchment-tughra">﷽</div>
+        <h2>KADI VE AHALİ HEYETİ HÜKMÜ</h2>
+      </div>
+
+      <div class="dialogue-body" style="padding: 20px;">
+        <div id="kadi-verdict-badge" style="font-size: 18px; font-weight: bold; margin-bottom: 12px; color: #1e6b2c;">
+          ✅ FERMAN HAKLI BULUNDU
+        </div>
+
+        <p id="kadi-verdict-text" style="font-style: italic; font-size: 15px; line-height: 1.5; margin-bottom: 15px; background: rgba(0,0,0,0.05); padding: 12px; border-radius: 4px;">
+          "Kadı Hükmü: Sipahi Beyimizin sefer hazırlığı ve hazine önceliği mazereti yerinde görülmüştür."
+        </p>
+
+        <div style="display: flex; justify-content: space-around; font-size: 14px; font-weight: bold; margin-bottom: 15px; border-top: 1px dashed #8b1e1e; border-bottom: 1px dashed #8b1e1e; padding: 8px 0;">
+          <span>İkna Puanı: <strong id="kadi-score-text">85 / 100</strong></span>
+          <span>Halkın Tepkisi: <strong id="kadi-morale-text" style="color: #1e6b2c;">0 Asayiş Kaybı (Hoş Görüldü)</strong></span>
+        </div>
+
+        <button id="btn-close-verdict" class="parchment-btn gold-btn" style="width: 100%;">Fermanı Mühürle</button>
       </div>
     </div>
   </div>

@@ -43,6 +43,12 @@ export class TownGenerator {
     // 9. Devasa Sancak Kalesi (Haritanın Doğu Ucunda)
     this.buildCastle();
 
+    // 10. Köyden Kaleye Uzanan Taş Yol
+    this.buildStoneRoadToCastle();
+
+    // 11. Sipahi Talimgâhı
+    this.buildTrainingGrounds();
+
     return {
       colliders: this.colliders,
       animatedObjects: this.animatedObjects,
@@ -147,11 +153,11 @@ export class TownGenerator {
   }
 
   buildTrainingGrounds() {
-    // Okçuluk Hedef Tahtaları
+    // Okçuluk Hedef Tahtaları (Kale Avlusu - x: 180, z: 0 bazlı)
     const targetPositions = [
-      { x: -28, z: 22 },
-      { x: -25, z: 22 },
-      { x: -22, z: 22 }
+      { x: 175, z: -12 },
+      { x: 175, z: -8 },
+      { x: 175, z: -4 }
     ];
 
     targetPositions.forEach(pos => {
@@ -188,10 +194,10 @@ export class TownGenerator {
       this.scene.add(targetGroup);
     });
 
-    // Kılıç Eğitim Kuklaları (Wooden Dummies)
+    // Kılıç Eğitim Kuklaları (Wooden Dummies) (Kale Avlusu)
     const dummyPositions = [
-      { x: -16, z: 28 },
-      { x: -12, z: 28 }
+      { x: 175, z: -10 },
+      { x: 175, z: -6 }
     ];
 
     dummyPositions.forEach(pos => {
@@ -332,7 +338,7 @@ export class TownGenerator {
   }
 
   buildCastle() {
-    // Sancak Kalesi (Haritanın Doğu ucu)
+    // Sancak Kalesi (Köyden uzakta tepe üzerinde kale)
     const castleX = 180;
     const castleZ = 0;
 
@@ -412,6 +418,62 @@ export class TownGenerator {
     this.addCollider(castleX - 30, castleZ - 17, 2, 26); // W1
     this.addCollider(castleX - 30, castleZ + 17, 2, 26); // W2
     this.addCollider(castleX + 10, castleZ, 20, 20); // Keep
+  }
+
+  /**
+   * Köyden Sancak Kalesi'ne Uzanan 3D Taş Yol (Cobblestone Highway)
+   */
+  buildStoneRoadToCastle() {
+    const roadGroup = new THREE.Group();
+    const stoneMat1 = new THREE.MeshStandardMaterial({ color: 0x5a5650, roughness: 0.9 });
+    const stoneMat2 = new THREE.MeshStandardMaterial({ color: 0x6e685f, roughness: 0.85 });
+    const borderMat = new THREE.MeshStandardMaterial({ color: 0x3d3a36, roughness: 0.95 });
+
+    const startX = 25;
+    const endX = 150;
+    const step = 2.0;
+
+    for (let x = startX; x <= endX; x += step) {
+      // Hafif organik kıvrım (S-Curve)
+      const t = (x - startX) / (endX - startX);
+      const zOffset = Math.sin(t * Math.PI * 2) * 3.5;
+
+      // Yol Taş Plakaları (Genişlik 4 metre)
+      const slabGeo = new THREE.BoxGeometry(1.8, 0.12, 1.2);
+      for (let side = -1.5; side <= 1.5; side += 1.4) {
+        const mat = Math.random() > 0.5 ? stoneMat1 : stoneMat2;
+        const slab = new THREE.Mesh(slabGeo, mat);
+        slab.position.set(x + (Math.random() - 0.5) * 0.2, 0.06, zOffset + side + (Math.random() - 0.5) * 0.2);
+        slab.rotation.y = (Math.random() - 0.5) * 0.1;
+        roadGroup.add(slab);
+      }
+
+      // Kenar Bordür Taşları
+      const borderGeo = new THREE.BoxGeometry(1.9, 0.2, 0.3);
+      const borderL = new THREE.Mesh(borderGeo, borderMat);
+      borderL.position.set(x, 0.1, zOffset - 2.4);
+      const borderR = new THREE.Mesh(borderGeo, borderMat);
+      borderR.position.set(x, 0.1, zOffset + 2.4);
+      roadGroup.add(borderL, borderR);
+
+      // Her 22 metrede bir Meşale Direkleri
+      if (Math.floor(x) % 22 === 0) {
+        const torch = new THREE.Group();
+        const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 3.2), this.modelBuilder.materials.wood);
+        post.position.y = 1.6;
+        const fire = new THREE.Mesh(new THREE.SphereGeometry(0.18, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff6600 }));
+        fire.position.y = 3.2;
+        const light = new THREE.PointLight(0xff7722, 1.2, 16);
+        light.position.y = 3.3;
+
+        torch.add(post, fire, light);
+        torch.position.set(x, 0, zOffset + (x % 44 === 0 ? 2.9 : -2.9));
+        roadGroup.add(torch);
+        this.addCollider(torch.position.x, torch.position.z, 0.8, 0.8);
+      }
+    }
+
+    this.scene.add(roadGroup);
   }
 
   addCollider(x, z, w, d) {

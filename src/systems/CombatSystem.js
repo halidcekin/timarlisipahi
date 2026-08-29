@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { gameState } from '../core/GameState.js';
 import { soundManager } from '../core/AudioManager.js';
 import { questSystem } from './QuestSystem.js';
+import { TownGenerator } from '../entities/TownGenerator.js';
 
 /**
  * CombatSystem - 1. Kişi Kılıç Dövüşü ve Vuruş Algılama
@@ -20,38 +21,74 @@ export class CombatSystem {
   }
 
   /**
-   * İsabet Noktasında 3D Parlayan Metal Kıvılcımları Saç
+   * Gerçekçi Kan ve Toz Efekti (Çarpışma anında)
    */
-  spawnSparks(position) {
+  spawnBloodAndDust(position, isHitEntity = true) {
     if (!this.player.scene) return;
 
-    const sparkCount = 16;
-    for (let i = 0; i < sparkCount; i++) {
-      const size = 0.04 + Math.random() * 0.04;
-      const sparkGeo = new THREE.SphereGeometry(size, 4, 4);
-      const sparkMat = new THREE.MeshBasicMaterial({
-        color: Math.random() > 0.3 ? 0xffcc33 : 0xffffff,
+    // Toz Bulutu (Gri)
+    const dustCount = 8;
+    for (let i = 0; i < dustCount; i++) {
+      const size = 0.08 + Math.random() * 0.12;
+      const dustGeo = new THREE.SphereGeometry(size, 4, 4);
+      const dustMat = new THREE.MeshBasicMaterial({
+        color: 0x888888,
         transparent: true,
-        opacity: 1
+        opacity: 0.6
       });
-      const spark = new THREE.Mesh(sparkGeo, sparkMat);
-      spark.position.copy(position);
-      spark.position.x += (Math.random() - 0.5) * 0.3;
-      spark.position.y += (Math.random() - 0.5) * 0.3;
-      spark.position.z += (Math.random() - 0.5) * 0.3;
+      const dust = new THREE.Mesh(dustGeo, dustMat);
+      dust.position.copy(position);
+      dust.position.x += (Math.random() - 0.5) * 0.5;
+      dust.position.y += (Math.random() - 0.5) * 0.5;
+      dust.position.z += (Math.random() - 0.5) * 0.5;
 
       const vel = new THREE.Vector3(
-        (Math.random() - 0.5) * 5.5,
-        Math.random() * 4.5 + 1.5,
-        (Math.random() - 0.5) * 5.5
+        (Math.random() - 0.5) * 2.0,
+        Math.random() * 1.5,
+        (Math.random() - 0.5) * 2.0
       );
 
-      this.sparkGroup.add(spark);
+      this.sparkGroup.add(dust);
       this.activeSparks.push({
-        mesh: spark,
+        mesh: dust,
         velocity: vel,
-        life: 0.35 + Math.random() * 0.2,
-        maxLife: 0.5
+        life: 0.4 + Math.random() * 0.3,
+        maxLife: 0.7,
+        type: 'dust'
+      });
+    }
+
+    if (!isHitEntity) return; // Eğer mankene vuruluyorsa kan çıkmasın
+
+    // Kan Parçacıkları (Kırmızı ve Ağır)
+    const bloodCount = 12;
+    for (let i = 0; i < bloodCount; i++) {
+      const size = 0.03 + Math.random() * 0.03;
+      const bloodGeo = new THREE.SphereGeometry(size, 4, 4);
+      const bloodMat = new THREE.MeshBasicMaterial({
+        color: 0x8a0303, // Koyu kırmızı
+        transparent: true,
+        opacity: 0.9
+      });
+      const blood = new THREE.Mesh(bloodGeo, bloodMat);
+      blood.position.copy(position);
+      blood.position.x += (Math.random() - 0.5) * 0.3;
+      blood.position.y += (Math.random() - 0.5) * 0.3;
+      blood.position.z += (Math.random() - 0.5) * 0.3;
+
+      const vel = new THREE.Vector3(
+        (Math.random() - 0.5) * 3.5,
+        Math.random() * 2.5 + 1.0,
+        (Math.random() - 0.5) * 3.5
+      );
+
+      this.sparkGroup.add(blood);
+      this.activeSparks.push({
+        mesh: blood,
+        velocity: vel,
+        life: 0.3 + Math.random() * 0.2,
+        maxLife: 0.5,
+        type: 'blood'
       });
     }
   }
@@ -81,9 +118,9 @@ export class CombatSystem {
           soundManager.playSwordClash();
           this.player.addCameraShake(0.14);
 
-          // Kıvılcım Saç
+          // Kan ve Toz Saç
           const hitPos = enemy.position.clone().add(new THREE.Vector3(0, 1.2, 0));
-          this.spawnSparks(hitPos);
+          this.spawnBloodAndDust(hitPos, true);
 
           gameState.addNotification(`⚔️ ${enemy.name} kılıç darbesi aldı! (-${baseDamage} Can)`, 'alert');
 
@@ -99,9 +136,8 @@ export class CombatSystem {
 
     // 2. Kale Avlusu Talim Mankenlerine Vuruş Kontrolü
     const dummyPositions = [
-      new THREE.Vector3(187, 8.5, -14),
-      new THREE.Vector3(190.5, 8.5, -14),
-      new THREE.Vector3(194, 8.5, -14)
+      new THREE.Vector3(175, TownGenerator.getTerrainHeight(175, -10), -10),
+      new THREE.Vector3(175, TownGenerator.getTerrainHeight(175, -6), -6)
     ];
 
     dummyPositions.forEach((dPos, idx) => {
@@ -115,7 +151,7 @@ export class CombatSystem {
           this.player.addCameraShake(0.08);
 
           const hitPos = dPos.clone().add(new THREE.Vector3(0, 1.5, 0));
-          this.spawnSparks(hitPos);
+          this.spawnBloodAndDust(hitPos, false); // Mankene vurduğunda kan yok, toz var
 
           gameState.military.cebeluExperience = (gameState.military.cebeluExperience || 0) + 5;
           gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - 8);
@@ -148,13 +184,19 @@ export class CombatSystem {
   update(delta) {
     const playerPos = this.player.position;
 
-    // 3D Kıvılcım Parçacıklarının Hareketi & Sönümlenmesi
+    // 3D Parçacık Hareketi (Kan daha hızlı düşer, Toz havada asılı kalır)
     for (let i = this.activeSparks.length - 1; i >= 0; i--) {
       const sp = this.activeSparks[i];
       sp.life -= delta;
-      sp.velocity.y -= 12.0 * delta; // Yerçekimi
+      
+      if (sp.type === 'blood') {
+        sp.velocity.y -= 15.0 * delta; // Kan yerçekimi daha ağır
+      } else {
+        sp.velocity.y -= 4.0 * delta; // Toz bulutu havada süzülür
+      }
+
       sp.mesh.position.addScaledVector(sp.velocity, delta);
-      sp.mesh.material.opacity = Math.max(0, sp.life / sp.maxLife);
+      sp.mesh.material.opacity = Math.max(0, (sp.life / sp.maxLife));
 
       if (sp.life <= 0) {
         this.sparkGroup.remove(sp.mesh);

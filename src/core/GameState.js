@@ -9,6 +9,9 @@ export class GameState {
   }
 
   reset() {
+    this.daysPassed = 1;
+    this.currentPetition = null; // Aktif onay bekleyen arzuhal
+
     // Prosedürel İsim & Tımar Havuzu
     const sipahiNames = [
       'Hamzaoğlu Gazi Doğan',
@@ -52,6 +55,7 @@ export class GameState {
       sancak: randomTimar.sancak,
       terrain: randomTimar.terrain,
       haneCount: 18 + Math.floor(Math.random() * 12), // 18-30 arası hane
+      irgatCount: 8, // Köydeki boşta çalışan amele/işçi sayısı
       akce: 850 + Math.floor(Math.random() * 500),
       grain: 320 + Math.floor(Math.random() * 200),
       asayis: 80, // %

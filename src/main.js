@@ -9,6 +9,7 @@ import { UIManager } from './ui/UIManager.js';
 import { DialogueSystem } from './systems/DialogueSystem.js';
 import { gameState } from './core/GameState.js';
 import { questSystem } from './systems/QuestSystem.js';
+import { petitionSystem } from './systems/PetitionSystem.js';
 import { soundManager } from './core/AudioManager.js';
 import { steamManager } from './core/SteamManager.js';
 
@@ -209,7 +210,10 @@ export class Game {
       // 6. Etkileşim İpucu Kontrolü
       this.updateInteractionPrompts();
 
-      // 7. Render
+      // 7. Arzuhal ve Dilekçe Sistemi Zamanlayıcısı
+      petitionSystem.update(delta);
+
+      // 8. Render
       this.engine.render();
     };
 

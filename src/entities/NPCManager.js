@@ -96,7 +96,7 @@ export class NPCManager {
       id: 'kale_guard_1',
       name: 'Kale Nöbetçisi Gazi Hasan',
       role: 'Sancak Kalesi Kapı Muhafızı',
-      position: new THREE.Vector3(158, TownGenerator.getTerrainHeight(158, 5.5), 5.5),
+      position: new THREE.Vector3(148, TownGenerator.getTerrainHeight(148, 4.5), 4.5),
       kaftanColor: 0x2b382d,
       hairColor: 0x111111,
       headwear: 'cap',
@@ -107,7 +107,7 @@ export class NPCManager {
       id: 'kale_guard_2',
       name: 'Kale Okçusu Balaban',
       role: 'Sancak Kalesi Kapı Nöbetçisi',
-      position: new THREE.Vector3(158, TownGenerator.getTerrainHeight(158, -5.5), -5.5),
+      position: new THREE.Vector3(148, TownGenerator.getTerrainHeight(148, -4.5), -4.5),
       kaftanColor: 0x2b382d,
       hairColor: 0x111111,
       headwear: 'cap',
@@ -206,6 +206,19 @@ export class NPCManager {
 
     // NPC Canlı Nefes Alma ve Oyuncuya Yönelme
     this.npcs.forEach(npc => {
+      // Eğer bu NPC Kethüda ise ve bekleyen cevapsız arzuhal varsa oyuncuya koşsun
+      if (npc.id === 'kethuda' && gameState.hasPendingMessenger) {
+        const distToPlayer = npc.position.distanceTo(playerPos);
+        if (distToPlayer > 3.2) {
+          const dir = new THREE.Vector3().subVectors(playerPos, npc.position).normalize();
+          npc.position.x += dir.x * delta * 5.0; // Koşma hızı
+          npc.position.z += dir.z * delta * 5.0;
+          npc.mesh.position.set(npc.position.x, TownGenerator.getTerrainHeight(npc.position.x, npc.position.z), npc.position.z);
+          npc.mesh.rotation.y = Math.atan2(dir.x, dir.z);
+          return;
+        }
+      }
+
       const terrainH = TownGenerator.getTerrainHeight(npc.position.x, npc.position.z);
       npc.mesh.position.y = terrainH + Math.sin(time + npc.animOffset) * 0.02;
 

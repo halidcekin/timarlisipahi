@@ -42,6 +42,9 @@ export class Player {
 
     this.isAttacking = false;
     this.attackProgress = 0;
+    this.comboStep = 0; // 0: Yatay Kesme, 1: Ters Çapraz, 2: Tepe İndirme
+    this.comboResetTimer = 0;
+    this.queuedAttack = false;
     this.isBlocking = false;
     this.footstepTimer = 0;
   }
@@ -89,15 +92,36 @@ export class Player {
   }
 
   triggerAttack() {
-    if (this.isAttacking || this.isBlocking) return false;
-    if (gameState.sipahi.stamina < 15) {
+    if (this.isBlocking) return false;
+
+    // Eğer saldırı ortasındaysa ve sonuna yaklaşıldıysa sıradaki komboyu sıraya al
+    if (this.isAttacking) {
+      if (this.attackProgress > 0.45 && this.attackProgress < 0.9) {
+        this.queuedAttack = true;
+      }
+      return false;
+    }
+
+    if (gameState.sipahi.stamina < 12) {
       gameState.addNotification('Kuvvetin tükendi!', 'alert');
       return false;
     }
 
+    // Kombo aşamasını belirle (Eğer aradan çok süre geçtiyse sıfırla)
+    if (this.comboResetTimer <= 0) {
+      this.comboStep = 0;
+    } else {
+      this.comboStep = (this.comboStep + 1) % 3;
+    }
+
     this.isAttacking = true;
     this.attackProgress = 0;
-    gameState.sipahi.stamina -= 15;
+    this.queuedAttack = false;
+    this.comboResetTimer = 1.4; // 1.4 saniye içinde devam edilirse kombo sürer
+
+    const staminaCost = this.comboStep === 2 ? 18 : 12;
+    gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - staminaCost);
+
     try { soundManager.playSwordSwing(); } catch (e) {}
     return true;
   }
@@ -236,38 +260,109 @@ export class Player {
     return false;
   }
 
-  // 2. Görseldeki Canlı Kılıç Savurma & Sallantı Animasyonu
+  // Gerçekçi Kılıç Savurma, Kombo Zinciri & Dinamik Sallantı
   updateWeaponAnimation(delta, isMoving) {
     const sword = this.weaponRig.userData.sword;
     if (!sword) return;
 
     const time = performance.now() * 0.003;
 
-    if (this.isAttacking) {
-      this.attackProgress += delta * 6.5;
+    if (this.comboResetTimer > 0) {
+      this.comboResetTimer -= delta;
+    }
 
-      if (this.attackProgress < 0.5) {
-        sword.rotation.x = -Math.PI / 3 * (this.attackProgress * 2);
-        sword.rotation.y = Math.PI / 4 * (this.attackProgress * 2);
-        sword.position.z = -0.62 - (this.attackProgress * 0.4);
-      } else if (this.attackProgress < 1.0) {
-        sword.rotation.x = Math.PI / 4 * (1 - (this.attackProgress - 0.5) * 2);
-        sword.rotation.y = -Math.PI / 3 * (1 - (this.attackProgress - 0.5) * 2);
-        sword.position.z = -0.82 + (this.attackProgress - 0.5) * 0.4;
+    if (this.isAttacking) {
+      // 3. Kombo (Ağır tepe darbesi) biraz daha oturaklı ve ağırlıklı
+      const attackSpeed = this.comboStep === 2 ? 4.8 : 5.8;
+      this.attackProgress += delta * attackSpeed;
+
+      const p = this.attackProgress;
+
+      if (this.comboStep === 0) {
+        // --- 1. KOMBO: Sağdan Sola Geniş Yatay Kesme ---
+        if (p < 0.3) {
+          // Geriye çekilme (Anticipation / Kurulma)
+          const ease = p / 0.3;
+          sword.position.set(0.48 + ease * 0.15, -0.05 + ease * 0.1, -0.55 + ease * 0.1);
+          sword.rotation.set(-0.2 + ease * 0.4, 0.4 + ease * 0.8, -0.3);
+        } else if (p < 0.75) {
+          // İleri savrulma (Slash)
+          const ease = (p - 0.3) / 0.45;
+          const sinP = Math.sin(ease * Math.PI * 0.5);
+          sword.position.set(0.63 - sinP * 0.95, 0.05 - sinP * 0.25, -0.45 - sinP * 0.35);
+          sword.rotation.set(0.2 - sinP * 0.6, 1.2 - sinP * 2.4, -0.3 + sinP * 0.6);
+        } else if (p < 1.0) {
+          // Toparlanma (Recovery)
+          const ease = (p - 0.75) / 0.25;
+          sword.position.set(-0.32 + ease * 0.68, -0.2 + ease * 0.14, -0.8 + ease * 0.18);
+          sword.rotation.set(-0.4 + ease * 0.4, -1.2 + ease * 1.2, 0.3 - ease * 0.3);
+        } else {
+          this.finishAttackStep();
+        }
+      } else if (this.comboStep === 1) {
+        // --- 2. KOMBO: Sol Alttan Sağ Yukarı Ters Kesme (Upward Backhand) ---
+        if (p < 0.25) {
+          const ease = p / 0.25;
+          sword.position.set(-0.35 - ease * 0.1, -0.25 - ease * 0.1, -0.6);
+          sword.rotation.set(-0.5, -0.8 - ease * 0.3, 0.6);
+        } else if (p < 0.7) {
+          const ease = (p - 0.25) / 0.45;
+          const sinP = Math.sin(ease * Math.PI * 0.5);
+          sword.position.set(-0.45 + sinP * 0.95, -0.35 + sinP * 0.65, -0.6 - sinP * 0.2);
+          sword.rotation.set(-0.5 + sinP * 1.2, -1.1 + sinP * 2.2, 0.6 - sinP * 1.2);
+        } else if (p < 1.0) {
+          const ease = (p - 0.7) / 0.3;
+          sword.position.set(0.5 - ease * 0.14, 0.3 - ease * 0.36, -0.8 + ease * 0.18);
+          sword.rotation.set(0.7 - ease * 0.7, 1.1 - ease * 1.1, -0.6 + ease * 0.6);
+        } else {
+          this.finishAttackStep();
+        }
       } else {
-        this.isAttacking = false;
-        this.attackProgress = 0;
+        // --- 3. KOMBO: Tepe İndirme (Heavy Overhead Strike & Chop) ---
+        if (p < 0.35) {
+          // Kılıcı iki elle baş üstüne kaldırma
+          const ease = p / 0.35;
+          sword.position.set(0.36 - ease * 0.16, -0.06 + ease * 0.45, -0.62 + ease * 0.2);
+          sword.rotation.set(ease * 1.3, -Math.PI / 8, -ease * 0.2);
+        } else if (p < 0.75) {
+          // Bütün vücut ağırlığıyla aşağıya indirme
+          const ease = (p - 0.35) / 0.4;
+          const sinP = Math.sin(ease * Math.PI * 0.5);
+          sword.position.set(0.2 - ease * 0.05, 0.39 - sinP * 0.85, -0.42 - sinP * 0.4);
+          sword.rotation.set(1.3 - sinP * 2.4, -Math.PI / 8, -0.2);
+          if (ease > 0.5 && !this._shakeTriggered) {
+            this.addCameraShake(0.06);
+            this._shakeTriggered = true;
+          }
+        } else if (p < 1.0) {
+          const ease = (p - 0.75) / 0.25;
+          sword.position.set(0.15 + ease * 0.21, -0.46 + ease * 0.4, -0.82 + ease * 0.2);
+          sword.rotation.set(-1.1 + ease * 1.1, -Math.PI / 8, -0.2 + ease * 0.2);
+        } else {
+          this._shakeTriggered = false;
+          this.finishAttackStep();
+        }
       }
     } else if (this.isBlocking) {
       sword.position.set(0.12, -0.02, -0.45);
       sword.rotation.set(Math.PI / 4, -Math.PI / 6, Math.PI / 4);
     } else {
-      // 2. Görseldeki Orijinal Dinamik Kılıç Duruşu
-      const bobX = isMoving ? Math.cos(time * 3) * 0.025 : Math.cos(time) * 0.008;
-      const bobY = isMoving ? Math.sin(time * 6) * 0.03 : Math.sin(time * 2) * 0.01;
+      // Dinamik Gerçekçi Nefes Alma & Adım Sallantısı
+      const bobX = isMoving ? Math.cos(time * 3) * 0.035 : Math.cos(time * 1.2) * 0.008;
+      const bobY = isMoving ? Math.sin(time * 6) * 0.045 : Math.sin(time * 2.4) * 0.012;
+      const sway = isMoving ? Math.sin(time * 3) * 0.04 : 0;
 
       sword.position.set(0.36 + bobX, -0.06 + bobY, -0.62);
-      sword.rotation.set(bobY * 2, bobX * 2, -Math.PI / 10);
+      sword.rotation.set(bobY * 2.2, bobX * 2.2 + sway, -Math.PI / 10);
+    }
+  }
+
+  finishAttackStep() {
+    this.isAttacking = false;
+    this.attackProgress = 0;
+    if (this.queuedAttack) {
+      this.queuedAttack = false;
+      this.triggerAttack();
     }
   }
 }

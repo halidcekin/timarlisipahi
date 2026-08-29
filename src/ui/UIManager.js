@@ -1,10 +1,12 @@
-﻿import * as THREE from 'three';
+import * as THREE from 'three';
 import { gameState } from '../core/GameState.js';
 import { TimarSystem } from '../systems/TimarSystem.js';
 import { DialogueSystem } from '../systems/DialogueSystem.js';
 import { HistoryEventSystem } from '../systems/HistoryEventSystem.js';
 import { soundManager } from '../core/AudioManager.js';
 import { questSystem } from '../systems/QuestSystem.js';
+import { petitionSystem } from '../systems/PetitionSystem.js';
+import { geminiService } from '../services/GeminiService.js';
 
 /**
  * UIManager - Arayüz, HUD, Tımar Defteri, Görev Defteri, 3D İşaretçiler ve Mini-Harita Yönetimi
@@ -66,6 +68,33 @@ export class UIManager {
       tbHorseType: document.getElementById('tb-horse-type'),
       tbStanding: document.getElementById('tb-standing'),
       tbMorale: document.getElementById('tb-morale'),
+      tbIrgatCount: document.getElementById('tb-irgat-count'),
+
+      // Arzuhal (Petition) UI
+      petitionSection: document.getElementById('petition-section'),
+      petitionTitle: document.getElementById('petition-title'),
+      petitionDesc: document.getElementById('petition-desc'),
+      petitionCostAkce: document.getElementById('petition-cost-akce'),
+      petitionCostIrgat: document.getElementById('petition-cost-irgat'),
+      petitionTime: document.getElementById('petition-time'),
+      btnAcceptPetition: document.getElementById('btn-accept-petition'),
+      btnRejectPetition: document.getElementById('btn-reject-petition'),
+
+      // Ret Gerekçesi & Kadı Hükmü Modalleri
+      rejectionReasonModal: document.getElementById('rejection-reason-modal'),
+      rejectionPetitionName: document.getElementById('rejection-petition-name'),
+      rejectionReasonInput: document.getElementById('rejection-reason-input'),
+      rejectionLoading: document.getElementById('rejection-loading'),
+      btnSubmitRejection: document.getElementById('btn-submit-rejection'),
+      btnCancelRejection: document.getElementById('btn-cancel-rejection'),
+      rejectionCloseBtn: document.getElementById('rejection-close-btn'),
+
+      kadiVerdictModal: document.getElementById('kadi-verdict-modal'),
+      kadiVerdictBadge: document.getElementById('kadi-verdict-badge'),
+      kadiVerdictText: document.getElementById('kadi-verdict-text'),
+      kadiScoreText: document.getElementById('kadi-score-text'),
+      kadiMoraleText: document.getElementById('kadi-morale-text'),
+      btnCloseVerdict: document.getElementById('btn-close-verdict'),
 
       // Görev Defteri Modal (J Tuşu)
       questModal: document.getElementById('quest-modal'),
@@ -212,6 +241,47 @@ export class UIManager {
       TimarSystem.breedWarHorse();
       this.updateTimarBookUI();
     });
+
+    // Arzuhal Butonları
+    if (this.dom.btnAcceptPetition) {
+      this.dom.btnAcceptPetition.addEventListener('click', () => {
+        if (petitionSystem.acceptPetition()) {
+          this.updateTimarBookUI();
+        }
+      });
+    }
+
+    if (this.dom.btnRejectPetition) {
+      this.dom.btnRejectPetition.addEventListener('click', () => {
+        this.openRejectionModal();
+      });
+    }
+
+    // Ret Gerekçesi Modal Eventleri
+    if (this.dom.btnSubmitRejection) {
+      this.dom.btnSubmitRejection.addEventListener('click', () => {
+        this.submitRejectionReason();
+      });
+    }
+
+    if (this.dom.btnCancelRejection) {
+      this.dom.btnCancelRejection.addEventListener('click', () => {
+        this.dom.rejectionReasonModal.classList.add('hidden');
+      });
+    }
+
+    if (this.dom.rejectionCloseBtn) {
+      this.dom.rejectionCloseBtn.addEventListener('click', () => {
+        this.dom.rejectionReasonModal.classList.add('hidden');
+      });
+    }
+
+    if (this.dom.btnCloseVerdict) {
+      this.dom.btnCloseVerdict.addEventListener('click', () => {
+        this.dom.kadiVerdictModal.classList.add('hidden');
+        this.updateTimarBookUI();
+      });
+    }
 
     // Hızlı Seyahat (Fast Travel) Butonları
     if (this.dom.btnTravelVillage) {
@@ -439,6 +509,7 @@ export class UIManager {
 
   updateTimarBookUI() {
     this.dom.tbHaneCount.textContent = `${gameState.timar.haneCount} Hane (Müslüman & Zimmî)`;
+    if (this.dom.tbIrgatCount) this.dom.tbIrgatCount.textContent = `${gameState.timar.irgatCount} Kişi`;
     this.dom.tbGrainVal.textContent = `${Math.floor(gameState.timar.annualIncome * 0.65)} Akçe`;
     this.dom.tbSheepVal.textContent = `${Math.floor(gameState.timar.annualIncome * 0.22)} Akçe`;
     this.dom.tbMiscVal.textContent = `${Math.floor(gameState.timar.annualIncome * 0.13)} Akçe`;
@@ -449,8 +520,119 @@ export class UIManager {
     this.dom.tbEquipment.textContent = `Kılıç Kademe ${gameState.sipahi.swordLevel}, Zırh Kademe ${gameState.sipahi.armorLevel}`;
     this.dom.tbHorseType.textContent = gameState.sipahi.horseType;
 
-    this.dom.tbStanding.textContent = gameState.sipahi.reputation > 50 ? 'Padişah Nezdinde Makbul' : 'Teftiş Altında';
+    if (this.dom.tbStanding) this.dom.tbStanding.textContent = gameState.sipahi.reputation > 50 ? 'Padişah Nezdinde Makbul' : 'Teftiş Altında';
     this.dom.tbMorale.textContent = `%${gameState.timar.morale} (${gameState.timar.morale > 70 ? 'Yüksek' : 'Vasat'})`;
+
+    // Arzuhal Arayüzü Güncelleme
+    if (this.dom.petitionSection) {
+      const p = gameState.currentPetition;
+      if (p) {
+        this.dom.petitionSection.classList.remove('hidden');
+        this.dom.petitionTitle.textContent = `📜 ${p.title}`;
+        this.dom.petitionDesc.textContent = `"${p.desc}"`;
+        this.dom.petitionCostAkce.textContent = `Maliyet: ${p.costAkce} Akçe`;
+        this.dom.petitionCostIrgat.textContent = `Gereken Irgat: ${p.costIrgat}`;
+        this.dom.petitionTime.textContent = `Süre: ${p.timeDays} Gün`;
+      } else {
+        this.dom.petitionSection.classList.add('hidden');
+      }
+    }
+  }
+
+  openRejectionModal() {
+    const p = gameState.currentPetition;
+    if (!p) return;
+
+    if (this.dom.rejectionPetitionName) {
+      this.dom.rejectionPetitionName.textContent = `${p.title} (Talep: ${p.desc})`;
+    }
+    if (this.dom.rejectionReasonInput) {
+      this.dom.rejectionReasonInput.value = '';
+    }
+    if (this.dom.rejectionLoading) {
+      this.dom.rejectionLoading.classList.add('hidden');
+    }
+    this.dom.rejectionReasonModal.classList.remove('hidden');
+  }
+
+  async submitRejectionReason() {
+    const p = gameState.currentPetition;
+    if (!p) {
+      this.dom.rejectionReasonModal.classList.add('hidden');
+      return;
+    }
+
+    const reason = this.dom.rejectionReasonInput ? this.dom.rejectionReasonInput.value : '';
+
+    if (this.dom.rejectionLoading) {
+      this.dom.rejectionLoading.classList.remove('hidden');
+    }
+    if (this.dom.btnSubmitRejection) {
+      this.dom.btnSubmitRejection.disabled = true;
+    }
+
+    try {
+      const result = await geminiService.evaluateRejection(p, reason);
+
+      this.dom.rejectionReasonModal.classList.add('hidden');
+      if (this.dom.rejectionLoading) this.dom.rejectionLoading.classList.add('hidden');
+      if (this.dom.btnSubmitRejection) this.dom.btnSubmitRejection.disabled = false;
+
+      // Asayiş & Hoşnutluk Güncellemesi
+      if (result.moraleChange !== 0) {
+        gameState.timar.asayis = Math.max(0, Math.min(100, gameState.timar.asayis + result.moraleChange));
+        gameState.timar.morale = Math.max(0, Math.min(100, gameState.timar.morale + result.moraleChange));
+      }
+
+      // Arzuhali temizle
+      gameState.currentPetition = null;
+      gameState.hasPendingMessenger = false;
+
+      this.showKadiVerdict(result);
+    } catch (err) {
+      console.error('Ret gerekçesi değerlendirilirken hata:', err);
+      this.dom.rejectionReasonModal.classList.add('hidden');
+      if (this.dom.rejectionLoading) this.dom.rejectionLoading.classList.add('hidden');
+      if (this.dom.btnSubmitRejection) this.dom.btnSubmitRejection.disabled = false;
+      gameState.currentPetition = null;
+      this.updateTimarBookUI();
+    }
+  }
+
+  showKadiVerdict(result) {
+    if (!this.dom.kadiVerdictModal) return;
+
+    if (this.dom.kadiVerdictBadge) {
+      if (result.valid) {
+        this.dom.kadiVerdictBadge.textContent = '✅ FERMAN HAKLI BULUNDU';
+        this.dom.kadiVerdictBadge.style.color = '#1e6b2c';
+      } else {
+        this.dom.kadiVerdictBadge.textContent = '⚠️ FERMAN HAKSIZ / KEYFİ GÖRÜLDÜ';
+        this.dom.kadiVerdictBadge.style.color = '#8b1e1e';
+      }
+    }
+
+    if (this.dom.kadiVerdictText) {
+      this.dom.kadiVerdictText.textContent = `"${result.verdict}"`;
+    }
+
+    if (this.dom.kadiScoreText) {
+      this.dom.kadiScoreText.textContent = `${result.score} / 100 (${result.isAi ? 'Gemini AI Kadısı' : 'Kadı Naibi'})`;
+    }
+
+    if (this.dom.kadiMoraleText) {
+      if (result.moraleChange >= 0) {
+        this.dom.kadiMoraleText.textContent = '0 Asayiş Kaybı (Ahali İkna Oldu)';
+        this.dom.kadiMoraleText.style.color = '#1e6b2c';
+        try { soundManager.playVictoryJingle(); } catch (e) {}
+      } else {
+        this.dom.kadiMoraleText.textContent = `${result.moraleChange} Asayiş Kaybı (Ahali Gücendi)`;
+        this.dom.kadiMoraleText.style.color = '#8b1e1e';
+        try { soundManager.playNotification(); } catch (e) {}
+      }
+    }
+
+    this.dom.kadiVerdictModal.classList.remove('hidden');
   }
 
   toggleMapModal(forceState) {
