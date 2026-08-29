@@ -381,16 +381,43 @@ body, html {
   align-items: center;
 }
 
+.minimap-wrapper {
+  background: rgba(15, 9, 4, 0.95);
+  border: 2px solid var(--gold-main);
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8), 0 0 15px rgba(212, 175, 55, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.minimap-header {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gold-main);
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 #minimap-canvas {
-  background: #141b12;
-  border-radius: 4px;
+  background: #10160d;
+  border-radius: 50%;
+  border: 2px solid rgba(230, 198, 110, 0.4);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.9);
 }
 
 .minimap-coords {
-  margin-top: 4px;
+  margin-top: 8px;
   font-size: 11px;
-  color: var(--text-dim);
+  color: var(--gold-glow);
   font-family: monospace;
+  font-weight: 600;
 }
 
 .hud-controls-help {

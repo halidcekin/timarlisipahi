@@ -157,8 +157,23 @@ export class Player {
       }
     }
 
+    if (inputManager.isKeyDown('Space') && this.isGrounded && !this.isRiding && gameState.sipahi.stamina > 20) {
+      this.velocity.y = this.jumpForce;
+      this.isGrounded = false;
+      gameState.sipahi.stamina -= 20;
+    }
+
+    this.velocity.y -= this.gravity * delta;
+    this.position.y += this.velocity.y * delta;
+
     const eyeHeight = this.isRiding ? 3.20 : 1.75;
-    this.position.y = eyeHeight;
+    if (this.position.y <= eyeHeight) {
+      this.position.y = eyeHeight;
+      this.velocity.y = 0;
+      this.isGrounded = true;
+    } else {
+      this.isGrounded = false;
+    }
 
     if (this.isRiding && this.horseEntity) {
       this.horseEntity.position.set(this.position.x, 0, this.position.z);
