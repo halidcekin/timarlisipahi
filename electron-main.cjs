@@ -5,6 +5,7 @@
 const { app, BrowserWindow, Menu, globalShortcut } = require('electron');
 const path = require('path');
 const http = require('http');
+const fs = require('fs');
 
 // GPU Donanım Hızlandırma ve Yüksek Performans Bayrakları
 app.commandLine.appendSwitch('enable-gpu-rasterization');
@@ -14,6 +15,64 @@ app.commandLine.appendSwitch('enable-native-gpu-memory-buffers');
 app.commandLine.appendSwitch('high-dpi-support', '1');
 
 let mainWindow;
+let localServer = null;
+
+const MIME_TYPES = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.mjs': 'application/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.wav': 'audio/wav',
+  '.mp3': 'audio/mpeg',
+  '.obj': 'text/plain',
+  '.mtl': 'text/plain',
+  '.fbx': 'application/octet-stream',
+  '.glb': 'model/gltf-binary',
+  '.gltf': 'model/gltf+json'
+};
+
+function startProjectServer(callback) {
+  const rootDir = fs.existsSync(path.join(__dirname, 'dist', 'index.html'))
+    ? path.join(__dirname, 'dist')
+    : __dirname;
+
+  localServer = http.createServer((req, res) => {
+    let reqPath = decodeURI(req.url.split('?')[0]);
+    if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
+
+    let filePath = path.join(rootDir, reqPath);
+    if (!fs.existsSync(filePath)) {
+      filePath = path.join(__dirname, 'public', reqPath);
+    }
+    if (!fs.existsSync(filePath)) {
+      filePath = path.join(__dirname, reqPath);
+    }
+
+    if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+      const ext = path.extname(filePath).toLowerCase();
+      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Access-Control-Allow-Origin': '*'
+      });
+      fs.createReadStream(filePath).pipe(res);
+    } else {
+      res.writeHead(404);
+      res.end('Not found');
+    }
+  });
+
+  localServer.listen(0, '127.0.0.1', () => {
+    const port = localServer.address().port;
+    callback(`http://127.0.0.1:${port}`);
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -35,21 +94,9 @@ function createWindow() {
 
   mainWindow.maximize();
 
-  // Vite Dev Sunucusu Kontrolü (Port 5173 veya 3000)
-  const devUrl = 'http://localhost:5173';
-  const req = http.get(devUrl, (res) => {
-    mainWindow.loadURL(devUrl);
-  });
-
-  req.on('error', () => {
-    const backupUrl = 'http://localhost:3000';
-    const backupReq = http.get(backupUrl, (res) => {
-      mainWindow.loadURL(backupUrl);
-    });
-    backupReq.on('error', () => {
-      const indexPath = path.join(__dirname, 'dist', 'index.html');
-      mainWindow.loadFile(indexPath);
-    });
+  // Daima bu projeye (yeni3d) ait izole yerel sunucuyu aç
+  startProjectServer((url) => {
+    mainWindow.loadURL(url);
   });
 
   // Geliştirici ve Yenileme Tuş Kısayolları (F5, Ctrl+R, F12)
@@ -82,5 +129,13 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
+  }
+});
+
+app.on('before-quit', () => {
+  if (localServer) {
+    try {
+      localServer.close();
+    } catch (e) {}
   }
 });
