@@ -374,34 +374,36 @@ export class NPCManager {
     mesh.position.set(config.position.x, config.position.y || h, config.position.z);
     this.scene.add(mesh);
 
-    // Koca Yakub özel GLTF modeli varsa yükle
-    if (config.gltfPath || config.id === 'kethuda') {
-      const modelPath = config.gltfPath || './models/kethuda.glb';
-      this.gltfLoader.load(
-        modelPath,
-        (gltf) => {
-          const model = gltf.scene;
-          model.traverse((child) => {
-            if (child.isMesh) {
-              child.castShadow = true;
-              child.receiveShadow = true;
-              if (child.material) child.material.side = THREE.DoubleSide;
+    // Koca Yakub özel GLTF modeli varsa yükle (Tarayıcı ortamında)
+    if ((config.gltfPath || config.id === 'kethuda') && typeof window !== 'undefined' && window.location) {
+      try {
+        const modelPath = config.gltfPath || './models/kethuda.glb';
+        this.gltfLoader.load(
+          modelPath,
+          (gltf) => {
+            const model = gltf.scene;
+            model.traverse((child) => {
+              if (child.isMesh) {
+                child.castShadow = true;
+                child.receiveShadow = true;
+                if (child.material) child.material.side = THREE.DoubleSide;
+              }
+            });
+            const box = new THREE.Box3().setFromObject(model);
+            const size = box.getSize(new THREE.Vector3());
+            if (size.y > 0) {
+              const scaleFactor = 1.85 / size.y;
+              model.scale.set(scaleFactor, scaleFactor, scaleFactor);
             }
-          });
-          const box = new THREE.Box3().setFromObject(model);
-          const size = box.getSize(new THREE.Vector3());
-          if (size.y > 0) {
-            const scaleFactor = 1.85 / size.y;
-            model.scale.set(scaleFactor, scaleFactor, scaleFactor);
-          }
-          while (mesh.children.length > 0) {
-            mesh.remove(mesh.children[0]);
-          }
-          mesh.add(model);
-        },
-        undefined,
-        () => {}
-      );
+            while (mesh.children.length > 0) {
+              mesh.remove(mesh.children[0]);
+            }
+            mesh.add(model);
+          },
+          undefined,
+          () => {}
+        );
+      } catch (e) {}
     }
 
     const npcData = {

@@ -1821,4 +1821,31 @@ export class ModelBuilder {
 
     return bowRig;
   }
+
+  // 27. AHŞAP SİLAH VE YAY SEHPASI (WEAPON RACK)
+  createWeaponRack() {
+    const rack = new THREE.Group();
+    const woodMat = this.materials.wood;
+
+    // İki Yan Dikme
+    for (let x of [-0.6, 0.6]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 1.8), woodMat);
+      post.position.set(x, 0.9, 0);
+      post.castShadow = true;
+      rack.add(post);
+
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, 0.8), woodMat);
+      foot.position.set(x, 0.05, 0);
+      rack.add(foot);
+    }
+
+    // Yatay Çıtalar
+    for (let y of [0.4, 0.9, 1.4]) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.08, 0.06), woodMat);
+      bar.position.set(0, y, 0);
+      rack.add(bar);
+    }
+
+    return rack;
+  }
 }

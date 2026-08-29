@@ -8,6 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "desktop": "electron electron-main.cjs",
+    "test": "node tests/systems.test.js",
     "build:steam": "vite build"
   },
   "dependencies": {
