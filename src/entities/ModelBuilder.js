@@ -47,6 +47,11 @@ export class ModelBuilder {
         roughness: 0.85,
         metalness: 0.05
       }),
+      wall: new THREE.MeshStandardMaterial({
+        color: 0x8a8479,
+        roughness: 0.90,
+        metalness: 0.05
+      }),
       damascusSteel: new THREE.MeshStandardMaterial({
         color: 0xb8e0f5, // 2. Görseldeki Parlak Çelik
         metalness: 0.85,

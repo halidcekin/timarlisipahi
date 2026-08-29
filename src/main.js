@@ -192,29 +192,47 @@ export class Game {
       const delta = Math.min(0.1, (now - this.lastTime) / 1000);
       this.lastTime = now;
 
-      // 1. Gün & Zaman Akışı
-      gameState.time.dayTimeHours = (gameState.time.dayTimeHours + delta * 0.1) % 24;
+      try {
+        // 1. Gün & Zaman Akışı
+        gameState.time.dayTimeHours = (gameState.time.dayTimeHours + delta * 0.1) % 24;
 
-      // 2. Oyuncu Fiziği ve Hareketi
-      this.player.update(delta, this.input);
+        // 2. Oyuncu Fiziği ve Hareketi
+        if (this.player && this.input) {
+          this.player.update(delta, this.input);
+        }
 
-      // 3. NPC & Düşman Yapay Zekası
-      this.npcManager.update(delta, this.player.position);
+        // 3. NPC & Düşman Yapay Zekası
+        if (this.npcManager && this.player) {
+          this.npcManager.update(delta, this.player.position);
+        }
 
-      // 4. Dövüş ve Vuruş Sistemi
-      this.combat.update(delta);
+        // 4. Dövüş ve Vuruş Sistemi
+        if (this.combat) {
+          this.combat.update(delta);
+        }
 
-      // 5. HUD ve Pusula Güncellemesi
-      this.ui.update(this.player.position, this.engine.camera, this.player.yaw, this.npcManager.npcs, this.npcManager.enemies);
+        // 5. HUD ve Pusula Güncellemesi
+        if (this.ui && this.player && this.engine && this.npcManager) {
+          this.ui.update(this.player.position, this.engine.camera, this.player.yaw, this.npcManager.npcs, this.npcManager.enemies);
+        }
 
-      // 6. Etkileşim İpucu Kontrolü
-      this.updateInteractionPrompts();
+        // 6. Etkileşim İpucu Kontrolü
+        this.updateInteractionPrompts();
 
-      // 7. Arzuhal ve Dilekçe Sistemi Zamanlayıcısı
-      petitionSystem.update(delta);
+        // 7. Arzuhal ve Dilekçe Sistemi Zamanlayıcısı
+        petitionSystem.update(delta);
+      } catch (err) {
+        console.warn('Oyun mantığı döngü uyarısı:', err);
+      }
 
-      // 8. Render
-      this.engine.render();
+      // 8. Render (Her zaman çalışır)
+      try {
+        if (this.engine) {
+          this.engine.render();
+        }
+      } catch (renderErr) {
+        console.error('Render motoru hatası:', renderErr);
+      }
     };
 
     requestAnimationFrame(loop);

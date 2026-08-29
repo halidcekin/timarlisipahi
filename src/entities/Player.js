@@ -53,6 +53,10 @@ export class Player {
     this.horseEntity = horse;
   }
 
+  addCameraShake(amount) {
+    this.cameraShake = Math.min(0.2, this.cameraShake + amount);
+  }
+
   toggleCameraMode() {
     this.cameraMode = (this.cameraMode === 'firstPerson') ? 'thirdPerson' : 'firstPerson';
     this.weaponRig.visible = (this.cameraMode === 'firstPerson');
