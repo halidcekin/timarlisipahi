@@ -124,7 +124,13 @@ export class NPCManager {
   }
 
   createHumanNPC(config) {
-    const mesh = this.modelBuilder.createDetailedHumanNPC(config);
+    let mesh;
+    if (config.id === 'kethuda') {
+      // 3D Görseldeki Beyaz Saçlı, Kalın Gözlüklü, Siyah Blazer Ceketli Koca Yakub (Stan Lee) Modeli
+      mesh = this.modelBuilder.createModernKethudaStanLee();
+    } else {
+      mesh = this.modelBuilder.createDetailedHumanNPC(config);
+    }
     mesh.position.copy(config.position);
     this.scene.add(mesh);
 
