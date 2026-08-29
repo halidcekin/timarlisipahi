@@ -1,10 +1,14 @@
 import { gameState } from '../core/GameState.js';
 import { soundManager } from '../core/AudioManager.js';
+import { campaignBattleSystem } from './CampaignBattleSystem.js';
 
 /**
  * HistoryEventSystem - Yıldırım Bayezid Devri Alternatif Tarih ve Sefer Simülatörü
  */
 export class HistoryEventSystem {
+  static getBattleSystem() {
+    return campaignBattleSystem;
+  }
   static joinActiveCampaign() {
     const campaign = gameState.activeCampaign;
     if (!campaign || campaign.isResolved) {

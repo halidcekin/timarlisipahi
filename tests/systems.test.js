@@ -54,6 +54,9 @@ import { ArcherySystem } from '../src/systems/ArcherySystem.js';
 import { DialogueSystem } from '../src/systems/DialogueSystem.js';
 import { questSystem } from '../src/systems/QuestSystem.js';
 import { saveManager } from '../src/core/SaveManager.js';
+import { trainingSystem } from '../src/systems/TrainingSystem.js';
+import { supplySystem } from '../src/systems/SupplySystem.js';
+import { campaignBattleSystem } from '../src/systems/CampaignBattleSystem.js';
 
 console.log('🧪 ==========================================');
 console.log('🧪 MÜLK-İ OSMANÎ: SİSTEMİK TEST SÜİTİ');
@@ -267,6 +270,74 @@ assert(banditQuest.banditsDefeated === 1, 'Harami öldürülünce banditsDefeate
 questSystem.onEnemyKilled({ id: 'bandit_2', name: 'Harami Okçu' });
 questSystem.onEnemyKilled({ id: 'bandit_3', name: 'Harami Elebaşı' });
 assert(banditQuest.status === 'completed', 'Tüm haramiler alt edilince quest_bandits tamamlandı');
+
+// -------------------------------------------------------------
+// TEST 13: TrainingSystem (Kalkan, Kılıç, Mızrak ve Bölük Komut Talimleri)
+// -------------------------------------------------------------
+assert(trainingSystem.startDrill('shield') === true, 'Kalkan talimi başlatıldı');
+assert(trainingSystem.activeDrill === 'shield', 'Aktif talim shield olarak ayarlandı');
+
+for (let i = 0; i < 5; i++) {
+  trainingSystem.processShieldBlock(true); // 5 mükemmel blok
+}
+assert(trainingSystem.activeDrill === null, '5 blok sonrası kalkan talimi başarıyla tamamlandı');
+
+assert(trainingSystem.startDrill('squad') === true, 'Cebelü bölük komut talimi başlatıldı');
+trainingSystem.issueSquadOrder('FOLLOW');
+trainingSystem.issueSquadOrder('HOLD');
+trainingSystem.issueSquadOrder('CHARGE');
+trainingSystem.issueSquadOrder('FALL_BACK');
+assert(trainingSystem.currentSquadOrder === 'FALL_BACK', 'Son verilen bölük emri FALL_BACK olarak kaydedildi');
+assert(trainingSystem.activeDrill === null, 'Bölük talimi tamamlandı ve sadakat puanı kazanıldı');
+
+// -------------------------------------------------------------
+// TEST 14: SupplySystem (Teçhizat Aşınması, Bakım, At Yemleme & Yoklama)
+// -------------------------------------------------------------
+assert(supplySystem.durability.sword === 100, 'Başlangıçta kılıç dayanıklılığı %100');
+supplySystem.reduceDurability('sword', 30);
+assert(supplySystem.durability.sword === 70, '30 puan aşınma sonrası kılıç dayanıklılığı %70');
+
+gameState.timar.akce = 200;
+assert(supplySystem.repairItem('sword', 30) === true, 'Demirci Rüstem Usta kılıcı 30 akçeye tamir etti');
+assert(supplySystem.durability.sword === 100, 'Tamir sonrası kılıç dayanıklılığı tekrar %100 oldu');
+
+gameState.timar.grain = 20;
+assert(supplySystem.feedHorse() === true, 'At başarıyla yemlendi ve tımardan geçti');
+assert(supplySystem.horse.stamina === 100, 'At staminası %100');
+
+const inspectionResult = supplySystem.conductInspection();
+assert(inspectionResult !== null, 'Sancak Kalesi askeri yoklama teftişi yapıldı');
+assert(typeof inspectionResult.score === 'number', 'Yoklama puanı başarıyla hesaplandı');
+assert(inspectionResult.grade.length > 0, 'Yoklama notu ve takdirname verildi');
+
+// -------------------------------------------------------------
+// TEST 15: CampaignBattleSystem (1396 Niğbolu Meydan Muharebesi 5 Safhası)
+// -------------------------------------------------------------
+const battleStart = campaignBattleSystem.startNicopolisBattle();
+assert(campaignBattleSystem.isBattleActive === true, 'Niğbolu Meydan Muharebesi başladı');
+assert(campaignBattleSystem.currentPhase === 1, '1. Safha: Öncü Temas aktif');
+
+// 1. Safha: Kazık koridoruna taktik çekilme
+campaignBattleSystem.executePhaseAction('tactical_retreat');
+assert(campaignBattleSystem.currentPhase === 2, '2. Safha: Kazık Hattı & Okçu Barajına geçildi');
+
+// 2. Safha: Zırh delici ok yaylımı
+campaignBattleSystem.executePhaseAction('arrow_rain');
+assert(campaignBattleSystem.currentPhase === 3, '3. Safha: Yaya Ağır Şövalye Çarpışmasına geçildi');
+
+// 3. Safha: Gürz ile plaka zırhları ezme
+campaignBattleSystem.executePhaseAction('use_mace');
+assert(campaignBattleSystem.currentPhase === 4, '4. Safha: Macar Kralı Sigismund Ana Kuvvetine geçildi');
+
+// 4. Safha: Sahte ricat pususu
+campaignBattleSystem.executePhaseAction('feigned_retreat');
+assert(campaignBattleSystem.currentPhase === 5, '5. Safha: İhtiyat & Sırp Vasal Karşı Hücumuna geçildi');
+
+// 5. Safha: Nihai hücum ve zafer
+const finalOutcome = campaignBattleSystem.executePhaseAction('final_charge');
+assert(campaignBattleSystem.isBattleActive === false, '5 safha sonunda Niğbolu Muharebesi zaferle bitti');
+assert(gameState.activeCampaign.isResolved === true, 'Niğbolu Seferi fermanı başarıyla sonuçlandırıldı');
+assert(finalOutcome.lootAkce > 0, 'Zafer ganimeti ve padişah bahşişi kazanıldı');
 
 console.log('\n🧪 ==========================================');
 console.log(`🧪 TEST SONUCU: ${passedTests}/${totalTests} TEST BAŞARIYLA TAMAMLANDI!`);
