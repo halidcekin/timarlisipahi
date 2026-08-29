@@ -1,0 +1,289 @@
+﻿<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mülk-i Osmanî: Tımarlı Sipahi 3D</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./src/style.css">
+</head>
+<body>
+  <!-- 3D WebGL Canvas -->
+  <div id="game-container">
+    <canvas id="webgl-canvas"></canvas>
+  </div>
+
+  <!-- 3D Dünyadan Ekran Koordinatlarına Yansıyan İşaretçiler -->
+  <div id="world-markers-container"></div>
+
+  <!-- Crosshair & Etkileşim Bildirimi -->
+  <div id="crosshair-container">
+    <div class="crosshair-dot"></div>
+    <div id="interaction-prompt" class="interaction-prompt hidden">
+      <span class="key-badge">E</span> <span id="interaction-text">Etkileşim</span>
+    </div>
+  </div>
+
+  <!-- ANA HUD KATMANI -->
+  <div id="hud-layer">
+    <!-- Sol Üst: Tımarlı Sipahi Kimliği & Sıhhat/Kuvvet Barları -->
+    <div class="hud-panel sipahi-panel">
+      <div class="sipahi-header">
+        <div class="sipahi-avatar">⚔️</div>
+        <div class="sipahi-meta">
+          <h2 id="sipahi-name" class="sipahi-title">Gazi Murad Bey</h2>
+          <div id="timar-region" class="sipahi-rank">Akçaoba Tımarı Sahibi</div>
+        </div>
+      </div>
+
+      <div class="vitals-container">
+        <div class="vital-bar-wrap">
+          <div class="vital-label">
+            <span>❤️ SIHHAT</span>
+            <span id="health-text">100 / 100</span>
+          </div>
+          <div class="bar-track hp-track">
+            <div id="health-bar" class="bar-fill hp-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+
+        <div class="vital-bar-wrap">
+          <div class="vital-label">
+            <span>⚡ KUVVET</span>
+            <span id="stamina-text">100 / 100</span>
+          </div>
+          <div class="bar-track sp-track">
+            <div id="stamina-bar" class="bar-fill sp-fill" style="width: 100%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Üst Orta: 360° Pusula Şeridi & Hedef İşaretçisi -->
+    <div class="compass-container">
+      <div class="compass-frame">
+        <div id="compass-tape" class="compass-tape"></div>
+        <div id="compass-waypoint-marker" class="compass-waypoint-marker">📍</div>
+      </div>
+      <div class="compass-meta">
+        <span id="compass-degree">0° KUZEY</span>
+        <span id="compass-waypoint-text">Hedef: 0m</span>
+      </div>
+    </div>
+
+    <!-- Sağ Üst: Hazine, Asker, Asayiş & Tarih Paneli -->
+    <div class="hud-panel resources-panel">
+      <div class="res-row">
+        <div class="res-item" title="Tımar Hazinesi (Akçe)">
+          <span class="icon">💰</span>
+          <strong id="res-akce">1200</strong>
+          <span class="unit">Akçe</span>
+        </div>
+        <div class="res-item" title="Sefer Ordusu (Cebelü Süvarisi)">
+          <span class="icon">🛡️</span>
+          <strong id="res-cebelu">1</strong>
+          <span class="unit">/ <span id="res-cebelu-req">1</span> Cebelü</span>
+        </div>
+      </div>
+
+      <div class="res-row">
+        <div class="res-item" title="Tımar Asayiş & Güvenlik Düzeyi">
+          <span class="icon">⚖️</span>
+          <span class="label">Asayiş:</span>
+          <strong id="res-asayis">80%</strong>
+        </div>
+        <div class="res-item" title="Ambar Hububat Stoku (Kile)">
+          <span class="icon">🌾</span>
+          <span class="label">Ambar:</span>
+          <strong id="res-grain">450</strong>
+        </div>
+      </div>
+
+      <div class="date-row">
+        <span id="miladi-date">H. 805 / M. 1402</span>
+        <span id="season-name" class="season-pill">Yaz Hasadı</span>
+        <span id="time-clock">☀️ 12:00</span>
+      </div>
+    </div>
+
+    <!-- Sol Orta / Alt: Aktif Görev Takip Kartı -->
+    <div id="active-quest-pill" class="hud-panel quest-hud-card">
+      <div class="quest-hud-header">
+        <span class="quest-icon">📜</span>
+        <span class="quest-tag">VAZİFE-İ SİPAHİ</span>
+      </div>
+      <h3 id="hud-quest-title">1. Tımar Arazisi Teftişi</h3>
+      <p id="hud-quest-desc">Köy kethüdası Koca Yakub ile görüş.</p>
+      <div class="quest-hint-key">Ayrıntılar için <strong>[J]</strong> Tuşuna Basın</div>
+    </div>
+
+    <!-- Sağ Alt: Mini Harita & Kısayol Tuş Rehberi -->
+    <div class="bottom-right-container">
+      <div class="minimap-wrapper">
+        <canvas id="minimap-canvas" width="160" height="160"></canvas>
+        <div id="minimap-coords" class="minimap-coords">X: 0, Z: 0</div>
+      </div>
+
+      <div class="hud-controls-help">
+        <span class="help-badge"><strong>TAB</strong> Tımar Defteri</span>
+        <span class="help-badge"><strong>J</strong> Vazifeler</span>
+        <span class="help-badge"><strong>M</strong> Sancak Haritası</span>
+        <span class="help-badge"><strong>V</strong> Kamera Değiştir</span>
+        <span class="help-badge"><strong>F</strong> Ata Bin/İn</span>
+      </div>
+    </div>
+
+    <!-- Sol Alt: Bildirim Akışı -->
+    <div id="notifications-container" class="notifications-container"></div>
+  </div>
+
+  <!-- DİYALOG PENCERESİ MODAL -->
+  <div id="dialogue-modal" class="modal-backdrop hidden">
+    <div class="dialogue-window">
+      <div class="dialogue-header">
+        <div id="dialogue-npc-icon" class="npc-avatar">🧔</div>
+        <div class="npc-meta">
+          <h2 id="dialogue-npc-name">Koca Yakub</h2>
+          <div id="dialogue-npc-role">Akçaoba Köy Kethüdası</div>
+        </div>
+        <button id="dialogue-close-btn" class="close-btn">✕</button>
+      </div>
+
+      <div id="dialogue-text" class="dialogue-body">
+        "Hoş geldin Devletlü Sipahi Beyim..."
+      </div>
+
+      <div id="dialogue-choices" class="dialogue-choices"></div>
+    </div>
+  </div>
+
+  <!-- TIMAR DEFTERİ MODAL (TAB TUŞU) -->
+  <div id="timar-modal" class="modal-backdrop hidden">
+    <div class="parchment-window">
+      <div class="parchment-header">
+        <div class="parchment-tughra">﷽</div>
+        <h2>DİVAN-I HÜMAYUN TIMAR DEFTERİ</h2>
+        <button id="timar-close-btn" class="close-btn">✕</button>
+      </div>
+
+      <div class="timar-grid">
+        <!-- Sol: Gelir & Reaya Cetveli -->
+        <div class="timar-card">
+          <h3>📊 Hâsılat & Reaya Cetveli</h3>
+          <div class="data-row"><span>Köy Nüfusu / Reaya:</span><strong id="tb-hane-count">24 Hane</strong></div>
+          <div class="data-row"><span>Yıllık Öşür (Buğday/Arpa):</span><strong id="tb-grain-val">850 Akçe</strong></div>
+          <div class="data-row"><span>Ağnam & Çift Resmi:</span><strong id="tb-sheep-val">420 Akçe</strong></div>
+          <div class="data-row"><span>Kovan & Değirmen Rüsumu:</span><strong id="tb-misc-val">180 Akçe</strong></div>
+          <div class="data-row highlight"><span>Toplam Yıllık Hâsılat:</span><strong id="tb-total-income">1450 Akçe</strong></div>
+        </div>
+
+        <!-- Sağ: Sefer Mükellefiyeti & Cebelü -->
+        <div class="timar-card">
+          <h3>⚔️ Sefer Mükellefiyeti</h3>
+          <div class="data-row"><span>Kanunen Gereken Asker:</span><strong id="tb-cebelu-needed">1 Cebelü</strong></div>
+          <div class="data-row"><span>Hazır Cebelü Süvarisi:</span><strong id="tb-cebelu-count">1 Asker</strong></div>
+          <div class="data-row"><span>Sipahi Teçhizatı:</span><strong id="tb-equipment">Şam Çeliği Kılıç & Zırh</strong></div>
+          <div class="data-row"><span>Savaş Atı Cinsi:</span><strong id="tb-horse-type">Karayağız Türkmen Atı</strong></div>
+          <div class="data-row highlight"><span>Köy Asayişi / Moral:</span><strong id="tb-morale">85% / 80%</strong></div>
+        </div>
+      </div>
+
+      <div class="timar-actions">
+        <button id="btn-collect-tax" class="parchment-btn">🌾 Yıllık Vergiyi Tahsil Et</button>
+        <button id="btn-patrol-village" class="parchment-btn">🛡️ Köyde Devriye Gez (+Asayiş)</button>
+        <button id="btn-feast-villagers" class="parchment-btn">🍞 Reayaya Ziyafet Ver (-150 Akçe)</button>
+        <button id="btn-train-cebelu" class="parchment-btn gold-btn">⚔️ 1 Cebelü Donat (-800 Akçe)</button>
+        <button id="btn-blacksmith-armor" class="parchment-btn">🗡️ Pusatını Bile (-300 Akçe)</button>
+        <button id="btn-horse-breed" class="parchment-btn">🐎 Savaş Atı Yetiştir (-400 Akçe)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GÖREV DEFTERİ MODAL (J TUŞU) -->
+  <div id="quest-modal" class="modal-backdrop hidden">
+    <div class="parchment-window quest-window">
+      <div class="parchment-header">
+        <h2>📜 SİPAHİ GÖREV DEFTERİ & FERMANLAR</h2>
+        <button id="quest-close-btn" class="close-btn">✕</button>
+      </div>
+
+      <div class="quest-modal-grid">
+        <div id="quest-items-list" class="quest-items-list"></div>
+        <div id="quest-detail-content" class="quest-detail-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SANCAK HARİTASI & SEFER MODAL (M TUŞU) -->
+  <div id="map-modal" class="modal-backdrop hidden">
+    <div class="parchment-window map-window">
+      <div class="parchment-header">
+        <h2 id="campaign-title">🗺️ SANCAK HARİTASI & SEFER DERGÂHI</h2>
+        <button id="map-close-btn" class="close-btn">✕</button>
+      </div>
+
+      <div class="map-body-grid">
+        <div class="map-canvas-container">
+          <canvas id="campaign-map-canvas" width="800" height="500"></canvas>
+        </div>
+
+        <div class="campaign-sidebar">
+          <h3 id="campaign-sidebar-title">Büyük Sefer Fermanı</h3>
+          <p id="campaign-desc">Sultan Yıldırım Bayezid Han tuğ çekmiş, Rumeli gazası için Edirne ordugâhına çağırır.</p>
+          <div class="campaign-req-box">
+            <span>Sefer Şartı:</span>
+            <strong id="campaign-req-cebelu">En az 1 Cebelü</strong>
+          </div>
+
+          <button id="btn-join-campaign" class="parchment-btn gold-btn full-btn">👑 SULTANIN SEFERİNE KATIL</button>
+
+          <div class="fast-travel-box">
+            <h4>Hızlı İntikal Noktaları:</h4>
+            <button id="btn-travel-village" class="travel-btn">🏡 Tımar Köyü</button>
+            <button id="btn-travel-castle" class="travel-btn">🏰 Sancak Kalesi</button>
+            <button id="btn-travel-forest" class="travel-btn">🌲 Orman Harami Sığınağı</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAVAŞ SONUÇ MODAL -->
+  <div id="battle-result-modal" class="modal-backdrop hidden">
+    <div class="parchment-window battle-result-window">
+      <div class="parchment-header">
+        <h2 id="battle-result-title">🏆 MUZAFFERİYET!</h2>
+      </div>
+      <div id="battle-result-subtitle" class="battle-subtitle">Niğbolu Meydan Muharebesi</div>
+      <p id="battle-result-desc" class="battle-desc"></p>
+      <div id="battle-loot-list" class="battle-loot-list"></div>
+      <button id="btn-battle-ok" class="parchment-btn gold-btn">Gaza İle Zafer Kazandık</button>
+    </div>
+  </div>
+
+  <!-- BAŞLANGIÇ EKRANI -->
+  <div id="start-screen" class="start-screen-overlay">
+    <div class="start-content-box">
+      <div class="start-tughra">﷽</div>
+      <h1 class="game-main-title">MÜLK-İ OSMANÎ</h1>
+      <div class="game-sub-title">TIMARLI SİPAHİ 3D</div>
+
+      <div id="start-procedural-info" class="start-procedural-info"></div>
+
+      <div class="start-btn-row">
+        <button id="btn-randomize-world" class="start-secondary-btn">🎲 Yeni Tımar & Sipahi</button>
+        <button id="btn-start-game" class="start-primary-btn">⚔️ TIMARI DEVRAL & BAŞLA</button>
+        <button id="btn-toggle-sound" class="sound-toggle-btn" title="Sesi Aç/Kapat">🔊</button>
+      </div>
+
+      <div class="start-footer-hints">
+        Steam Sürümü v1.0 • Mount & Blade ve Kingdom Come İlhamlı 3D Tımar Simülasyonu
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
