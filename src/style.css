@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg-dark: #080c10;
   --parchment-bg: #f4ebd9;
   --parchment-dark: #2c1b0c;
@@ -765,8 +765,12 @@ body, html {
   justify-content: center;
 }
 
-.start-screen-overlay.hidden {
+.start-screen-overlay.hidden,
+#start-screen.hidden {
   display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
 }
 
 .start-content-box {
