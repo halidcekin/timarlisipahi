@@ -9,6 +9,10 @@ import { questSystem } from '../systems/QuestSystem.js';
 import { petitionSystem } from '../systems/PetitionSystem.js';
 import { petitionRuleEngine } from '../systems/PetitionRuleEngine.js';
 import { codexSystem } from '../systems/CodexSystem.js';
+import { supplySystem } from '../systems/SupplySystem.js';
+import { constructionSystem } from '../systems/ConstructionSystem.js';
+import { campaignSystem } from '../systems/CampaignSystem.js';
+import { settingsModal } from './SettingsModal.js';
 
 /**
  * UIManager - Arayüz, HUD, Tımar Defteri, Görev Defteri, 3D İşaretçiler ve Mini-Harita Yönetimi
@@ -717,8 +721,9 @@ export class UIManager {
 
     this.dom.tbCebeluNeeded.textContent = `${gameState.military.cebeluRequired} Asker`;
     this.dom.tbCebeluCount.textContent = `${gameState.military.cebeluCount} (${gameState.military.veteranSoldiers.join(', ')})`;
-    this.dom.tbEquipment.textContent = `Kılıç Kademe ${gameState.sipahi.swordLevel}, Zırh Kademe ${gameState.sipahi.armorLevel}`;
-    this.dom.tbHorseType.textContent = gameState.sipahi.horseType;
+    const readiness = supplySystem.calculateReadinessScore();
+    this.dom.tbEquipment.textContent = `Kılıç Kademe ${gameState.sipahi.swordLevel}, Zırh Kademe ${gameState.sipahi.armorLevel} • Sefer Hazırlığı: %${readiness}`;
+    this.dom.tbHorseType.textContent = `${gameState.sipahi.horseType} (Kondisyon: %${gameState.military.horseCondition || 70})`;
 
     if (this.dom.tbStanding) this.dom.tbStanding.textContent = gameState.sipahi.reputation > 50 ? 'Padişah Nezdinde Makbul' : 'Teftiş Altında';
     this.dom.tbMorale.textContent = `%${gameState.timar.morale} (${gameState.timar.morale > 70 ? 'Yüksek' : 'Vasat'})`;

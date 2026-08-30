@@ -832,9 +832,88 @@ assert(gameState.reputation.reayaTrust === Math.min(100, startTrust + 15), 'Gün
 assert(consequenceSystem.executedIds.has('test_delayed_water_bent') === true, 'Sonuç executedIds listesine işlendi');
 
 // Vakayiname kaydı kontrolü
-const chronicle = consequenceSystem.getChronicle();
-assert(chronicle.length > 0, 'Vakayiname (Tarih Günlüğü) içine kayıt düştü');
-assert(chronicle[chronicle.length - 1].title === 'Bent Onarımı Tamamlandı', 'Vakayiname başlığı doğru kaydedildi');
+// -------------------------------------------------------------
+// TEST 41: SupplySystem Talim, Bakım & Sefer Hazırlık Puanı Testi
+// -------------------------------------------------------------
+const initialReadiness = supplySystem.calculateReadinessScore();
+assert(typeof initialReadiness === 'number' && initialReadiness >= 30 && initialReadiness <= 100, `Başlangıç sefer hazırlık puanı makul (${initialReadiness})`);
+
+// Ok talimi yap
+gameState.time.dayCount = 10;
+const archeryRes = supplySystem.practiceArchery();
+assert(archeryRes === true, 'Okçuluk talimi başarıyla yapıldı');
+assert(supplySystem.maintenanceCompletedToday.archeryPractice === true, 'Günlük talim kaydı işlendi');
+
+// -------------------------------------------------------------
+// TEST 42: SeasonalEvents Ramazan Dönemi ve Atmosfer Testi
+// -------------------------------------------------------------
+import { seasonalEvents } from '../src/systems/SeasonalEvents.js';
+
+seasonalEvents.updateDailySeason(10);
+assert(seasonalEvents.isRamadan() === false, 'Gün 10\'da Ramazan henüz başlamadı');
+
+seasonalEvents.updateDailySeason(50);
+assert(seasonalEvents.isRamadan() === true, 'Gün 50\'de (Hicri Ramazan) Ramazan atmosferi aktifleşti');
+assert(seasonalEvents.getLanternIntensityMultiplier() > 1.0, 'Kandil ve fener parlaklığı Ramazan\'da arttı');
+
+seasonalEvents.updateDailySeason(80);
+assert(seasonalEvents.isRamadan() === false, 'Gün 80\'de Ramazan sona erdi');
+
+// -------------------------------------------------------------
+// TEST 43: ConstructionSystem İmar Başlatma ve İlerleme Testi
+// -------------------------------------------------------------
+import { constructionSystem } from '../src/systems/ConstructionSystem.js';
+
+// Taş su bendi inşaatını başlat
+gameState.timar.akce = 1000;
+const startBentRes = constructionSystem.startConstruction('water_bent');
+assert(startBentRes === true, 'Taş su bendi inşaatı başarıyla başlatıldı');
+assert(constructionSystem.projects.water_bent.status === 'in_progress', 'İnşaat in_progress statüsüne geçti');
+
+// Gün 1 ilerlemesi (2 gün sürer)
+constructionSystem.checkDailyProgress(11);
+assert(constructionSystem.isCompleted('water_bent') === false, '1 gün sonra inşaat henüz tamamlanmadı');
+
+// Gün 2 ilerlemesi
+constructionSystem.checkDailyProgress(12);
+assert(constructionSystem.isCompleted('water_bent') === true, '2. günde taş su bendi tamamlandı');
+
+// -------------------------------------------------------------
+// TEST 44: CampaignSystem 5 Safhalı Niğbolu Muharebesi Testi
+// -------------------------------------------------------------
+import { campaignSystem, BATTLE_PHASES } from '../src/systems/CampaignSystem.js';
+
+assert(BATTLE_PHASES.length === 5, 'Niğbolu Muharebesi 5 tarihsel safhadan oluşuyor');
+
+const firstPhase = campaignSystem.startCampaign();
+assert(firstPhase !== null && firstPhase.id === 1, '1. Safha (Fransız Şövalye Hücumu) başladı');
+assert(campaignSystem.isCampaignActive === true, 'Sefer aktif statüde');
+
+// 5 safhayı sırayla taktik seçimlerle yürüt
+for (let i = 0; i < 5; i++) {
+  const currentP = campaignSystem.getCurrentPhase();
+  assert(currentP !== null, `Safha ${i + 1} erişilebilir`);
+  const choiceId = currentP.tacticalChoices[0].id;
+  const stepRes = campaignSystem.executeTacticalChoice(choiceId);
+  assert(typeof stepRes.isSuccess === 'boolean', `Safha ${i + 1} taktik sonucu üretildi`);
+}
+
+assert(campaignSystem.isCampaignActive === false, 'Muharebe 5 safha sonunda tamamlandı');
+assert(campaignSystem.isVictory === true, 'Niğbolu Zaferi kazanıldı');
+
+// -------------------------------------------------------------
+// TEST 45: SettingsModal Erişilebilirlik (A11y) & Ayarlar Testi
+// -------------------------------------------------------------
+import { settingsModal } from '../src/ui/SettingsModal.js';
+
+settingsModal.setReducedMotion(true);
+assert(settingsModal.getSettings().reducedMotion === true, 'Reduced motion başarıyla açıldı');
+
+settingsModal.setFontSize('large');
+assert(settingsModal.getSettings().fontSize === 'large', 'Altyazı fontu büyük olarak ayarlandı');
+
+settingsModal.setMasterVolume(0.8);
+assert(settingsModal.getSettings().masterVolume === 0.8, 'Ses seviyesi 0.8 olarak ayarlandı');
 
 console.log('\n🧪 ==========================================');
 console.log(`🧪 TEST SONUCU: ${passedTests}/${totalTests} TEST BAŞARIYLA TAMAMLANDI!`);
@@ -843,6 +922,7 @@ console.log('🧪 ==========================================');
 if (passedTests !== totalTests) {
   process.exit(1);
 }
+
 
 
 

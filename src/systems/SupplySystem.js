@@ -1,125 +1,215 @@
-import { gameState } from '../core/GameState.js';
-import { soundManager } from '../core/AudioManager.js';
-
 /**
- * SupplySystem - Teçhizat Aşınması, At Bakımı, İkmal ve Askeri Yoklama (Aşama 2)
+ * Mülk-i Osmanî - İkmal, Talimgâh ve Sefer Hazırlık Sistemi (SupplySystem)
+ * 
+ * V2 Devir Sözleşmesi Bölüm 15 (G3-G4 Standartları):
+ * - Tımarın 1396 Niğbolu Seferi için savaşa hazırlık derecesi (readinessScore).
+ * - Cebelü Ali ve Sipahi'nin talim, at tımarı, pusat bileme ve lojistik hazırlığı.
+ * - Deterministik puanlama: Savaş safhalarına doğrudan etki eden çarpanlar.
+ * - Geriye dönük uyumluluk (Legacy durability & inspection API desteği).
  */
+
+import { gameState } from '../core/GameState.js';
+import { effectRunner } from '../core/EffectRunner.js';
+import { logger } from '../core/Logger.js';
+
 export class SupplySystem {
   constructor() {
+    this.maintenanceCompletedToday = {
+      horseGrooming: false,
+      swordSharpening: false,
+      archeryPractice: false,
+      armorRepair: false
+    };
+
+    // Legacy uyumluluk alanları
     this.durability = {
       sword: 100,
+      armor: 100,
       shield: 100,
-      armor: 100
+      bow: 100
     };
 
     this.horse = {
+      health: 100,
       stamina: 100,
-      maxStamina: 100,
-      isFedToday: true
-    };
-
-    this.campaignSupplies = {
-      grain: 200,      // Zahire (Kile)
-      horseshoes: 8,   // Yedek Nal Takımı
-      arrows: 60,      // Savaş Oku
-      waterKegs: 15,   // Su Fıçısı
-      spareWeapons: 2  // Yedek Pusat
+      hunger: 0
     };
   }
 
-  reduceDurability(itemType, amount = 5) {
+  // --- Legacy API Desteği ---
+  reduceDurability(itemType, amount) {
     if (this.durability[itemType] !== undefined) {
       this.durability[itemType] = Math.max(0, this.durability[itemType] - amount);
-      if (this.durability[itemType] <= 20) {
-        gameState.addNotification(`⚠️ Dikkat: ${itemType === 'sword' ? 'Kılıcın' : itemType === 'shield' ? 'Kalkanın' : 'Zırhın'} köreldi/aşındı! Demircide tamir ettir.`, 'alert');
-      }
     }
   }
 
   repairItem(itemType, cost = 30) {
-    if (gameState.timar.akce < cost) {
-      gameState.addNotification('⚠️ Yeterli akçen yok!', 'alert');
-      return false;
-    }
-
-    if (this.durability[itemType] !== undefined) {
+    if (gameState.timar.akce >= cost) {
       gameState.timar.akce -= cost;
-      this.durability[itemType] = 100;
-      gameState.modifyFaction('ahiler', 5);
-      soundManager.playSwordClash();
-      gameState.addNotification(`⚒️ ${itemType.toUpperCase()} Demirci Rüstem Usta tarafından tamir edildi ve bilendi (%100).`, 'success');
+      if (this.durability[itemType] !== undefined) {
+        this.durability[itemType] = 100;
+      }
       return true;
     }
     return false;
   }
 
   feedHorse() {
-    if (gameState.timar.grain < 5) {
-      gameState.addNotification('⚠️ Ambarda at için yeterli arpa/zahire yok!', 'alert');
-      return false;
-    }
-
-    gameState.timar.grain -= 5;
-    this.horse.stamina = this.horse.maxStamina;
-    this.horse.isFedToday = true;
-    gameState.modifySquadLoyalty(5);
-    gameState.addNotification('🐎 Karayağız at yemlendi ve tımardan geçirildi. Kuvveti tamalandı.', 'success');
+    this.horse.stamina = 100;
+    this.horse.hunger = 0;
     return true;
   }
 
-  purchaseSupply(supplyKey, amount, totalCost) {
-    if (gameState.timar.akce < totalCost) {
-      gameState.addNotification('⚠️ Yetersiz akçe!', 'alert');
+  conductInspection() {
+    const isPassing = this.durability.sword > 50 && this.durability.armor > 50;
+    const score = this.calculateReadinessScore();
+    const grade = score >= 80 ? 'Âlâ (Kusursuz Savaşçı)' : score >= 50 ? 'Evsât (Makbul Cebelü)' : 'Ednâ (Kusurlu Teçhizat)';
+    return {
+      passed: isPassing,
+      score,
+      grade,
+      readinessScore: score
+    };
+  }
+
+  // --- V2 Devir Standartları ---
+  /**
+   * At Tımarı & Bakımı
+   */
+  groomHorse() {
+    const cost = 20;
+    if (gameState.timar.akce < cost) {
+      gameState.addNotification('⚠️ At tımarı ve yemi için 20 Akçe gereklidir!', 'alert');
       return false;
     }
 
-    if (this.campaignSupplies[supplyKey] !== undefined) {
-      gameState.timar.akce -= totalCost;
-      this.campaignSupplies[supplyKey] += amount;
-      gameState.modifyFaction('ahiler', 4);
-      gameState.addNotification(`📦 Sefer İkmali: +${amount} ${supplyKey} satın alındı (-${totalCost} Akçe).`, 'info');
+    const txId = `supply:groom:${gameState.time.dayCount}`;
+    const result = effectRunner.runTransaction(txId, [
+      { type: 'modifyStat', stat: 'akce', value: -cost },
+      { type: 'modifyStat', stat: 'squadLoyalty', value: 5 }
+    ]);
+
+    if (result.ok) {
+      this.maintenanceCompletedToday.horseGrooming = true;
+      this.feedHorse();
+      gameState.military.horseCondition = Math.min(100, (gameState.military.horseCondition || 70) + 15);
+      gameState.addNotification('🐎 Atlar tımarlanıp beslendi; kondisyonları arttı (+15).', 'success');
       return true;
     }
     return false;
   }
 
   /**
-   * Sancak Kalesi Askeri Yoklama Teftişi (Muster Inspection)
+   * Kılıç & Pusat Bileme (Demirci Dükkanı)
    */
-  conductInspection() {
-    const hasEnoughCebelu = gameState.military.cebeluCount >= gameState.activeCampaign.reqCebelu;
-    const hasGoodWeapons = this.durability.sword >= 60 && this.durability.armor >= 60;
-    const hasEnoughGrain = this.campaignSupplies.grain >= 150;
-    const hasShoes = this.campaignSupplies.horseshoes >= 4;
-
-    let score = 0;
-    if (hasEnoughCebelu) score += 40;
-    if (hasGoodWeapons) score += 25;
-    if (hasEnoughGrain) score += 20;
-    if (hasShoes) score += 15;
-
-    let grade = 'C';
-    let repGain = 10;
-    let desc = '';
-
-    if (score >= 85) {
-      grade = 'A (Mükemmel Hazırlık)';
-      repGain = 30;
-      desc = 'Sancakbeyi teftiş heyeti tımarını ve cebelülerini takdir etti. Orduya tam nizamla katılacaksınız.';
-    } else if (score >= 60) {
-      grade = 'B (Yeterli Seviye)';
-      repGain = 20;
-      desc = 'Yoklama tamamlandı, sefer için asgari şartlar sağlandı.';
-    } else {
-      grade = 'C (Eksikli Hazırlık)';
-      repGain = 5;
-      desc = 'Eksik teçhizat ve yetersiz zahire nedeniyle divan teftişinde uyarı aldın!';
+  sharpenWeapons() {
+    const cost = 35;
+    if (gameState.timar.akce < cost) {
+      gameState.addNotification('⚠️ Kılıç bileme ve çark için 35 Akçe gereklidir!', 'alert');
+      return false;
     }
 
-    gameState.modifySancakReputation(repGain);
-    gameState.addNotification(`📜 ASKERİ YOKLAMA SONUCU: Derece ${grade} (+${repGain} Sancak İtibarı)`, 'success');
+    const txId = `supply:sharpen:${gameState.time.dayCount}`;
+    const result = effectRunner.runTransaction(txId, [
+      { type: 'modifyStat', stat: 'akce', value: -cost },
+      { type: 'modifyStat', stat: 'faction_ahiler', value: 5 }
+    ]);
 
-    return { score, grade, desc };
+    if (result.ok) {
+      this.maintenanceCompletedToday.swordSharpening = true;
+      this.durability.sword = 100;
+      gameState.military.weaponSharpness = Math.min(100, (gameState.military.weaponSharpness || 60) + 20);
+      gameState.addNotification('⚔️ Kılıç ve gürzler Demirci körüğünde bilendi (+20 Keskinlik).', 'success');
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Okçuluk & Nişan Talimi
+   */
+  practiceArchery() {
+    const txId = `supply:archery:${gameState.time.dayCount}`;
+    const result = effectRunner.runTransaction(txId, [
+      { type: 'modifyStat', stat: 'squadLoyalty', value: 5 }
+    ]);
+
+    if (result.ok) {
+      this.maintenanceCompletedToday.archeryPractice = true;
+      gameState.military.archeryProficiency = Math.min(100, (gameState.military.archeryProficiency || 50) + 10);
+      gameState.addNotification('🏹 Talimgâhta ok atış talimi yapıldı (+10 İsabet).', 'success');
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Zırh & Kalkan Onarımı
+   */
+  repairArmor() {
+    const cost = 40;
+    if (gameState.timar.akce < cost) {
+      gameState.addNotification('⚠️ Zırh ve kalkan perçinleri için 40 Akçe gereklidir!', 'alert');
+      return false;
+    }
+
+    const txId = `supply:armor:${gameState.time.dayCount}`;
+    const result = effectRunner.runTransaction(txId, [
+      { type: 'modifyStat', stat: 'akce', value: -cost }
+    ]);
+
+    if (result.ok) {
+      this.maintenanceCompletedToday.armorRepair = true;
+      this.durability.armor = 100;
+      gameState.military.armorCondition = Math.min(100, (gameState.military.armorCondition || 65) + 15);
+      gameState.addNotification('🛡️ Zırh gömlekleri ve kalkanlar elden geçirildi (+15 Zırh).', 'success');
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Sefer Hazırlık Puanı Hesaplaması (0 - 100)
+   */
+  calculateReadinessScore() {
+    const cebeluWeight = Math.min(30, (gameState.military.cebeluCount * 15) + (gameState.military.cebeluExperience * 0.15));
+    const gearWeight = (
+      ((gameState.military.horseCondition || 70) * 0.1) +
+      ((gameState.military.weaponSharpness || 60) * 0.1) +
+      ((gameState.military.armorCondition || 65) * 0.1)
+    );
+    const logisticWeight = Math.min(20, (gameState.timar.akce / 100));
+    const moraleWeight = (
+      (gameState.reputation.squadLoyalty * 0.1) +
+      (gameState.reputation.sancakReputation * 0.1)
+    );
+
+    const total = Math.min(100, Math.round(cebeluWeight + gearWeight + logisticWeight + moraleWeight));
+    return total;
+  }
+
+  resetDailyMaintenance() {
+    this.maintenanceCompletedToday = {
+      horseGrooming: false,
+      swordSharpening: false,
+      archeryPractice: false,
+      armorRepair: false
+    };
+  }
+
+  serialize() {
+    return {
+      maintenance: this.maintenanceCompletedToday,
+      durability: this.durability,
+      horse: this.horse
+    };
+  }
+
+  deserialize(data) {
+    if (!data) return;
+    this.maintenanceCompletedToday = data.maintenance || this.maintenanceCompletedToday;
+    this.durability = data.durability || this.durability;
+    this.horse = data.horse || this.horse;
   }
 }
 
