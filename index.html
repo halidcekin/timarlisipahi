@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mülk-i Osmanî: Tımarlı Sipahi 3D</title>
+  <title>Mülk-i Osmanî: Köy Beyliği 3D</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Amiri:ital,wght@0,400;0,700;1,400&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -29,7 +29,7 @@
 
   <!-- ANA HUD KATMANI -->
   <div id="hud-layer">
-    <!-- Sol Üst: Tımarlı Sipahi Kimliği & Sıhhat/Kuvvet Barları -->
+    <!-- Sol Üst: Köy Beyi Kimliği & Sıhhat/Kuvvet Barları -->
     <div class="hud-panel sipahi-panel">
       <div class="sipahi-header">
         <div class="sipahi-avatar">⚔️</div>
@@ -168,7 +168,7 @@
       </div>
 
       <div id="dialogue-text" class="dialogue-body">
-        "Hoş geldin Devletlü Sipahi Beyim..."
+        "Hoş geldin Devletlü Köy Beyim..."
       </div>
 
       <div id="dialogue-choices" class="dialogue-choices"></div>
@@ -201,7 +201,7 @@
           <h3>⚔️ Sefer Mükellefiyeti</h3>
           <div class="data-row"><span>Kanunen Gereken Asker:</span><strong id="tb-cebelu-needed">1 Cebelü</strong></div>
           <div class="data-row"><span>Hazır Cebelü Süvarisi:</span><strong id="tb-cebelu-count">1 Asker</strong></div>
-          <div class="data-row"><span>Sipahi Teçhizatı:</span><strong id="tb-equipment">Şam Çeliği Kılıç & Zırh</strong></div>
+          <div class="data-row"><span>Beyin Teçhizatı:</span><strong id="tb-equipment">Şam Çeliği Kılıç & Zırh</strong></div>
           <div class="data-row"><span>Savaş Atı Cinsi:</span><strong id="tb-horse-type">Karayağız Türkmen Atı</strong></div>
           <div class="data-row highlight"><span>Köy Asayişi / Moral:</span><strong id="tb-morale">85% / 80%</strong></div>
         </div>
@@ -237,7 +237,7 @@
   <div id="quest-modal" class="modal-backdrop hidden">
     <div class="parchment-window quest-window">
       <div class="parchment-header">
-        <h2>📜 SİPAHİ GÖREV DEFTERİ & FERMANLAR</h2>
+        <h2>📜 KÖY BEYİ GÖREV DEFTERİ & FERMANLAR</h2>
         <button id="quest-close-btn" class="close-btn">✕</button>
       </div>
 
@@ -282,12 +282,12 @@
     </div>
   </div>
 
-  <!-- SİPAHİ RET GEREKÇESİ MODAL -->
+  <!-- BEY RET GEREKÇESİ MODAL -->
   <div id="rejection-reason-modal" class="modal-backdrop hidden">
     <div class="parchment-window" style="max-width: 520px;">
       <div class="parchment-header">
         <div class="parchment-tughra">⚖️</div>
-        <h2>SİPAHİ RET FERMANI & GEREKÇESİ</h2>
+        <h2>BEY RET FERMANI & GEREKÇESİ</h2>
         <button id="rejection-close-btn" class="close-btn">✕</button>
       </div>
 
@@ -360,7 +360,7 @@
         </div>
 
         <p id="kadi-verdict-text" style="font-style: italic; font-size: 15px; line-height: 1.5; margin-bottom: 15px; background: rgba(0,0,0,0.05); padding: 12px; border-radius: 4px;">
-          "Kadı Hükmü: Sipahi Beyimizin sefer hazırlığı ve hazine önceliği mazereti yerinde görülmüştür."
+          "Kadı Hükmü: Köy Beyimizin sefer hazırlığı ve hazine önceliği mazereti yerinde görülmüştür."
         </p>
 
         <div style="display: flex; justify-content: space-around; font-size: 14px; font-weight: bold; margin-bottom: 15px; border-top: 1px dashed #8b1e1e; border-bottom: 1px dashed #8b1e1e; padding: 8px 0;">
@@ -429,18 +429,18 @@
     <div class="start-content-box">
       <div class="start-tughra">﷽</div>
       <h1 class="game-main-title">MÜLK-İ OSMANÎ</h1>
-      <div class="game-sub-title">TIMARLI SİPAHİ 3D</div>
+      <div class="game-sub-title">KÖY BEYLİĞİ 3D</div>
 
       <div id="start-procedural-info" class="start-procedural-info"></div>
 
       <div class="start-btn-row">
-        <button id="btn-randomize-world" class="start-secondary-btn">🎲 Yeni Tımar & Sipahi</button>
+        <button id="btn-randomize-world" class="start-secondary-btn">🎲 Yeni Tımar & Bey</button>
         <button id="btn-start-game" class="start-primary-btn">⚔️ TIMARI DEVRAL & BAŞLA</button>
         <button id="btn-toggle-sound" class="sound-toggle-btn" title="Sesi Aç/Kapat">🔊</button>
       </div>
 
       <div class="start-footer-hints">
-        Steam Sürümü v1.0 • Mount & Blade ve Kingdom Come İlhamlı 3D Tımar Simülasyonu
+        Steam Sürümü v1.0 • Mount & Blade ve Kingdom Come İlhamlı 3D Köy Beyliği Simülasyonu
       </div>
     </div>
   </div>

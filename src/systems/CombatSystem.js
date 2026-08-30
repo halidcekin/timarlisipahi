@@ -14,6 +14,14 @@ export class CombatSystem {
     this.townGenerator = townGenerator;
     this.activeSparks = [];
 
+    // Optimize Particle Geometry and Materials (Object Pooling/Caching)
+    this.sharedBloodGeo = new THREE.SphereGeometry(1, 4, 4); // Unit sphere, we will scale it
+    this.sharedBloodMat = new THREE.MeshBasicMaterial({
+      color: 0x8a0303, // Koyu kırmızı
+      transparent: true,
+      opacity: 0.9
+    });
+
     // 3D Kıvılcım ve Darbe Parçacık Grubu
     this.sparkGroup = new THREE.Group();
     if (this.player.scene) {
@@ -103,13 +111,9 @@ export class CombatSystem {
     const bloodCount = 12;
     for (let i = 0; i < bloodCount; i++) {
       const size = 0.03 + Math.random() * 0.03;
-      const bloodGeo = new THREE.SphereGeometry(size, 4, 4);
-      const bloodMat = new THREE.MeshBasicMaterial({
-        color: 0x8a0303, // Koyu kırmızı
-        transparent: true,
-        opacity: 0.9
-      });
-      const blood = new THREE.Mesh(bloodGeo, bloodMat);
+      const blood = new THREE.Mesh(this.sharedBloodGeo, this.sharedBloodMat);
+      blood.scale.set(size, size, size);
+      
       blood.position.copy(position);
       blood.position.x += (Math.random() - 0.5) * 0.3;
       blood.position.y += (Math.random() - 0.5) * 0.3;

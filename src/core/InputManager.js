@@ -68,7 +68,21 @@ export class InputManager {
     this.canvas.addEventListener('click', () => {
       if (document.getElementById('fail-state-overlay')) return;
       if (!this.mouse.isLocked) {
-        this.canvas.requestPointerLock();
+        try {
+          this.canvas.requestPointerLock();
+        } catch (e) {
+          console.warn("Pointer lock failed:", e);
+        }
+      }
+    });
+    
+    // Fallback: If clicked anywhere else (e.g. HUD but not on a button), try to lock
+    document.addEventListener('click', (e) => {
+      if (document.getElementById('fail-state-overlay')) return;
+      if (!this.mouse.isLocked && e.target.tagName !== 'BUTTON' && !e.target.closest('.modal-backdrop')) {
+        try {
+          this.canvas.requestPointerLock();
+        } catch (err) {}
       }
     });
 

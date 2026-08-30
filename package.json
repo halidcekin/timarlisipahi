@@ -1,5 +1,5 @@
 {
-  "name": "timarli-sipahi-3d",
+  "name": "koy-beyligi-3d",
   "version": "1.0.0",
   "type": "module",
   "main": "electron-main.cjs",
@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "desktop": "electron electron-main.cjs",
+    "desktop": "npm run build && electron electron-main.cjs",
     "validate:content": "node scripts/validate-content.mjs",
     "test": "node tests/systems.test.js",
     "check": "npm run validate:content && npm run test && npm run build"

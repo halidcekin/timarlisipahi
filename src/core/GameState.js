@@ -33,7 +33,7 @@ export class GameState {
     // Temel Sipahi Profili
     this.sipahi = {
       name: randomSipahi,
-      title: 'Tımarlı Sipahi',
+      title: 'Köy Beyi',
       health: 100,
       maxHealth: 100,
       stamina: 100,

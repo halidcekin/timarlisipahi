@@ -193,7 +193,7 @@ export class Player {
       // Koşarken saniyede kuvvet harcar (silahsızken daha az harcar)
       const staminaDrain = isUnarmed ? 15 : 22;
       gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - delta * staminaDrain);
-      this.staminaRegenDelay = 0.9;
+      this.staminaRegenDelay = 1.2; // 0.9'dan 1.2'ye çıkarıldı (Zorluk)
     } else if (this.isBlocking) {
       currentSpeed = this.walkSpeed * 0.55; // Kalkan/kılıç bloğunda yavaş yürüyüş
       gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - delta * 8);
@@ -248,7 +248,7 @@ export class Player {
       this.velocity.y = this.jumpForce;
       this.isGrounded = false;
       gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - 20);
-      this.staminaRegenDelay = 1.2;
+      this.staminaRegenDelay = 1.5;
     }
 
     this.velocity.y -= this.gravity * delta;

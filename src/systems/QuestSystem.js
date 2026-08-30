@@ -706,9 +706,15 @@ export class QuestSystem {
   getActiveTargetInfo(playerPos) {
     const activeQuest = this.getActiveQuest();
     if (!activeQuest || !activeQuest.targetPos) return null;
+    const distance = playerPos && typeof playerPos.distanceTo === 'function'
+      ? playerPos.distanceTo(activeQuest.targetPos)
+      : (playerPos ? Math.hypot(playerPos.x - activeQuest.targetPos.x, (playerPos.y || 0) - activeQuest.targetPos.y, playerPos.z - activeQuest.targetPos.z) : 0);
+
     return {
+      questId: activeQuest.id,
       name: activeQuest.targetName || activeQuest.shortTitle || activeQuest.title || 'Hedef',
-      pos: activeQuest.targetPos
+      pos: activeQuest.targetPos,
+      distance: distance
     };
   }
 }

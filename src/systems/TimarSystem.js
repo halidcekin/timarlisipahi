@@ -57,6 +57,12 @@ export class TimarSystem {
   }
 
   static patrolVillage() {
+    if (gameState.sipahi.stamina < 30) {
+      gameState.addNotification('Yorgunluktan dizlerin titriyor! Devriyeye çıkmak için dinlenmelisin.', 'alert');
+      return false;
+    }
+
+    gameState.sipahi.stamina -= 30;
     gameState.timar.asayis = Math.min(100, gameState.timar.asayis + 15);
     gameState.sipahi.reputation = Math.min(100, gameState.sipahi.reputation + 5);
 

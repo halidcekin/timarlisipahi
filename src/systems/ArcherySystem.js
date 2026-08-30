@@ -41,7 +41,9 @@ export class ArcherySystem {
     this.isBowMode = !this.isBowMode;
     this.bowRig.visible = this.isBowMode && (this.player.cameraMode === 'firstPerson');
 
-    const crosshair = document.getElementById('archery-crosshair');
+    const crosshair = typeof document !== 'undefined' && typeof document.getElementById === 'function'
+      ? document.getElementById('archery-crosshair')
+      : null;
 
     if (this.isBowMode) {
       gameState.sipahi.swordDrawn = false;
@@ -124,7 +126,9 @@ export class ArcherySystem {
   }
 
   update(delta, inputManager) {
-    const crosshair = document.getElementById('archery-crosshair');
+    const crosshair = typeof document !== 'undefined' && typeof document.getElementById === 'function'
+      ? document.getElementById('archery-crosshair')
+      : null;
     
     // Hide crosshair in 3rd person mode even if bow is equipped
     if (this.isBowMode && this.player.cameraMode !== 'firstPerson') {
@@ -134,21 +138,40 @@ export class ArcherySystem {
     }
 
     if (this.isBowMode) {
-      if (inputManager.mouse.leftDown) {
+      if (inputManager.mouse.leftDown && (gameState.sipahi.stamina > 5 || this.isDrawing)) {
         this.isDrawing = true;
         this.drawProgress = Math.min(1.0, this.drawProgress + delta / this.maxDrawTime);
-        // Yay rig'ini hafif geriye çekilme efekti ver
-        this.bowRig.position.z = -0.2 - this.drawProgress * 0.12;
         
-        // Update crosshair visually based on draw progress
-        if (crosshair && this.player.cameraMode === 'firstPerson') {
-          const size = 44 - (this.drawProgress * 24); // 44px -> 20px
-          crosshair.style.width = `${size}px`;
-          crosshair.style.height = `${size}px`;
-          crosshair.classList.add('active');
-          
-          this.camera.fov = 75 - (this.drawProgress * 15);
+        // Stamina Tüketimi
+        gameState.sipahi.stamina = Math.max(0, gameState.sipahi.stamina - delta * 15);
+        if (this.player) this.player.staminaRegenDelay = 1.0;
+
+        if (gameState.sipahi.stamina === 0) {
+          // Yorgunluktan yay düştü
+          this.releaseArrow();
+          this.bowRig.position.z = -0.2;
+          this.camera.fov = 75;
           this.camera.updateProjectionMatrix();
+          if (crosshair) {
+            crosshair.style.width = '44px';
+            crosshair.style.height = '44px';
+            crosshair.classList.remove('active');
+          }
+          gameState.addNotification('Kuvvetin tükendi! Yay elinden fırladı.', 'alert');
+        } else {
+          // Yay rig'ini hafif geriye çekilme efekti ver
+          this.bowRig.position.z = -0.2 - this.drawProgress * 0.12;
+          
+          // Update crosshair visually based on draw progress
+          if (crosshair && this.player.cameraMode === 'firstPerson') {
+            const size = 44 - (this.drawProgress * 24); // 44px -> 20px
+            crosshair.style.width = `${size}px`;
+            crosshair.style.height = `${size}px`;
+            crosshair.classList.add('active');
+            
+            this.camera.fov = 75 - (this.drawProgress * 15);
+            this.camera.updateProjectionMatrix();
+          }
         }
       } else if (this.isDrawing) {
         this.releaseArrow();
@@ -197,15 +220,15 @@ export class ArcherySystem {
 
             if (radialDist <= target.radiusOuter) {
               isHit = true;
-              let xpGain = 5;
+              let xpGain = 2; // Önceden 5 idi
               let scoreTitle = '🎯 Dış Halka!';
 
               if (radialDist <= target.radiusBullseye) {
-                xpGain = 25;
+                xpGain = 15; // Önceden 25 idi
                 scoreTitle = '🎯 TAM İSABET! 12\'den Vurdun (Sarı Göbek)!';
                 try { soundManager.playVictoryJingle(); } catch (e) {}
               } else if (radialDist <= target.radiusMid) {
-                xpGain = 15;
+                xpGain = 8; // Önceden 15 idi
                 scoreTitle = '🎯 İsabet! Kırmızı Halka!';
                 try { soundManager.playSwordClash(); } catch (e) {}
               } else {

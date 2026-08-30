@@ -161,7 +161,7 @@ function createWindow() {
     fullscreen: false,
     autoHideMenuBar: true,
     backgroundColor: '#0a0806',
-    title: 'Mülk-i Osmanî: Tımarlı Sipahi 3D',
+    title: 'Mülk-i Osmanî: Köy Beyliği 3D',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
