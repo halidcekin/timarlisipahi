@@ -66,6 +66,7 @@ export class InputManager {
     });
 
     this.canvas.addEventListener('click', () => {
+      if (document.getElementById('fail-state-overlay')) return;
       if (!this.mouse.isLocked) {
         this.canvas.requestPointerLock();
       }

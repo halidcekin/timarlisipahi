@@ -218,8 +218,9 @@ export class GameState {
   checkCiftbozan() {
     if (this.reputation.reayaTrust <= 15 && !this.failState.isGameOver) {
       this.failState.isGameOver = true;
+      this.failState.reason = 'ciftbozan';
       this.failState.title = 'FERMAN-I AZİL: ÇİFTBOZAN VAKASI';
-      this.failState.reason = 'Reayanın güveni tükendi! Köylüler topraklarını terk edip şehirlere ve dağlara kaçtı (Çiftbozan). Üretim durduğu için Sancakbeyi fermanıyla tımar beratınız iptal edildi ve azledildiniz!';
+      this.failState.desc = 'Reayanın güveni tükendi! Köylüler topraklarını terk edip şehirlere ve dağlara kaçtı (Çiftbozan). Üretim durduğu için Sancakbeyi fermanıyla tımar beratınız iptal edildi ve azledildiniz!';
       this.addNotification('⚠️ DİKKAT: Reaya toprağı terk etti! Tımar beratınız azledildi!', 'alert');
       return true;
     }

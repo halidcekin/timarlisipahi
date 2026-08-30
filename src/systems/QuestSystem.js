@@ -702,6 +702,15 @@ export class QuestSystem {
     this.syncAvailableQuests();
     this.syncWithGameState();
   }
+
+  getActiveTargetInfo(playerPos) {
+    const activeQuest = this.getActiveQuest();
+    if (!activeQuest || !activeQuest.targetPos) return null;
+    return {
+      name: activeQuest.targetName || activeQuest.shortTitle || activeQuest.title || 'Hedef',
+      pos: activeQuest.targetPos
+    };
+  }
 }
 
 export const questSystem = new QuestSystem();

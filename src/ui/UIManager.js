@@ -1387,6 +1387,8 @@ export class UIManager {
     if (!gameState.failState || !gameState.failState.isGameOver) return;
     if (this.failOverlayActive) return;
     this.failOverlayActive = true;
+    
+    try { document.exitPointerLock(); } catch(e) {}
 
     let overlay = document.getElementById('fail-state-overlay');
     if (!overlay) {

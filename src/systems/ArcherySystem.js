@@ -41,15 +41,23 @@ export class ArcherySystem {
     this.isBowMode = !this.isBowMode;
     this.bowRig.visible = this.isBowMode && (this.player.cameraMode === 'firstPerson');
 
+    const crosshair = document.getElementById('archery-crosshair');
+
     if (this.isBowMode) {
       gameState.sipahi.swordDrawn = false;
       if (this.player.weaponRig) this.player.weaponRig.visible = false;
       gameState.addNotification('🏹 Osmanlı Yayını gerdin. Nişan al ve [Sol Tık] ile fırlat!', 'info');
       try { soundManager.playSwordSwing(); } catch (e) {}
+      if (crosshair && this.player.cameraMode === 'firstPerson') {
+        crosshair.classList.remove('hidden');
+      }
     } else {
       this.isDrawing = false;
       this.drawProgress = 0;
+      this.camera.fov = 75;
+      this.camera.updateProjectionMatrix();
       gameState.addNotification('🏹 Yayı omzuna astın.', 'info');
+      if (crosshair) crosshair.classList.add('hidden');
     }
   }
 
@@ -116,15 +124,44 @@ export class ArcherySystem {
   }
 
   update(delta, inputManager) {
+    const crosshair = document.getElementById('archery-crosshair');
+    
+    // Hide crosshair in 3rd person mode even if bow is equipped
+    if (this.isBowMode && this.player.cameraMode !== 'firstPerson') {
+      if (crosshair) crosshair.classList.add('hidden');
+    } else if (this.isBowMode && this.player.cameraMode === 'firstPerson') {
+      if (crosshair) crosshair.classList.remove('hidden');
+    }
+
     if (this.isBowMode) {
       if (inputManager.mouse.leftDown) {
         this.isDrawing = true;
         this.drawProgress = Math.min(1.0, this.drawProgress + delta / this.maxDrawTime);
         // Yay rig'ini hafif geriye çekilme efekti ver
         this.bowRig.position.z = -0.2 - this.drawProgress * 0.12;
+        
+        // Update crosshair visually based on draw progress
+        if (crosshair && this.player.cameraMode === 'firstPerson') {
+          const size = 44 - (this.drawProgress * 24); // 44px -> 20px
+          crosshair.style.width = `${size}px`;
+          crosshair.style.height = `${size}px`;
+          crosshair.classList.add('active');
+          
+          this.camera.fov = 75 - (this.drawProgress * 15);
+          this.camera.updateProjectionMatrix();
+        }
       } else if (this.isDrawing) {
         this.releaseArrow();
         this.bowRig.position.z = -0.2;
+        this.camera.fov = 75;
+        this.camera.updateProjectionMatrix();
+        
+        // Reset crosshair
+        if (crosshair) {
+          crosshair.style.width = '44px';
+          crosshair.style.height = '44px';
+          crosshair.classList.remove('active');
+        }
       }
     }
 

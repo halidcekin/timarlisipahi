@@ -70,6 +70,27 @@ body, html {
   opacity: 0.85;
 }
 
+#archery-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  pointer-events: none;
+  transition: width 0.1s, height 0.1s, border-color 0.1s;
+}
+
+#archery-crosshair.active {
+  border-color: rgba(212, 175, 55, 0.9);
+}
+
+#archery-crosshair.hidden {
+  display: none !important;
+}
+
 .interaction-prompt {
   margin-top: 24px;
   background: rgba(26, 17, 10, 0.95);

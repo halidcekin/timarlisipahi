@@ -270,7 +270,7 @@ export class Player {
 
     if (this.cameraMode === 'firstPerson') {
       this.camera.position.copy(this.position);
-      this.weaponRig.visible = true;
+      this.weaponRig.visible = gameState.sipahi.swordDrawn;
       this.updateWeaponAnimation(delta, moveDir.lengthSq() > 0);
     } else {
       this.weaponRig.visible = false;
