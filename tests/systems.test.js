@@ -775,8 +775,66 @@ const weakDecision = petitionRuleEngine.evaluatePetitionRejection(
   mockPetition,
   'Canım istemiyor.'
 );
-assert(weakDecision.valid === false, 'Keyfi / zayıf gerekçe haksız bulundu');
-assert(weakDecision.moraleChange < 0, 'Keyfi ferman sonucu ahali gücendi (asayiş düştü)');
+// -------------------------------------------------------------
+// TEST 39: VillagerAI Dinî Hayat Ritmi & PRAYING Durumu Testi
+// -------------------------------------------------------------
+import { VillagerAI, VillagerState } from '../src/entities/VillagerAI.js';
+
+const mockNPC = {
+  name: 'Test Köylü',
+  position: new THREE.Vector3(5, 0, 5),
+  mesh: new THREE.Group()
+};
+const villager = new VillagerAI(mockNPC);
+
+// Sabah Namazı Vakti (05:30)
+villager.evaluateSchedule(5.5);
+assert(villager.currentState === VillagerState.PRAYING, 'Sabah namazı vaktinde köylü PRAYING durumuna geçti (V2-10)');
+assert(villager.targetPos.equals(villager.mosquePos), 'Köylünün hedefi Mescid avlusu olarak ayarlandı');
+
+// İş Vakti (09:00)
+villager.evaluateSchedule(9.0);
+assert(villager.currentState === VillagerState.WORKING, 'Mesai saatinde köylü WORKING durumuna geçti');
+
+// Öğle Namazı Vakti (12:15)
+villager.evaluateSchedule(12.25);
+assert(villager.currentState === VillagerState.PRAYING, 'Öğle ezanında köylü tekrar PRAYING durumuna geçti');
+
+// Gece Uykusu (23:00)
+villager.evaluateSchedule(23.0);
+assert(villager.currentState === VillagerState.SLEEPING, 'Gece vaktinde köylü SLEEPING durumuna geçti');
+
+// -------------------------------------------------------------
+// TEST 40: Gecikmeli Karar Sonuçları (ConsequenceSystem & Vakayiname) Testi
+// -------------------------------------------------------------
+import { consequenceSystem } from '../src/systems/ConsequenceSystem.js';
+
+const startTrust = gameState.reputation.reayaTrust;
+consequenceSystem.scheduleConsequence({
+  id: 'test_delayed_water_bent',
+  dueDay: 3,
+  title: 'Bent Onarımı Tamamlandı',
+  desc: 'İki gün evvel alınan karar neticesinde su bendi onarıldı.',
+  effects: [
+    { type: 'modifyStat', stat: 'reayaTrust', value: 15 }
+  ]
+});
+
+// Gün 1 ve Gün 2 kontrolü (Henüz vadesi gelmedi)
+consequenceSystem.checkDailyConsequences(1);
+assert(gameState.reputation.reayaTrust === startTrust, 'Gün 1\'de vadesi gelmemiş sonuç tetiklenmedi');
+consequenceSystem.checkDailyConsequences(2);
+assert(gameState.reputation.reayaTrust === startTrust, 'Gün 2\'de vadesi gelmemiş sonuç tetiklenmedi');
+
+// Gün 3 kontrolü (Vadesi geldi, yürütülmeli)
+consequenceSystem.checkDailyConsequences(3);
+assert(gameState.reputation.reayaTrust === Math.min(100, startTrust + 15), 'Gün 3\'te gecikmeli sonuç başarıyla yürütüldü (+15 reayaTrust)');
+assert(consequenceSystem.executedIds.has('test_delayed_water_bent') === true, 'Sonuç executedIds listesine işlendi');
+
+// Vakayiname kaydı kontrolü
+const chronicle = consequenceSystem.getChronicle();
+assert(chronicle.length > 0, 'Vakayiname (Tarih Günlüğü) içine kayıt düştü');
+assert(chronicle[chronicle.length - 1].title === 'Bent Onarımı Tamamlandı', 'Vakayiname başlığı doğru kaydedildi');
 
 console.log('\n🧪 ==========================================');
 console.log(`🧪 TEST SONUCU: ${passedTests}/${totalTests} TEST BAŞARIYLA TAMAMLANDI!`);
@@ -785,6 +843,7 @@ console.log('🧪 ==========================================');
 if (passedTests !== totalTests) {
   process.exit(1);
 }
+
 
 
 

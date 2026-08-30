@@ -3,6 +3,7 @@ import { TimarSystem } from './TimarSystem.js';
 import { soundManager } from '../core/AudioManager.js';
 import { questSystem } from './QuestSystem.js';
 import { codexSystem } from './CodexSystem.js';
+import { consequenceSystem } from './ConsequenceSystem.js';
 
 /**
  * DialogueSystem - 14. Yüzyıl Osmanlı Dönemi Çok Katmanlı Dallanan Dramatik Diyalog Ağacı
@@ -402,6 +403,19 @@ export class DialogueSystem {
               gameState.modifyFaction('ulema', 20);
               gameState.modifyFaction('reaya', 20);
               questSystem.advanceObjective('quest_water_dispute', 1);
+
+              const currentDay = gameState.time?.dayCount || 1;
+              consequenceSystem.scheduleConsequence({
+                id: 'consequence_water_schedule',
+                dueDay: currentDay + 2,
+                title: 'Su Nöbeti Nizamı Oturdu',
+                desc: 'Molla Şemseddin ve Koca Yakub gözetiminde kurulan su nöbeti takvimi meyvesini verdi. Değirmen aksamadan çalıştı, tarlalar vaktinde sulandı.',
+                effects: [
+                  { type: 'modifyStat', stat: 'reayaTrust', value: 10 },
+                  { type: 'modifyStat', stat: 'akce', value: 100 }
+                ]
+              });
+
               return {
                 text: `"Allah adaletinden razı olsun Gazi Bey! Su sırayla salınacak, ne değirmen duracak ne ekin kuruyacak. İki taraf da razı oldu."`,
                 choices: [{ label: 'Hak yerini bulsun, dirlik daim olsun.', action: null }]
@@ -416,6 +430,19 @@ export class DialogueSystem {
                 gameState.modifyReayaTrust(25);
                 gameState.modifySquadLoyalty(10);
                 questSystem.advanceObjective('quest_water_dispute', 1);
+
+                const currentDay = gameState.time?.dayCount || 1;
+                consequenceSystem.scheduleConsequence({
+                  id: 'consequence_water_repaired',
+                  dueDay: currentDay + 2,
+                  title: 'Onarılan Su Bendi ve Bereket',
+                  desc: 'Sipahi Beyimizin ihsanıyla alınan tohumlar ekildi, köyün bendindeki taşlar elbirliğiyle temizlendi.',
+                  effects: [
+                    { type: 'modifyStat', stat: 'asayis', value: 10 },
+                    { type: 'modifyStat', stat: 'reayaTrust', value: 10 }
+                  ]
+                });
+
                 return {
                   text: `"Cömert ve âdil sipahimiz! Zararımız karşılandı, bendi elbirliğiyle onarırız."`,
                   choices: [{ label: 'Hayırlı işler ola.', action: null }]

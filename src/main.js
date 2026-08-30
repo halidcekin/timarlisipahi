@@ -15,6 +15,7 @@ import { petitionSystem } from './systems/PetitionSystem.js';
 import { evidenceSystem } from './systems/EvidenceSystem.js';
 import { codexSystem } from './systems/CodexSystem.js';
 import { historicalNewsSystem } from './systems/HistoricalNewsSystem.js';
+import { consequenceSystem } from './systems/ConsequenceSystem.js';
 import { BattlefieldScene } from './entities/BattlefieldScene.js';
 import { BattlefieldCinematics } from './systems/BattlefieldCinematics.js';
 import { soundManager } from './core/AudioManager.js';
@@ -371,6 +372,7 @@ export class Game {
         codexSystem.update(delta);
         if (gameState.time && gameState.time.dayCount) {
           historicalNewsSystem.checkDailyNews(gameState.time.dayCount);
+          consequenceSystem.checkDailyConsequences(gameState.time.dayCount);
         }
       } catch (err) {
         console.warn('Oyun mantığı döngü uyarısı:', err);

@@ -7,12 +7,14 @@ export const VillagerState = {
   WORKING: 'WORKING',
   EATING: 'EATING',
   WANDERING: 'WANDERING',
+  PRAYING: 'PRAYING',
   TALKING: 'TALKING'
 };
 
 /**
  * VillagerAI - Yüksek Kaliteli Yaşayan Köylü Yapay Zekası
  * - 24 Saatlik Gerçek Zamanlı Davranış Çizelgesi (Daily Routine Schedule)
+ * - V2-10 Standartları: Mescid & Toplumsal Hayat Ritmi (Zorlama/ceza yok, doğal akış)
  * - Duruma Özel Prosedürel Rig Animasyonları (Örs Dövme, Orak Sallama, Kupa İçme, Sedirde Uzanma)
  * - Dinamik A-Noktası B-Noktası Yürüyüş ve Yönelme Fiziği
  */
@@ -26,6 +28,7 @@ export class VillagerAI {
     this.workPos = this.config.workPos || new THREE.Vector3(npcData.position.x, 0, npcData.position.z);
     this.eatPos = this.config.eatPos || new THREE.Vector3(-10, 0, 24); // Han önü masalar
     this.socialPos = this.config.socialPos || new THREE.Vector3(0, 0, 6); // Köy meydanı
+    this.mosquePos = new THREE.Vector3(10, 0, 2); // Mescid avlusu
 
     this.workType = this.config.workType || 'farming'; // 'farming', 'smithing', 'well_water', 'woodcutting', 'guarding', 'innkeeping'
     this.currentState = VillagerState.WORKING;
@@ -80,7 +83,7 @@ export class VillagerAI {
   }
 
   /**
-   * 24 Saatlik Zaman Dilimine Göre Köylünün Davranışını Belirler
+   * 24 Saatlik Zaman Dilimine ve Dinî Hayat Ritimlerine Göre Davranış
    */
   evaluateSchedule(hour) {
     if (this.isLockedInDialogue) {
@@ -88,28 +91,49 @@ export class VillagerAI {
       return; // Oyuncuyla konuşuyor, yerinden kıpırdama
     }
 
-    // Gece Uyku Saati: 22:00 - 06:00
-    if (hour >= 22.0 || hour < 6.0) {
+    // Gece Uyku Saati: 22:00 - 05:00
+    if (hour >= 22.0 || hour < 5.0) {
       if (this.currentState !== VillagerState.SLEEPING) {
         this.currentState = VillagerState.SLEEPING;
         this.targetPos.copy(this.homePos);
       }
     }
-    // Öğle Yemeği & Mola: 12:30 - 14:00
-    else if (hour >= 12.5 && hour < 14.0) {
+    // Sabah Namazı ve Mescid Vakti: 05:00 - 06:15
+    else if (hour >= 5.0 && hour < 6.25) {
+      if (this.currentState !== VillagerState.PRAYING) {
+        this.currentState = VillagerState.PRAYING;
+        this.targetPos.copy(this.mosquePos);
+      }
+    }
+    // Öğle Ezanı ve Mescid: 12:00 - 12:45
+    else if (hour >= 12.0 && hour < 12.75) {
+      if (this.currentState !== VillagerState.PRAYING) {
+        this.currentState = VillagerState.PRAYING;
+        this.targetPos.copy(this.mosquePos);
+      }
+    }
+    // Öğle Yemeği & Han Önü Mola: 12:45 - 14:00
+    else if (hour >= 12.75 && hour < 14.0) {
       if (this.currentState !== VillagerState.EATING) {
         this.currentState = VillagerState.EATING;
         this.targetPos.copy(this.eatPos);
       }
     }
-    // Akşam Meydan Toplanması & Sosyalleşme: 18:30 - 22:00
-    else if (hour >= 18.5 && hour < 22.0) {
+    // Akşam Namazı & Mescid: 19:30 - 20:15
+    else if (hour >= 19.5 && hour < 20.25) {
+      if (this.currentState !== VillagerState.PRAYING) {
+        this.currentState = VillagerState.PRAYING;
+        this.targetPos.copy(this.mosquePos);
+      }
+    }
+    // Akşam Meydan Toplanması & Sosyalleşme: 20:15 - 22:00
+    else if (hour >= 20.25 && hour < 22.0) {
       if (this.currentState !== VillagerState.WANDERING && this.currentState !== VillagerState.EATING) {
         this.currentState = VillagerState.WANDERING;
         this.targetPos.copy(this.socialPos);
       }
     }
-    // Gündüz Mesaisi & Çalışma: 06:00 - 12:30 & 14:00 - 18:30
+    // Gündüz Mesaisi & Çalışma
     else {
       if (this.currentState !== VillagerState.WORKING) {
         this.currentState = VillagerState.WORKING;
