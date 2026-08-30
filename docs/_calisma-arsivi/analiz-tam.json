@@ -1,0 +1,854 @@
+{
+ "areas": {
+  "core": {
+   "summary": "Core alanı, oyunun kompozisyon kökü (src/main.js içindeki Game sınıfı) ile motor/altyapı singleton'larından oluşuyor: Engine (render + gökyüzü + ışık), GameState (tüm oyun verisi + zaman), InputManager, ParticleSystem, AudioManager (prosedürel Web Audio), SteamManager ve SaveManager. Oyun döngüsü sağlam kurulmuş ve updateTime aktif olarak kullanılıyor; ancak kayıt sistemi (SaveManager) hiçbir yerden çağrılmıyor, SoloGameState ile AssetLoader tamamen ölü kod ve yıl dönümü tarihi olay fonksiyonu (checkHistoricalEvents) sıralama hatası yüzünden asla çalışmıyor. Çiftbozan game-over ekranında 'undefined' açıklama gösterilmesi ve iki tanımsız ses metodunun (playNotification/playCoinJingle) sessizce yutulması en somut oyuncu-görünür hatalar. Zaman temposu çok yavaş (1 oyun günü ≈ 2.2 gerçek saat), bu da mevsim/yıl bazlı içeriği pratikte erişilmez kılıyor.",
+   "architecture": "VERİ AKIŞI VE ANA DÖNGÜ: Giriş noktası src/main.js — initGame() (main.js:355-367) DOMContentLoaded'da Game sınıfını kurar. Game constructor'ı (main.js:22-79) sırasıyla Engine, InputManager, ParticleSystem, TownGenerator, Player, NPCManager, CombatSystem, ArcherySystem ve UIManager'ı kompoze eder; ayrıca gameState, questSystem, petitionSystem, soundManager, steamManager singleton'larını (her biri kendi dosyasının sonunda 'export const x = new X()' kalıbıyla üretilir) import eder. startLoop (main.js:242-319) requestAnimationFrame tabanlı tek döngüdür; delta 0.1 sn'ye clamp'lenir (main.js:248) ve her karede şu sıra çalışır: (1) gameState.updateTime(delta) — zaman ilerletme (GameState.js:212), (2) engine.updateDayNight(saat, oyuncuPozisyonu) — güneş/ay yörüngesi, gölge kamerası takibi, color grading (Engine.js:297-378), (3) particles.update — 180 duman + 80 kıvılcım + 120 köz parçacığı iterasyonu ve 3 GPU buffer upload'u (ParticleSystem.js:226-337), (4) town.update, (5) player.update, (6) npcManager.update(delta, pos, saat, particles), (7) combat.update, (8) archery.update, (9) ui.update — her kare DOM güncellemesi (UIManager.js:1131), (10) updateStoryGuidance — düşük can uyarısı + 100 sn'de bir görev hatırlatma (main.js:215-240), (11) updateInteractionPrompts — her kare getNearbyNPC mesafe taraması + prompt DOM yazımı (main.js:321-351), (12) petitionSystem.update. Tüm oyun mantığı tek try/catch içinde (main.js:251-306) — bir sistem sürekli hata fırlatırsa oyun render etmeye devam eder ama console her karede warn ile dolar. ZAMAN SİSTEMİ: gameState.time.dayTimeHours her karede delta*daySpeed (0.003) kadar artar (GameState.js:213) → 1 oyun saati ≈ 333 gerçek saniye (5.6 dk), 1 oyun günü ≈ 2.2 gerçek saat. 24 saati geçince dayCount/daysPassed artar, Ali'nin yara mühleti işler (GameState.js:220-227), her 10 günde advanceSeason (GameState.js:229-232), 4 mevsimde yıl artar ve checkHistoricalEvents çağrılır (GameState.js:263-268). dayTimeHours değeri Engine.updateDayNight (gökyüzü/ışık) ve NPCManager.update (24 saatlik köylü rutini) tarafından tüketilir — zaman sistemi gerçekten oyunun kalbinde. RENDER HATTI: Engine (Engine.js:61-102) antialias'sız WebGLRenderer + PCFSoft 4096x4096 gölge haritası + ACES tone mapping kurar; post-processing zinciri RenderPass → SSAO → UnrealBloom → ColorGrading (özel shader, Engine.js:14-52) → SMAA → OutputPass (Engine.js:196-228). Gökyüzü 512x512 canvas gradyanından CanvasTexture olarak üretilir ve PMREM ile IBL environment'a dönüştürülür (Engine.js:173-194, 230-292); saat 0.15 oyun-saati değişince (≈50 gerçek saniyede bir) yeniden üretilir (Engine.js:370-373). 6 adet titreyen PointLight gece/gündüz çarpanıyla her kare güncellenir (Engine.js:380-396). GİRDİ: InputManager (InputManager.js) klavye callback'lerini (E/Q/R/F/V/TAB/J/M) window keydown'da doğrudan tetikler, fare olayları pointer-lock'a bağlıdır; Game.bindInputs (main.js:135-213) bu callback'leri Player/ArcherySystem/UIManager'a köprüler. SES: AudioManager (AudioManager.js) tamamen prosedürel Web Audio — pembe gürültü rüzgarı + bandpass filtre, setInterval ile kuş cıvıltısı, osilatör tabanlı toynak/kılıç/kös/fanfar sesleri; init() ilk kullanıcı tıklamasında çağrılır (main.js:119). KAYIT: SaveManager (SaveManager.js) IndexedDB 'MulkIOsmaniDB' + localStorage yedeği ile 4 slot tasarlanmış ama HİÇBİR YERDEN import edilmiyor — oyunda kayıt/yükleme fiilen yok. STEAM: SteamManager window.steamworks varsa Electron köprüsüne bağlanır, yoksa simülasyon modunda çalışır; unlockAchievement DOM tabanlı altın çerçeveli banner gösterir (SteamManager.js:68-118). Tüm çapraz çağrılar grep ile doğrulandı: questSystem.syncWithGameState/getActiveQuest/serializeQuests/deserializeQuests (QuestSystem.js:536/407/563/572), petitionSystem.update (PetitionSystem.js:56), UIManager metotları (setFastTravelHandler 149, openDialogue 387, toggleTimarModal 447 vb.), TownGenerator.getTerrainHeight (TownGenerator.js:26), Player/NPCManager/CombatSystem/ArcherySystem metotlarının tamamı karşı tarafta tanımlı ve imzalar uyumlu.",
+   "bugs": [
+    {
+     "where": "src/core/GameState.js:190-197 + src/ui/UIManager.js:1234",
+     "what": "checkCiftbozan() failState nesnesine 'desc' alanı yazmıyor (uzun açıklama metnini 'reason' alanına koyuyor), ama game-over overlay'i gameState.failState.desc'i ekrana basıyor. Reaya güveni 15'in altına düşüp Çiftbozan yenilgisi tetiklendiğinde oyuncu ekranda başlığın altında 'undefined' yazısını görür. Diğer iki fail-state (triggerAliDeathAndStoning GameState.js:236, triggerMartyrdom GameState.js:247) reason=kısa kod + desc=uzun metin şemasını kullanırken checkCiftbozan farklı şema kullanıyor — tutarsızlık kök neden.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/core/GameState.js:263-268",
+     "what": "advanceSeason() içinde önce this.time.year++ yapılıp SONRA checkHistoricalEvents() çağrılıyor; checkHistoricalEvents'in tek koşulu 'if (this.time.year === 1396)' olduğundan (yıl artınca 1397 olur) bu blok asla çalışamaz. Yıl dönümünde yeni ferman/tarihi olay hiç gelmez — fonksiyon fiilen ölü kod, uzun vadeli oyun hedefi üretilmiyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/core/AudioManager.js (tanımsız metotlar) — çağrılar: src/systems/PetitionSystem.js:81,100,158 + src/ui/UIManager.js:676",
+     "what": "soundManager.playNotification() ve soundManager.playCoinJingle() AudioManager'da TANIMLI DEĞİL (sınıf yalnızca init, toggleMute, startAmbient, playBirdChirp, playFootstep, playHorseHoof, playSwordSwing, playSwordClash, playWarDrum, playVictoryJingle içeriyor). Tüm çağrılar try/catch içinde olduğundan çökme olmaz ama arzuhal geldiğinde, ulak koştuğunda, inşaat başladığında ve kadı kararında beklenen sesli geri bildirim sessizce hiç çalmaz.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/core/SaveManager.js:208 (hiç import edilmiyor)",
+     "what": "saveManager singleton'ı hiçbir dosyadan import edilmiyor; saveGame/loadGame/listSaves oyunun hiçbir yerinden çağrılmıyor (grep tüm src/ altında yalnızca SaveManager.js içinde eşleşiyor). Kayıt sistemi tamamen bağlantısız — 2.2 saatlik oyun günü temposuyla birleşince oyuncu ilerlemesi her sayfa yenilemede kaybolur. Ayrıca bağlansa bile serializeState (SaveManager.js:41-57) aliStatus, activeCampaign ve currentPetition alanlarını serialize etmiyor — Ali'nin bacak mühleti ve kampanya durumu kayda girmezdi.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/systems/QuestSystem.js:504 + src/core/SteamManager.js:12-21",
+     "what": "unlockAchievement('ACH_FIRST_PATROL') çağrılıyor ama bu ID SteamManager'ın achievements sözlüğünde tanımlı değil (tanımlılar: ACH_FIRST_INSPECT, ACH_BLACKSMITH, ACH_CASTLE_DISCOVERY, ACH_BANDIT_SLAYER, ACH_NIGBOLU_VICTORY, ACH_FIRST_CEBELU, ACH_HORSE_MASTER, ACH_WEALTHY_SIPAHI). unlockAchievement 'if (!ach) return;' (SteamManager.js:47) ile sessizce döner — ilk görev tamamlandığında başarım banner'ı asla görünmez.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/core/GameState.js:261",
+     "what": "advanceSeason her mevsim değişiminde (10 oyun gününde bir) taxCollectedThisYear = false yapıyor; TimarSystem.js:11 bu bayrağı 'yıllık vergi toplandı mı' kontrolü olarak kullanıyor. Sonuç: 'yıllık' vergi her mevsim yeniden toplanabiliyor — yılda 4 kez vergi geliri, ekonomi dengesini bozuyor ve alan adıyla (ThisYear) çelişiyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/core/AudioManager.js:39-40 + 26-36",
+     "what": "Kullanıcı start ekranında sesi kapatır (init öncesi toggleMute → sadece isMuted=true olur), sonra oyuna başlarsa: init() → startAmbient() 'if (!this.ctx || this.isMuted) return' ile erken döner ve bir daha ASLA çağrılmaz; sonradan unmute yalnızca ctx.resume() yapar. Rüzgar ambiyansı ve kuş cıvıltıları o oturum boyunca kalıcı olarak sessiz kalır.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/core/InputManager.js:72-77",
+     "what": "mousemove handler'ında movementX/movementY '=' ile üzerine yazılıyor, '+=' ile biriktirilmiyor. Bir render karesi içinde birden fazla mousemove olayı gelirse (yüksek polling-rate fareler, düşük FPS) aradaki hareket verisi kaybolur — kamera dönüşü tutarsız ve fare hassasiyeti FPS'e bağımlı hale gelir. getMouseDelta (InputManager.js:109-117) zaten okuma sonrası sıfırladığı için birikimli yazım güvenli olurdu.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/core/InputManager.js:35-56",
+     "what": "Klavye kısayolları (E/Q/R/F/V/TAB/J/M) pointer-lock durumuna veya 'oyun başladı mı' bayrağına bakmadan window keydown'da doğrudan tetikleniyor. Start ekranındayken F ile ata binilebilir, TAB ile tımar defteri açılabilir; game-over overlay'i görünürken de tüm kısayollar çalışmaya devam eder.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/core/ParticleSystem.js:251 ve 310",
+     "what": "Parçacık doğum olasılıkları frame başına sabit (Math.random() < 0.18 duman, < 0.12 köz) ve delta ile ölçeklenmemiş — duman/köz yoğunluğu FPS'e bağımlı: 144 Hz monitörde 60 Hz'e göre ~2.4 kat daha yoğun ve hızlı tükenen parçacık akışı oluşur.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/core/ParticleSystem.js:49-57 ve 71",
+     "what": "opacities Float32Array'i oluşturuluyor ama hiçbir geometry attribute'una bağlanmıyor (ölü değişken); 'size' attribute'u geometry'ye ekleniyor ama THREE.PointsMaterial per-particle size desteklemez (ShaderMaterial gerekir) — her ikisi de etkisiz kod.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/core/Engine.js:370-373",
+     "what": "Gökyüzü canvas'ı + PMREM environment yeniden üretimi her 0.15 oyun saatinde bir tetikleniyor; daySpeed 0.003 ile bu ≈ her 50 gerçek saniyede bir demek. pmremGenerator.fromEquirectangular GPU'da pahalı bir prefilter işlemi — periyodik frame hitch (takılma) üretir. (Eski RenderTarget'ın dispose edilmesi doğru yapılmış, bellek sızıntısı yok.)",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/core/Engine.js:319-321",
+     "what": "updateDayNight her karede composer.passes.find(p => p instanceof UnrealBloomPass) ile pass arıyor; bloomPass referansı constructor'da bir kez saklanabilirdi. Her kare gereksiz dizi taraması.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/core/Engine.js:142-144",
+     "what": "fillLight (0.30 şiddetinde mavi dolgu ışığı) gece/gündüz döngüsünde hiç güncellenmiyor — gece bile sahneyi aynı şiddette aydınlatmaya devam ediyor, gece karanlığı hedeflenen kadar koyu olmuyor.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/main.js:1 ve 11",
+     "what": "main.js'te 'import * as THREE' ve 'import { DialogueSystem }' satırları var ama dosyada ikisi de hiç kullanılmıyor — ölü import.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/main.js:70 + 244",
+     "what": "isRunning bayrağı constructor'da true yapılıyor ve döngü başında kontrol ediliyor ama kod tabanında hiçbir yer onu false yapmıyor — oyun döngüsü durdurulamaz; game-over overlay'i açıkken bile tüm simülasyon (NPC AI, combat, parçacıklar) tam hızda çalışmaya devam eder.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/core/GameState.js:12 + 117 + 216-217",
+     "what": "daysPassed ve time.dayCount aynı şeyi sayan iki ayrı sayaç; updateTime'da ikisi birden artırılıyor. Çift muhasebe — ileride birinin güncellenmesi unutulursa tutarsızlık üretir.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/core/SaveManager.js:20-36 + 159-205",
+     "what": "getDB() her çağrıda yeni IndexedDB bağlantısı açıyor ve db.close() hiç çağrılmıyor; listSaves 4 slot için döngüde 4 ayrı bağlantı açıyor. Bağlantı sızıntısı (SaveManager şu an kullanılmadığı için pratik etkisi yok ama bağlanırsa sorun olur).",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/core/AudioManager.js:79-90",
+     "what": "startAmbient içindeki iki setInterval (rüzgar LFO 4 sn, kuş cıvıltısı 6 sn) hiçbir değişkende saklanmıyor ve asla clearInterval edilmiyor — AudioManager yeniden başlatılamaz, interval'lar sayfa ömrü boyunca çalışır.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/core/SoloGameState.js (dosyanın tamamı, 257 satır)",
+     "what": "SoloGameState tamamen ölü kod: hiçbir dosyadan import edilmiyor (grep doğrulandı) ve içeriği bu oyunla alakasız — 'Solo Leveling' temalı (E-A avcı rankları, mana, gölge ordusu, zindan portalları, hançer mağazası). Başka bir projeden kalmış; bundle boyutunu şişiriyor ve kod tabanını kirletiyor.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/core/AssetLoader.js (dosyanın tamamı, 70 satır)",
+     "what": "AssetLoader/assetLoader hiçbir dosyadan import edilmiyor (grep doğrulandı) — oyun tüm modelleri prosedürel üretiyor (ModelBuilder/TownGenerator). GLTFLoader importu bundle'a gereksiz yük ekliyor. Ölü kod.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/core/SteamManager.js:12-21 (tetiklenmeyen başarımlar)",
+     "what": "Tanımlı 8 başarımdan yalnızca 2'si gerçekten tetikleniyor (ACH_HORSE_MASTER main.js:167, ACH_FIRST_CEBELU TimarSystem.js:55). ACH_FIRST_INSPECT, ACH_BLACKSMITH, ACH_CASTLE_DISCOVERY, ACH_BANDIT_SLAYER, ACH_NIGBOLU_VICTORY, ACH_WEALTHY_SIPAHI hiçbir yerden çağrılmıyor; saveToCloud/loadFromCloud da hiç kullanılmıyor; setRichPresence yalnızca oyun açılışında bir kez çağrılıyor (main.js:77).",
+     "severity": "düşük"
+    }
+   ],
+   "engagement": [
+    "Kayıt/yükleme fiilen yok: SaveManager hazır ama hiçbir UI veya sisteme bağlanmamış (src/core/SaveManager.js hiç import edilmiyor). 1 oyun günü ≈ 2.2 gerçek saat sürerken oyuncunun tüm ilerlemesi sekme kapanınca siliniyor — en büyük bağlılık kırıcı.",
+    "Zaman temposu aşırı yavaş (GameState.js:116, daySpeed=0.003): 1 oyun saati ≈ 5.6 gerçek dakika. Ali'nin 3 günlük yara mühleti ≈ 6.7 saat kesintisiz oynanış, bir mevsim ≈ 22 saat, bir yıl ≈ 89 saat gerektiriyor. Mevsim ve yıl bazlı tüm içerik (vergi döngüsü, yeni yıl fermanları) pratikte erişilmez; gece-gündüz döngüsünü tam görmek bile 2 saat sürüyor.",
+    "Uzun vadeli hedef akışı kopuk: checkHistoricalEvents sıralama hatası yüzünden asla çalışmadığından (GameState.js:263-268) ilk görev zinciri bitince oyuncuya yeni tarihi olay/ferman gelmiyor — 'Sultanın yeni fermanını bekle' mesajı sonsuza dek asılı kalıyor.",
+    "Kritik anlarda sesli geri bildirim eksik: arzuhal geldiğinde, ulak koştuğunda ve inşaat başladığında çalması amaçlanan playNotification/playCoinJingle tanımsız olduğundan bu anlar tamamen sessiz (PetitionSystem.js:81,100,158) — oyuncu TAB menüsüne bakmayı akıl etmezse arzuhal mekaniğini kaçırır (60 sn sonraki ulak bildirimi tek yazılı uyarı).",
+    "Başarım sisteminin %75'i çalışmıyor: 8 tanımlı Steam başarımından 6'sı hiçbir olaya bağlanmamış + 1 tanımsız ID çağrılıyor (ACH_FIRST_PATROL, QuestSystem.js:504). Görev tamamlama/keşif anlarındaki ödül hissi (banner pop-up) büyük ölçüde kayıp.",
+    "Game-over sonrası simülasyon durmuyor (main.js:70 isRunning hiç false olmuyor): fail overlay açıkken NPC'ler, savaş ve zaman akmaya devam ediyor; InputManager kısayolları da (InputManager.js:35-56) start ekranı ve overlay'lerde aktif — oyuncu start ekranındayken F'ye basıp görünmez ata binebilir.",
+    "Bildirim kuyruğu 5 ile sınırlı ve eskiler shift ile atılıyor (GameState.js:207-209): yoğun olay anlarında (savaş + görev + arzuhal) mesajlar okunamadan kaybolabilir; bildirim geçmişi/log ekranı yok.",
+    "PMREM gökyüzü yenilemesi ≈ 50 saniyede bir frame hitch üretiyor (Engine.js:370-373) — özellikle şafak/gün batımı geçişlerinde düzenli mikro takılma hissi.",
+    "Fare hassasiyeti FPS'e bağımlı (InputManager.js:72-77, mousemove birikimsiz) — yüksek polling-rate farelerde nişan alma/kamera kontrolü tutarsız hissettirir; okçuluk sistemi için özellikle kritik.",
+    "Story-guidance hatırlatması 100 saniyede bir tek tip mesaj (main.js:227-239) — iyi bir iskelet ama tek cümle kalıbı tekrar hissi yaratır; mesafe 35m altındaysa hiçbir yönlendirme yok."
+   ],
+   "contentInventory": "CORE ALANINDAKİ MEVCUT METİN/TARİH/DİN/MİZAH İÇERİĞİ: (1) TARİHİ ÇERÇEVE — GameState.js tamamen 1396 Niğbolu dönemine kurulu: Miladi 1396 / Hicri 798 çift takvim (GameState.js:111-112), Yıldırım Bayezid ve Kral Sigismund'lu Niğbolu Haçlı Seferi fermanı metni (GameState.js:129-139 ve 271-285), 'her 3000 akçe için 1 cebelü' tarihi tımar kanunu yorumu (GameState.js:94), gerçek sancak adları (Hüdavendigâr/Bursa, Karesi/Balıkesir, Germiyan/Kütahya, Sultanönü/Eskişehir — GameState.js:25-30) ve tarihi aile göndermeli prosedürel sipahi isimleri (Evrenosoğlu Yahşi Bey, Timurtaşzade Ali Bey, Balaban Gazi — GameState.js:16-23). Çiftbozan (toprağı terk eden reaya) kavramı fail-state olarak kullanılmış (GameState.js:190-197) — dönem hukukuna sadık, öğretici bir mekanik. (2) DİNİ İÇERİK — hafif ve dolaylı: İmam 'Molla Şemseddin' ilişki puanı ve 'Bilge & Adil' nitelemesi (GameState.js:144), ulema fraksiyonu 'Kadı & Din Alimleri (Hukuk, Adalet, Meşruiyet)' (GameState.js:64), şehitlik fail-state'inde 'gazâ' ve 'şehadet şerbetini içtin' söylemi (GameState.js:247-255). Namaz vakti, ezan, cuma, Ramazan gibi dönem yaşantısı unsurları core'da YOK — hicri takvim alanı var ama hiçbir yerde işlenmiyor. (3) DİYALOG/BİLDİRİM METİNLERİ — main.js bildirimleri: karşılama ('Tımar toprağınıza ayak bastınız', main.js:123), düşük can tavsiyesi ('Hamama gidip kese köpük yaptır veya Attar Mehmet'ten merhem al', main.js:221), görev hatırlatma kalıbı (main.js:234); NPC durum etiketleri '(Uyuyor 💤)', '(Çalışıyor ⚒️)' (main.js:326-331). GameState bildirimleri: Ali'nin yara mühleti uyarıları, taşlanma linci metni ('Ahali konağı bastı'), yeni yıl duyurusu. (4) MİZAH — düşük yoğunlukta ama tonu tutturulmuş: 'kese köpük yaptır' hamam esprisi (main.js:221) core'daki tek belirgin mizah; başarım adları edebi-nükteli ('Rüzgâr Kanatlı', 'Çelik Bilek', 'Mülk Sahibi' — SteamManager.js:12-21). (5) SES ATMOSFERİ — AudioManager tamamen prosedürel: pembe gürültü rüzgarı, kuş cıvıltısı, at toynağı, kılıç şakırtısı, kös davulu ('Dönem Fermanı / Savaş Çağrısı' yorumuyla, AudioManager.js:211) ve zafer fanfarı; dönem müziği (mehter makamı, ney vb.) yok. (6) ÖLÜ İÇERİK — SoloGameState.js'teki tüm metinler ('Eğri Avcı Hançeri', gölge ordusu, E-A rankları) başka bir oyundan kalma ve hiçbir yerden erişilmiyor.",
+   "hooks": [
+    "GameState.checkHistoricalEvents (GameState.js:271-285): şu an ölü olan bu fonksiyon, sıralama bugı düzeltilince yıl bazlı tarihi olay takvimi için hazır iskelet — 1397 Atina/Mora akınları, 1398 Karamanoğlu seferi, 1400-1402 Timur tehdidi ve Ankara Savaşı'na uzanan alternatif tarih zinciri buraya eklenebilir (her yıl bir ferman + kampanya nesnesi).",
+    "GameState.updateTime gün-dönümü bloğu (GameState.js:214-233): günde bir kez çalışan tek nokta — günlük rastgele köy olayları, cuma günü kontrolü (hijriYear alanı zaten var, hicri gün sayacı eklenerek cuma namazı/bayram olayları üretilebilir) ve sabah duyuruları için doğal kanca.",
+    "GameState.advanceSeason (GameState.js:257-269): mevsim değişimi anı — hasat şenliği (Güz), Ramazan/bayram (hicri takvimle), kış kıtlığı/odun stoku olayları ve mevsimlik mizahi bildirimler ('Reaya yaylaya çıktı, kimseyi bulamazsın beyim') için hazır tetik noktası.",
+    "AudioManager (AudioManager.js): playNotification ve playCoinJingle çağrıları zaten kodda bekliyor (PetitionSystem.js:81,100,158; UIManager.js:676) — sadece iki kısa osilatör metodu yazmak yeterli. Aynı prosedürel kalıpla ezan (5 vakit, dayTimeHours zaten Engine'e akıyor), mehter ritmi (playWarDrum'un genişletilmesi) ve han/çarşı uğultusu eklenebilir.",
+    "main.js updateStoryGuidance (main.js:215-240): düşük can + görev hatırlatma iskeleti mevcut — gece uyarısı ('Gece vakti haramiler cesaretlenir'), namaz vakti hatırlatması, açlık/yorgunluk esprileri gibi bağlama duyarlı dönemsel/mizahi ipuçları için en kolay genişleme noktası (dayTimeHours ve gameState'e zaten erişimi var).",
+    "SteamManager başarım sözlüğü (SteamManager.js:12-21): 6 tanımlı-ama-bağlanmamış başarım hazır içerik — ilgili sistemlere tek satırlık unlockAchievement çağrıları eklemek yeterli (ör. ACH_BLACKSMITH → DialogueSystem demirci diyaloğuna, ACH_WEALTHY_SIPAHI → akçe 2500'ü geçince updateTime'a).",
+    "steamManager.setRichPresence (main.js:77): yalnızca açılışta bir kez çağrılıyor — durum bazlı güncelleme ('Niğbolu Seferinde', 'Hamamda Keselenirken', 'Kadı Huzurunda') hem Steam arkadaş listesinde reklam hem mizah taşıyıcısı olur.",
+    "GameState isim havuzları (GameState.js:16-30): sipahiNames ve timarNames dizileri tek satırla genişletilebilir — tarihi isimler + mizahi lakaplar ('Pilavyiyen Mustafa Ağa' tarzı) eklemek için sıfır riskli içerik noktası.",
+    "main.js updateInteractionPrompts NPC durum etiketleri (main.js:326-331): SLEEPING/WORKING/EATING/WANDERING switch'ine yeni AI durumları ve mizahi açıklamalar eklenebilir ('(Kaytarıyor 🐌)', '(Dedikodu Yapıyor 🗣️)').",
+    "ParticleSystem.smokeEmitters listesi (ParticleSystem.js:33-40): yeni yapılar (hamam külhanı, fırın, mescid kandili) için tek Vector3 eklemeyle atmosfer genişletme noktası.",
+    "SaveManager (SaveManager.js): 4 slotlu altyapı tamamen hazır — UIManager'a bir kayıt menüsü + updateTime gün-dönümüne otomatik saveGame('auto') eklemek kayıt sistemini bir günde canlandırır; serializeState'e aliStatus/activeCampaign eklenmesi şart.",
+    "GameState.aliStatus mekaniği (GameState.js:121-127, 220-227): 'bacağını feda eden cebelü' hikayesi güçlü bir duygusal çekirdek — Ali'yi kurtarma yolunda cerrah/attar/imam diyalog zinciri, dua ve tıp (dönem hekimliği: dağlama, sülük) içeriği için doğal kanca; taşlanma fail-state metni zaten yazılmış."
+   ],
+   "techDebt": [
+    "SoloGameState.js (257 satır) ve AssetLoader.js (70 satır) tamamen ölü kod — hiçbir yerden import edilmiyor; SoloGameState üstelik başka bir oyunun (Solo Leveling) kalıntısı. Silinmeleri bundle'ı küçültür ve kafa karışıklığını önler.",
+    "SaveManager yazılmış ama hiç bağlanmamış — 'yarım bırakılmış özellik' borcu: ya UI'a bağlanmalı ya kaldırılmalı. Bağlanacaksa serializeState'teki eksik alanlar (aliStatus, activeCampaign, currentPetition) ve getDB bağlantı sızıntısı (her çağrıda yeni bağlantı, close yok) giderilmeli.",
+    "GameState'te failState şeması tutarsız: checkCiftbozan reason'a uzun metin yazarken diğer iki tetikleyici reason=kod + desc=metin kullanıyor — tek şemaya (reason kodu + desc metni) normalize edilmeli.",
+    "daysPassed ve time.dayCount çift sayaç (GameState.js:12/117) — biri kaldırılıp diğerine alias yapılmalı.",
+    "gameState.hasPendingMessenger alanı GameState.reset()'te tanımlanmıyor, PetitionSystem dinamik ekliyor (PetitionSystem.js:80) — 'Yeni Tımar' randomize butonuyla reset yapılınca bayat bayrak kalabilir; reset()'e eklenmeli.",
+    "main.js oyun döngüsündeki tek dev try/catch (main.js:251-306) hataları her karede console.warn ile yutuyor — sistem bazlı hata izolasyonu veya bir kez raporlama mekanizması yok; kalıcı bir hata console'u spam'ler ve fark edilmez.",
+    "Engine.updateDayNight her karede composer.passes.find ile bloom pass arıyor (Engine.js:320) — constructor'da referans saklanmalı; SMAAPass/SSAOPass referansları da benzer şekilde tutulmuyor.",
+    "InputManager klavye kısayollarında oyun-durumu (menü açık / start ekranı / game-over) farkındalığı yok — merkezi bir 'input context' katmanı borcu; her yeni modal eklendiğinde çakışma riski büyüyecek.",
+    "AudioManager setInterval'ları temizlenemiyor ve startAmbient tek seferlik — ambient yaşam döngüsü (start/stop) API'si yok; mute/unmute akışındaki kalıcı sessizlik bugının kök nedeni bu eksik yapı.",
+    "ParticleSystem'de kullanılmayan 'size'/'opacities' attribute hazırlıkları (ParticleSystem.js:49-71) ya ShaderMaterial'a geçilerek işlevlendirilmeli ya silinmeli; parçacık doğum oranları delta-bazlı hale getirilmeli.",
+    "SteamManager.appId = 480 (Spacewar test ID'si) — yayın öncesi gerçek AppID gerektiği kod yorumunda kabul edilmiş ama yapılandırılabilir değil, hard-coded.",
+    "main.js:1 ve 11'deki kullanılmayan THREE ve DialogueSystem importları temizlenmeli."
+   ]
+  },
+  "entities": {
+   "summary": "entities/ katmanı oyunun tüm dünyasını üretiyor: ModelBuilder (1851 satır) Three.js primitiflerinden prosedürel Osmanlı mimarisi ve karakterleri kuruyor, TownGenerator 550x550'lik Akçaoba köyünü tek seferde inşa ediyor, NPCManager ~24 isimli köylü + 3 harami yaratıp her birine VillagerAI ile 24 saatlik rutin bağlıyor, Player ise FPS tarzı hareket/at binme/4'lü kılıç kombosu sunuyor. Sistem genel olarak çalışıyor ancak 24 saat rutininin \"eve dönüp uyuma\" ayağı kırık (uyku saatinde köylü olduğu yerde yere yatıyor, sabah da yatar pozisyonda kayarak işe gidiyor), kılıç kını görsel olarak hiç çalışmıyor ve 4 NPC'nin diyalog ID'si tanımsız olduğu için konuşulamıyor. En kritik bulgu: Köy kethüdası \"Koca Yakub\" için public/models/stanlee3d.obj adlı, Tripo AI ile üretilmiş gerçek bir Stan Lee 3D modeli kullanılıyor — ticari sürüm (SteamManager mevcut) için ciddi kişilik hakkı/telif riski.",
+   "architecture": "VERİ AKIŞI (main.js merkezli): main.js:27-52'de kuruluş sırası Engine → ParticleSystem → TownGenerator → Player → NPCManager → CombatSystem → ArcherySystem → UIManager. Oyun döngüsü main.js:245-315: gameState.updateTime(delta) → engine.updateDayNight(saat) → particles.update → town.update (yalnız yeldeğirmeni kanadı, TownGenerator.js:887-894) → player.update → npcManager.update(delta, playerPos, gameState.time.dayTimeHours, particles).\n\nDÜNYA ÜRETİMİ: TownGenerator.generateTown() (TownGenerator.js:43-94) 14 adımda köyü kurar: zemin+nehir+dağlar (99-167), merkez meydan/mescid/hazire (172-208), sipahi konağı+at+talimgâh (213-280), demirci+köprü (285-311), çarşı+han+giriş kapısı (316-383), yeldeğirmeni+buğday tarlası (388-425), 12 Safranbolu evi (430-460), hamam (466-547), kale+taş yol+ok poligonu (552-699), harami kampı (724-751), 150 çam (753-767), koyun/tavuk (769-808), kırılabilir fıçı/balya (811-866), sedir yataklar (868-885). Üretilen colliders dizisi Player'a constructor'da geçer (main.js:38); damageables/archeryTargets CombatSystem ve ArcherySystem tarafından this.town üzerinden okunur. generateTown()'un return objesi (86-93) main.js:35'te kullanılmıyor — alanlar doğrudan this.town'dan okunuyor.\n\nMODEL ÜRETİMİ: ModelBuilder her çağrıda THREE.Group içine Box/Cylinder/Sphere/Cone primitifleri dizerek model kurar; materyaller constructor'da (ModelBuilder.js:10-101) TextureGenerator'ın canvas tabanlı, statik cache'li (TextureGenerator.js:8) dokularıyla oluşturulur. createDetailedHumanNPC (722-862) 5 parmaklı el (createAnatomicalHand, 213-278) ve heykelsi kafa (createSculptedHead, 281-392) içerir. createFirstPersonSword (105-206) kamera altına eklenen kol+kılıç rigidir; userData.sword ile Player.updateWeaponAnimation animasyon uygular.\n\nNPC YAŞAM DÖNGÜSÜ: NPCManager.initNPCs (NPCManager.js:29-374) her NPC için createHumanNPC → prosedürel model + isteğe bağlı OBJ/MTL/FBX yükleyici (394-562; yüklenen Tripo AI modeli placeholder'ın çocuklarını silip yerine oturur, 1.85m'ye otomatik ölçeklenir) → attachVillagerAI (376-380) ile VillagerAI bağlanır. VillagerAI.update (VillagerAI.js:128-293): evaluateSchedule(hour) saat dilimine göre durum seçer (22-06 SLEEPING, 12:30-14 EATING, 18:30-22 WANDERING, kalan WORKING; 85-119) → hedefe düz çizgi yürüyüş (164-184, collision YOK) → varınca duruma özel prosedürel animasyon: uyku yatışı (194-201), kupa içme (206-218), örs dövme + emitBlacksmithSparks kıvılcımı (228-239, ParticleSystem.js:138'de doğrulandı), orak biçme (240-247), kuyudan su çekme (248-253). Diyalog kilidi UIManager.js:392/397'den setTalking ile kurulur.\n\nOYUNCU: Player.update (Player.js:166-298) yaw/pitch fare bakışı, WASD + yaw'a göre dünya vektörü, AABB collider testi (checkCollision, 300-313, eksen ayrık kayma), yerçekimi+zıplama (247-264, sabit göz hizası 1.75/at üstünde 3.20 — zemin yüksekliği hiç sorgulanmaz), at binme (toggleHorseMount, 81-102; binince at pozisyonu oyuncuya kilitlenir 266-268), 1./3. şahıs kamera (271-297), 4 aşamalı kombo kılıç animasyonu (updateWeaponAnimation, 316-423) ve stamina regen-delay sistemi. Saldırı akışı: main.js:138 input → player.triggerAttack() true dönerse combat.processPlayerAttack() (CombatSystem.js:171'de doğrulandı).\n\nOBJ MODELLER (public/models): stanlee3d.obj (29MB) → Kethüda Koca Yakub (NPCManager.js:43); demirci.obj (24MB, md5 ile doğrulandı: traditional+dancer+3d+model.obj'nin bayt-bayt kopyası) → Demirci Rüstem (NPCManager.js:86); saka.obj (23MB, traditional+clothing+3d+model.obj kopyası) → Saka İbrahim (NPCManager.js:189). Üç MTL de \"tripo_material_*\" adlı materyaller içeriyor → Tripo AI (tripo3d.ai) üretimi. Flying.fbx (10.6MB) hiçbir config'de fbxPath verilmediği için hiç yüklenmiyor. gobekli_extracted/ ve stanlee_extracted/ klasörleri aynı dosyaların üçüncü kopyaları (~130MB toplam models klasörü).",
+   "bugs": [
+    {
+     "where": "src/entities/VillagerAI.js:162",
+     "what": "isMoving hesabı 'currentState !== SLEEPING' şartı içerdiği için köylü uyku saatinde (22:00) EVİNE HİÇ YÜRÜMEZ; targetPos homePos'a ayarlanır (93-96) ama yürüme dalı atlanır ve NPC o an nerede duruyorsa orada yere yatıp uyur (meydanın ortası dahil). 24 saat rutininin 'eve dönüş' ayağı fiilen çalışmıyor.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/entities/VillagerAI.js:164-184",
+     "what": "Yürüme dalında mesh.rotation.x hiç sıfırlanmıyor. Sabah 06:00'da uyanan köylü (rotation.x = -PI/2, yatar pozisyon) işe yürürken tüm yol boyunca YERE PARALEL YATARAK kayar; ancak hedefe varınca WORKING case'i (224) rotation.x'i geri lerpler.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/entities/Player.js:273",
+     "what": "Birinci şahıs modunda her frame 'this.weaponRig.visible = true' atanıyor. Bu, toggleWeapon'daki kına sokma görünürlüğünü (57) VE ArcherySystem.toggleBowMode'un rig gizlemesini (ArcherySystem.js:46) her karede eziyor: Q ile kılıç kına sokulunca da, yay modundayken de kılıç+kol rigi ekranda kalıyor (yay ve kılıç aynı anda görünür).",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/entities/NPCManager.js:193 ve 313",
+     "what": "'saka_talk' ve 'guard_talk' dialogueId'leri DialogueSystem.js'de tanımlı değil (grep ile doğrulandı; alias listesinde de yok). UIManager.openDialogue 'if (!data) return' (UIManager.js:389-390) ile sessizce çıktığı için Saka İbrahim ve 3 kale nöbetçisiyle E'ye basınca hiçbir şey olmuyor — oyuncuya sıfır geri bildirim.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/entities/TownGenerator.js:682",
+     "what": "Kale yolu meşaleleri hiç oluşmuyor: x döngüsü 25'ten 2'şer artar (hep TEK sayı), 'Math.floor(x) % 22 === 0' tek sayı için asla doğru olamaz (22 çift). 125 metrelik kale yolu gece tamamen karanlık, ölü kod bloğu 682-695.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/entities/Player.js:37,72-74",
+     "what": "cameraShake alanı addCameraShake ile biriktiriliyor (CombatSystem.js:195,226,267,309 ve ArcherySystem.js:113 çağırıyor — grep ile doğrulandı) ama update() içinde kameraya HİÇ uygulanmıyor ve hiç sönümlenmiyor. Vuruş hissi (hit feedback) için yazılmış tüm shake çağrıları boşa gidiyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/entities/TownGenerator.js:26-32",
+     "what": "getTerrainHeight nehir yatağı (-0.4) ve değirmen tepesi (+1.2) bildiriyor ama createLandscapeAndRiver'daki zemin düz PlaneGeometry (101-106, vertex displacement yok). NPC'ler değirmen civarında 1.2m havada yürüyor, nehir kenarında 0.4m gömülüyor. Player ise bu fonksiyonu hiç kullanmıyor (sabit eyeHeight) — üç sistem üç farklı zemin varsayıyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/entities/VillagerAI.js:164-184 ve NPCManager.js:643-651",
+     "what": "Ne köylüler ne haramiler collider kontrolü yapıyor: NPC'ler ev/duvar/mescid içinden düz çizgiyle geçiyor. Haramiler oyuncuyu kovalarken kale surlarından ve binalardan geçebiliyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/entities/NPCManager.js:53,72,95,113,133,152,175,198,217,267",
+     "what": "Neredeyse tüm NPC'lerin eatPos'u aynı nokta (-10, 0, 24). 12:30-14:00 arasında 15+ NPC 1.2m yarıçapında aynı noktaya yığılıp iç içe geçiyor (ayrışma/slot sistemi yok).",
+     "severity": "orta"
+    },
+    {
+     "where": "src/entities/ModelBuilder.js:1190",
+     "what": "createHorse bacak pivotları userData.legs'e kaydediliyor ama hiçbir sistem okumuyor (grep: yalnız tanım var). At 18 m/s dörtnal koşarken bacaklar tamamen donuk; ayrıca Player.js:266-268 at pozisyonunu y=0 sabitliyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/entities/TextureGenerator.js:11-19",
+     "what": "setAnisotropy yalnız cache'teki mevcut dokuları günceller, ama Engine.js:92 bunu constructor'da (main.js:27) çağırırken cache henüz boş; dokular daha sonra (TownGenerator, main.js:34) üretilirken maxAnisotropy'yi hiç okumuyor. Sonuç: anisotropy hiçbir dokuya uygulanmıyor, uzak zemin dokuları bulanık.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/entities/ModelBuilder.js:842-858",
+     "what": "headwear 'cap' değeri için dal yok: 'bork' dışındaki her şey sarık+KIRMIZI FES üretiyor. 10+ NPC config'inde 'cap' isteniyor ama fes giyiyorlar; fes 1396 Osmanlısı için ~430 yıl anakronik (II. Mahmud dönemi kıyafeti).",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/entities/NPCManager.js:394-454",
+     "what": "fbxPath dalı ölü kod — hiçbir NPC config'i fbxPath vermiyor (grep ile doğrulandı), dolayısıyla FBXLoader importu, mixer kurulumu ve public/models/Flying.fbx (10.6MB) hiç kullanılmıyor.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/entities/ModelBuilder.js:397-717",
+     "what": "createModernKethudaStanLee (~320 satır: blazer, chino, aviator gözlüklü modern Stan Lee modeli) hiçbir yerden çağrılmıyor — ölü kod. Ayrıca createTree (1109), createWildflowerCluster (1244), createOttomanCastle/createCastleQuarter (1195-1232) ve materials.steppeGrass (16-23) kullanılmıyor.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/entities/TextureGenerator.js:112-138",
+     "what": "createGrassNormalMap hiçbir yerden çağrılmıyor (ölü kod); createSteppeGrassBladeTexture yalnız kullanılmayan steppeGrass materyalinden çağrılıyor.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/entities/TownGenerator.js:20,89",
+     "what": "interactables dizisi tanımlanıp döndürülüyor ama hiçbir yerde push edilmiyor — çeşme, kuyu, değirmen gibi objeler etkileşimsiz.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/entities/NPCManager.js:655-662",
+     "what": "getNearbyNPC EN YAKIN NPC'yi değil dizideki İLK NPC'yi döndürüyor; kalabalık meydanda E tuşu 4m içindeki yanlış kişiyle diyalog açabiliyor.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/entities/TownGenerator.js:243-257",
+     "what": "Talimgâhtaki 3 hedef tahtası archeryTargets listesine eklenmiyor (yalnız buildArcheryRange'deki tek hedef ekleniyor, 567-573); oklar bu hedeflerden geçip gidiyor, isabet sayılmıyor.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/entities/VillagerAI.js:3 ve NPCManager.js:9",
+     "what": "gameState import ediliyor ama iki dosyada da hiç kullanılmıyor (ölü import).",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/entities/TownGenerator.js:868-885 + ModelBuilder.js:868-874",
+     "what": "Sedir yataklar ev merkezlerine konuyor ama createOttomanHouse zemin katı İÇİ DOLU taş kutu (BoxGeometry) ve evlerin collider'ı girişi engelliyor: yataklar katı taşın içine gömülü, oyuncu asla göremiyor; ev içleri yok.",
+     "severity": "orta"
+    }
+   ],
+   "engagement": [
+    "Zaman akışı çok yavaş: gameState daySpeed=0.003 (GameState.js:116) ile 1 oyun saati ≈ 5.5 gerçek dakika, tam gün ≈ 2.2 saat. Oyun 08:00'de başladığı için oyuncunun 24 saat rutininin en görünür anlarını (12:30 yemek yığılması ~25 dk sonra, 18:30 meydan toplanması ~58 dk, 22:00 uyku ~77 dk) görmesi neredeyse imkansız — VillagerAI'daki tüm o durum animasyonları pratikte izlenemiyor. Uyuma/zaman atlama mekaniği veya daha hızlı saat şart.",
+    "At binme hissi zayıf: anında binme (animasyonsuz ışınlanma, Player.js:87-95), bacakları oynamayan at (userData.legs ölü), sabit göz yüksekliği (3.20, ritim/bob yok), ivmelenme yerine anlık 18 m/s hız, dönüşte atın anlık yaw+PI snap'i (Player.js:268). 'Tımarlı Sipahi' oyununun ana fantezisi olan at deneyimi kayar tripod gibi.",
+    "At üstünde savaş YOK: triggerAttack ilk satırda 'if (this.isRiding) return false' (Player.js:115). Sipahinin tarihî kimliği atlı savaşçılık — oyunun isim verdiği mekanik tamamen kapalı. En azından atlı kılıç savurma eklenmeli.",
+    "Vuruş geri bildirimi eksik: cameraShake sistemi bağlı değil (Player.js:72-74 ölü), dolayısıyla kılıç isabetlerinde ekran tepkisi yok; kombo animasyonları güzel ama darbe 'hissedilmiyor'.",
+    "Saka İbrahim ve kale nöbetçilerine E basınca sessiz hata (diyalog tanımsız): oyuncu 'oyun bozuk mu?' hissine kapılıyor — bilinmeyen dialogueId için genel bir fallback repliği olmalı.",
+    "Koyun ve tavuklar tamamen statik (TownGenerator.js:769-808, AI yok): 'yaşayan köy' iddiasına karşın hayvanlar heykel gibi; öldürülebilir olmaları dışında hiçbir davranışları yok, öldürmenin de sonucu yok (tımar ekonomisine bağlı ceza/ganimet yok).",
+    "Öğle yemeğinde tüm köy tek noktaya (-10,24) iç içe yığılıyor — 'canlı köy' yerine glitch görüntüsü veriyor; han önündeki masalara (TownGenerator.js:324-335) oturma slotları dağıtılmalı.",
+    "Haramiler yalnız 30m yarıçapında kovalıyor, saldırı sonrası kampına dönmüyor ve devriye atmıyor (NPCManager.js:639-652): kamp keşfedilmeden önce tamamen pasif içerik.",
+    "Gece kale yolu meşalesiz (torch spawn bug'ı) ve köy sokaklarında aydınlatma az: gece dolaşımı caydırıcı ama gece yapılacak içerik de yok.",
+    "Evlerin içi yok (katı bloklar) ve kapılar açılmıyor: 12 konak yalnız dekor; sedir/uyku sistemi görünmez durumda."
+   ],
+   "contentInventory": "İSİMLİ NPC KADROSU (NPCManager.js): Koca Yakub (Kethüda, kethuda_talk, Stan Lee OBJ modeli), Molla Şemseddin (Kadı Naibi/İmam, imam_talk), Demirci Rüstem Usta (demirci_talk, Tripo 'traditional dancer' modeli), Çırak Salih (cirak_talk → DialogueSystem'de cebelu_talk'a alias'lı, yani çırak asker repliği konuşuyor), Gazi Sungur Bey (komşu tımar sahibi, neighbor_talk), Toy Cebelü Ali (cebelu_talk), Hancı İdris (hanci_talk), Saka İbrahim (saka_talk — TANIMSIZ, konuşamıyor), Attar Mehmet Efendi (şifacı, attar_talk), Koca Dede/Gazi Piri (dede_talk), 4 çiftçi (Çiftçi Hasan, Irgat Veli, Reaya Mahmud, Orakçı Bekir — ortak farmer_talk), Dizdar Hamza Bey (dizdar_talk), 3 kale nöbetçisi (Gazi Hasan, Okçu Balaban, Zırhlı Nefer Timur — guard_talk TANIMSIZ), Tellak Hüseyin Ağa (tellak_talk), 2 hamam müşterisi (hamam_musteri_talk). DÜŞMANLAR: Harami Elebaşı Kılçık Cafer + 2 Harami Çapulcu (NPCManager.js:584-623).\n\nTARİHÎ TERİM DOKUSU (isim/rol düzeyinde, güçlü): tımar, reaya, kethüda, kadı naibi, cebelü, dizdar, sancak, attar, saka, tellak, hazire, şadırvan, berat/azil (GameState bildirimi), Hicri yıl takibi (GameState.js:265-266), 1396 yıl kontrolü (GameState.js:272 — Niğbolu bağlantısı başka sistemde).\n\nDİNÎ/İSLAMİ İÇERİK: Mavi kubbeli mescid + minare + altın alem/hilal (ModelBuilder.js:957-1021), sarıklı Osmanlı mezar taşlı hazire + servi ağaçları (ModelBuilder.js:1405-1428, TownGenerator.js:186-207), imam NPC'si mescid avlusunda çalışıyor. ANCAK: VillagerAI'ın 24 saat çizelgesinde (VillagerAI.js:85-119) NAMAZ VAKTİ YOK — köylü rutini uyku/yemek/iş/sosyalleşmeden ibaret; ezan sesi, cuma namazı, mescide toplu gidiş tamamen eksik. İmamın workType'ı bile 'innkeeping' (NPCManager.js:74).\n\nMİZAH ENVANTERİ (hafif, isim düzeyinde): 'Harami Elebaşı Kılçık Cafer', 'Terleyen Köylü Dursun', 'Kurnada Yıkanan Hamdi', 'Toy Cebelü Ali'; bildirim metinlerinde emoji + renkli üslup ('Pusatını kuşandın. Savaşa hazırsın!', 'Atını yanına çağırdın'). Diyalog metinlerinin kendisi DialogueSystem.js'de (başka alan).\n\nANAKRONİZM/TUTARSIZLIK: Kırmızı fes (1396'da yok, 19. yy), Stan Lee suratlı kethüda, kullanılmayan modern kıyafetli (blazer+aviator gözlük) Stan Lee modeli ModelBuilder'da duruyor; hamam müşterileri AI'sız olduğu için 7/24 hamamda yaşıyor.\n\nTELİF RİSKİ (ÖZEL ODAK CEVABI): (1) stanlee3d.obj → Kethüda Koca Yakub olarak sahnede AKTİF kullanılıyor (NPCManager.js:43-46). MTL'deki 'tripo_material_*' adları modelin Tripo AI ile üretildiğini gösteriyor. Gerçek ve tanınabilir bir kişinin (Stan Lee) benzerliği: ABD'de post-mortem publicity rights + Marvel/POW! Entertainment marka riski — Steam'de ticari yayın hedefleniyorsa (SteamManager.js mevcut) KRİTİK risk, model değiştirilmeli. (2) demirci.obj = traditional+dancer+3d+model.obj'nin bayt-bayt kopyası, saka.obj = traditional+clothing+3d+model.obj kopyası (md5 doğrulandı) — 'traditional+...' dosya adları bir model sitesinden indirme kalıbı; Tripo materyalleri var ama kaynak/lisans belgesiz, orta risk. (3) Flying.fbx muhtemel Mixamo animasyonu — zaten hiç kullanılmıyor, silinebilir. (4) gobekli sorusu: ayrı bir gobekli.obj yok; gobekli_extracted/ klasörü dancer modelinin üçüncü kopyası ve koddan hiç referans almıyor. Kopyalar toplamda ~100MB gereksiz bundle şişkinliği.",
+   "hooks": [
+    "NAMAZ RUTİNİ KANCASI (en güçlü): VillagerAI.evaluateSchedule (VillagerAI.js:85-119) saat-dilim mimarisi yeni durum eklemeye çok müsait — 5 vakit için PRAYING durumu ekleyip targetPos'u mescide (12,-4) yönlendirmek, AudioManager'a ezan sesi eklemek ve mescid önünde saf tutma animasyonu (mevcut rotation.x lerp altyapısıyla secde/kıyam) yazmak hem İslami içerik hem tarih öğretimi sağlar. İmamın workPos'u zaten mescid avlusu (NPCManager.js:71).",
+    "EKSİK DİYALOGLAR = HAZIR İÇERİK YUVASI: saka_talk ve guard_talk DialogueSystem'de boş — Saka İbrahim için su/temizlik-abdest kültürü mizahı ('kuyudan çektiğim su zemzem değil ama...'), nöbetçiler için Niğbolu öncesi asker dedikoduları/Haçlı ordusu söylentileri (1396 tarih öğretimi) yazılabilir; NPC'ler ve konumları hazır (NPCManager.js:181-201, 298-322).",
+    "MEZAR TAŞI OKUMA: Hazire'deki 9 Osmanlı şahidesi (TownGenerator.js:186-193) interactables dizisine (şu an boş, TownGenerator.js:20) eklenip E ile okunabilir kitabeler yapılabilir — erken Osmanlı gazileri, Kosova/1389 şehitleri gibi gerçek tarih mikro-dersleri + Osmanlı mezar taşı kültürü (başlık=meslek simgesi).",
+    "UYUYAN NPC UYANDIRMA MİZAHI: updateInteractionPrompts zaten '(Uyuyor 💤)' etiketi basıyor (main.js:330-335) ve diyalog uyuyan NPC'yle de açılıyor — uyandırılan köylü için özel huysuz replik seti ('Bre zındık! Gece yarısı kapı mı çalınır?') kolay ve komik bir ekleme; VillagerAI.currentState UIManager'dan erişilebilir durumda.",
+    "HAMAM SAHNESİ: Tellak Hüseyin + 2 AI'sız statik müşteri (NPCManager.js:332-373) hamam kültürü mini-oyunu için hazır sahne — kese/masaj ile can yenileme zaten hamam tavsiyesi bildiriminde ima ediliyor (main.js:346), hamam sohbeti (Osmanlı hamam adabı, peştemal, tas, kurna terimleri ModelBuilder.js:1690-1741'de modellenmiş) diyalogla öğretilebilir.",
+    "DEMİRCİ KIVILCIM ANI: VillagerAI.js:236-239'daki örs vuruşu + kıvılcım senkronu çalışıyor — buraya çekiç sesi (AudioManager) ve Rüstem Usta'nın vuruş aralarında bağırdığı tek satırlık usta-çırak repliği (Çırak Salih azarlama mizahı) eklemek köyü canlandırır; iki NPC zaten yan yana çalışıyor (NPCManager.js:82-117).",
+    "KOYUN/TAVUK ETKİLEŞİMİ: damageables listesindeki hayvanlar (TownGenerator.js:780-807) tımar ekonomisine bağlanabilir — reayanın koyununu kesen sipahiye kadı şikayeti (PetitionSystem zaten var) = hem mizah hem Osmanlı hukuk sistemi (kadıya arzuhal) öğretimi.",
+    "MEYDAN SOSYALLEŞMESİ: 18:30-22:00 WANDERING durumunda köylüler meydanda rastgele geziyor (VillagerAI.js:260-273) — buraya NPC çiftleri arasında baloncuk-diyalog (birbirleriyle konuşma) eklemek için konum altyapısı hazır; Koca Dede'nin meydanda gaza kıssaları anlatması (dede_talk genişletme) doğal toplanma noktası olur.",
+    "FES → BÖRK DÜZELTMESİ TARİH DERSİ FIRSATI: ModelBuilder.js:848-858'deki fes yerine dönem başlıkları (börk zaten var 843-847, kavuk/külah eklenebilir) modellenip diyaloglarda başlık-statü ilişkisi (kızıl börk=yeniçeri, beyaz sarık=ulema) anlatılabilir.",
+    "KALE YOLU MEŞALELERİ + GECE İÇERİĞİ: Torch spawn bug'ı (TownGenerator.js:682) düzeltilince gece yolculuğu görselleşir; gece saatine özel harami pusu event'i (NPCManager.spawnBandits konum altyapısı mevcut) gece dilimini içerikle doldurur.",
+    "STAN LEE MODELİ DEĞİŞİMİ: stanlee3d.obj kaldırılıp yerine mevcut prosedürel createDetailedHumanNPC (beyaz sakallı config: hairColor 0xdedede zaten Koca Dede'de kullanılıyor) geçirilebilir — telif riskini sıfırlar, görsel tutarlılığı artırır; ModelBuilder.js:397-717'deki kullanılmayan modern Stan Lee modeli de silinmeli."
+   ],
+   "techDebt": [
+    "public/models klasörü ~130MB: her Tripo OBJ'sinin 2-3 kopyası var (demirci.obj = traditional+dancer kopyası, saka.obj = traditional+clothing kopyası, +_extracted klasörleri; md5 doğrulandı) ve 23-29MB'lık 3 OBJ oyun açılışında ana thread'de parse ediliyor — GLB'ye dönüştürüp (draco sıkıştırma) tek kopya tutmak yükleme süresini ciddi kısaltır; kullanılmayan Flying.fbx (10.6MB) silinmeli.",
+    "Sahne binlerce ayrı Mesh'ten oluşuyor: 220 buğday sapı (TownGenerator.js:417-424), ~190 taş yol plakası + bordür (658-696), 150 ağaç, 100+ çit — hiçbiri InstancedMesh/merge kullanmıyor; draw call sayısı düşük donanımda FPS'i öldürür.",
+    "ModelBuilder ~320 satır ölü kod taşıyor (createModernKethudaStanLee 397-717) + kullanılmayan createTree/createWildflowerCluster/createOttomanCastle/steppeGrass; TextureGenerator'da createGrassNormalMap ölü — temizlik gerekli.",
+    "İki ayrı zemin gerçeği: TownGenerator.getTerrainHeight statik fonksiyonu ile düz PlaneGeometry çelişiyor; Player üçüncü bir varsayım (sabit y) kullanıyor — tek bir terrain yükseklik kaynağı (heightmap veya gerçek displacement) tanımlanmalı.",
+    "NPCManager.createHumanNPC 180 satırlık dev metod: OBJ/MTL/FBX/GLTF yükleme dallarının üçü de aynı ölçekleme+traverse+child-temizleme kodunu kopyalıyor (NPCManager.js:406-560) — tek loadExternalModel helper'ına indirgenebilir; ayrıca async callback'ler dıştaki 'npcData'yı tanımlanmadan önce closure'a alıyor (satır 430-431, çalışıyor ama kırılgan TDZ deseni).",
+    "VillagerAI ve düşman AI'da collision/navigasyon altyapısı yok (düz çizgi yürüyüş); TownGenerator.colliders zaten AABB listesi olarak mevcut — en azından NPC yürüyüşünde aynı checkCollision mantığı paylaşılmalı (şu an yalnız Player.js:300-313'te).",
+    "gameState importları VillagerAI.js ve NPCManager.js'de kullanılmıyor; NPCManager'da bölüm numaralandırması bozuk (iki ayrı '5.' başlığı, satır 325 ve 329-330).",
+    "TextureGenerator.setAnisotropy çağrı-zamanlaması tasarım hatası: Engine kurulumunda çağrılıyor ama dokular sonra üretiliyor ve üretim kodu maxAnisotropy'yi okumuyor — doku oluştururken texture.anisotropy = this.maxAnisotropy atanmalı.",
+    "generateTown()'un return sözleşmesi (TownGenerator.js:86-93) kullanılmıyor; interactables gibi hiç doldurulmayan alanlar API'yi yanıltıcı yapıyor — ya kullanılmalı ya kaldırılmalı."
+   ]
+  },
+  "narrative": {
+   "summary": "Narrative katmanı 5 dosyadan oluşuyor: QuestSystem (13 görevlik veri güdümlü durum makinesi), DialogueSystem (12 NPC + 2 figüran için statik dallanan diyalog ağacı), PetitionSystem (45 saniyede bir tetiklenen 4 arzuhallik inşaat/dilekçe döngüsü), HistoryEventSystem (Niğbolu/Karaman/Ankara sefer simülasyonları) ve GeminiService (arzuhal ret gerekçesini Gemini 2.5 Flash veya yerleşik anahtar-kelime sezgiseliyle puanlayan kadı yapay zekası). Yazım kalitesi ve dönem üslubu dikkat çekici derecede yüksek; ancak sistemin önemli parçaları kabloya bağlanmamış: Gemini ret-gerekçesi akışının tamamı ölü kod, su ihtilafı görevi hiçbir NPC'ye bağlı olmadığı için asla tamamlanamıyor ve aktif görev işaretçisini kalıcı kilitliyor, Ali'nin bacağını kaybettiği dramatik sayaç (CampaignBattleSystem) hiç tetiklenmiyor ve Niğbolu seferi oyunun ilk dakikasında haritadan tek tıkla atlanabiliyor. İçerik envanteri zengin (1389 Kosova anısı, gaza ahlakı vaazları, ahi kültürü, hamam sahnesi) ama mizah neredeyse sıfır ve görevlerin %85'i \"git-konuş\" kalıbında.",
+   "architecture": "VERİ AKIŞI: (1) GÖREV DÖNGÜSÜ — QuestSystem.js:16-401 içinde 13 görev statik dizi olarak tanımlı (id, chapter, giver, targetPos, prerequisites, objectives, rewards, status). Oyuncu E tuşuyla NPC'ye yaklaşınca main.js:199-204 NPCManager.getNearbyNPC → UIManager.openDialogue(dialogueId) → DialogueSystem.getDialogueData(dialogueId) (UIManager.js:388) çağrılır. Her diyalog düğümünün onOpen callback'i questSystem.advanceObjective(questId, idx) tetikler (ör. DialogueSystem.js:21-23). advanceObjective (QuestSystem.js:435-457) hedefi işaretler, hepsi bitince completeQuest (QuestSystem.js:485-511) ödülleri gameState.modifyReayaTrust/modifySancakReputation/modifySquadLoyalty/modifyFaction (GameState.js:168-183, hepsi mevcut — doğrulandı) üzerinden dağıtır, sonra syncAvailableQuests (QuestSystem.js:513-534) prerequisites'i sağlanan 'locked' görevleri 'available' yapar ve aktif görev yoksa dizideki İLK available'ı 'active' yapar. syncWithGameState (QuestSystem.js:536-561) HUD için gameState.quest/currentQuest alanlarını doldurur; UIManager.js:863/1000/1054 getActiveTargetInfo ile pusula/mesafe göstergesi çizer. Kayıt: SaveManager.js:55/76 → serializeQuests/deserializeQuests (QuestSystem.js:563-593). Savaş bağlantısı: CombatSystem.js:341 killEnemy → questSystem.onEnemyKilled → onEnemyDefeated (QuestSystem.js:459-483) harami sayacını işletir. (2) ARZUHAL DÖNGÜSÜ — main.js:303 her karede petitionSystem.update(delta) çağırır; PetitionSystem.js:60-73 her 45 sn'de gameState.daysPassed'i artırır, inşaatları ilerletir (processConstructions, PetitionSystem.js:104-128) ve %40 ihtimalle 4'lük havuzdan (PetitionSystem.js:16-53) arzuhal üretir. TAB (InputManager.js:48) Tımar Defteri'ni açar; UIManager.js:267 btn-accept-petition → acceptPetition (akçe+ırgat düşer, inşaat kuyruğa girer), UIManager.js:277 btn-reject-petition → rejectPetition (düz -5 moral). 60 sn cevapsız kalırsa \"koşan köylü\" bildirimi (PetitionSystem.js:76-83) — yalnızca metin, gerçek NPC koşmaz. (3) GEMINI KADI AKIŞI (ÖLÜ) — UIManager.js:587 openRejectionModal → 603 submitRejectionReason → geminiService.evaluateRejection (GeminiService.js:17-40): API anahtarı varsa callGeminiAPI (GeminiService.js:42-98, gemini-2.5-flash'a fetch, JSON yanıt), yoksa evaluateHeuristic (GeminiService.js:103-166, 30 geçerli + 10 trol anahtar kelimesiyle puanlama) → showKadiVerdict (UIManager.js:648) modalı. ANCAK openRejectionModal hiçbir yerden çağrılmıyor ve setApiKey'i çağıran UI yok — zincir tamamen erişilemez. (4) TARİHİ SEFER — M tuşu haritası (UIManager.js:683 toggleMapModal) her an açılabilir; Niğbolu noktasına tıklama veya btn-join-campaign (UIManager.js:340-364) → HistoryEventSystem.joinActiveCampaign (HistoryEventSystem.js:12-36): cebeluCount >= reqCebelu (1) kontrolü sonrası simulateNigboluCampaign (HistoryEventSystem.js:38-81) anında sonuç üretir (cebelü>=2 veya %70 şansla büyük zafer: +2200 akçe, +800 yıllık gelir; aksi halde +900 akçe). Karaman 1398 ve Ankara 1402 dalları (HistoryEventSystem.js:83-120) hiçbir yerden erişilemiyor çünkü activeCampaign yalnızca nigbolu_1396 olarak set ediliyor (GameState.js:127-137). CampaignBattleSystem (getBattleSystem, HistoryEventSystem.js:9-11) hiç çağrılmıyor — Ali'nin bacağını koparan satır (CampaignBattleSystem.js:148) dolayısıyla ölü. (5) ZAMAN — GameState.updateTime (GameState.js:212-233) daySpeed 0.003 ile ~8000 gerçek saniyede 1 oyun günü sayarken PetitionSystem 45 saniyeyi 1 gün sayıyor; iki sistem aynı daysPassed alanını bağımsız artırıyor.",
+   "bugs": [
+    {
+     "where": "src/ui/UIManager.js:587 (openRejectionModal) + src/ui/UIManager.js:277-282",
+     "what": "Gemini kadı akışının tamamı ölü kod: openRejectionModal hiçbir yerden çağrılmıyor (grep ile doğrulandı, tek eşleşme tanımın kendisi). btn-reject-petition doğrudan petitionSystem.rejectPetition() çağırıyor (düz -5 moral). Oyunun en özgün özelliği — oyuncunun kendi ret fermanını yazıp Kadı/AI tarafından değerlendirilmesi — hiçbir zaman tetiklenmiyor; GeminiService.js, submitRejectionReason (UIManager.js:603) ve showKadiVerdict (UIManager.js:648) tamamen erişilemez.",
+     "severity": "kritik"
+    },
+    {
+     "where": "src/systems/DialogueSystem.js:357 (water_dispute_talk) + src/systems/QuestSystem.js:51,527-533",
+     "what": "water_dispute_talk diyaloğu hiçbir NPC'ye bağlı değil (NPCManager.js'deki 17 dialogueId ataması grep'lendi; yok) ve başka hiçbir kod açmıyor. quest_water_dispute'un iki hedefi de yalnızca bu diyaloğun içinden ilerlediğinden görev ASLA tamamlanamaz. Daha kötüsü: quest_inspect bitince syncAvailableQuests dizideki ilk available görevi (bu görev) otomatik 'active' yapar ve getActiveQuest dizi sırasına göre ilk 'active'i döndürdüğünden HUD pusulası/görev başlığı oyun boyunca 'Su Değirmeni Arkı'na kilitli kalır — sonraki tüm görevler perde arkasında ilerlese bile.",
+     "severity": "kritik"
+    },
+    {
+     "where": "src/ui/UIManager.js:340-364 + src/core/GameState.js:127-137",
+     "what": "Niğbolu seferi kapılamasız: activeCampaign reset()'te hazır, reqCebelu=1 ve başlangıç cebeluCount=1 olduğundan oyuncu 1. dakikada M ile haritayı açıp 'Sefere Katıl'a basarak 12 görevlik zinciri atlayıp anında +2200 akçe, +800 yıllık gelir ve sefer zaferini alabilir. quest_castle/quest_campaign ön koşulları haritada hiç kontrol edilmiyor.",
+     "severity": "kritik"
+    },
+    {
+     "where": "src/systems/DialogueSystem.js:117-131 (imam_talk ilk seçenek)",
+     "what": "'Kantaron merhemini ve koltuk değneğini getirdim' seçeneği koşulsuz: quest_save_ali_leg'in ilk iki hedefi (merhem satın alma, değnek siparişi) yapılmadan ve görev kilitliyken bile tıklanabilir. Tıklanınca isSaved=true, +40 sadakat, +30 güven, +25 ulema ve görev tamamlama bedavaya verilir (advanceObjective locked→active geçişine izin verdiği için, QuestSystem.js:439-441).",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/systems/HistoryEventSystem.js:9-11 + src/systems/CampaignBattleSystem.js:148",
+     "what": "getBattleSystem() hiçbir yerden çağrılmıyor (grep doğrulandı) — CampaignBattleSystem tamamen ölü. gameState.aliStatus.legSevered'i set eden tek satır (CampaignBattleSystem.js:148) bu yüzden asla çalışmaz: Ali'nin 3 günlük ölüm sayacı (GameState.js:220-227), 'taşlanarak linç edilme' fail-state'i (GameState.js:236-245) ve quest_save_ali_leg'in tüm dramatik zaman baskısı kağıt üstünde kalıyor.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/systems/QuestSystem.js:439-441 + src/systems/TimarSystem.js:49-52",
+     "what": "advanceObjective 'locked' görevleri prerequisite kontrolü yapmadan 'active' yapıyor. TimarSystem.trainCebelu tek tıkla dört farklı görevin hedefini (quest_campaign 0, quest_cebelu 0 ve 1, quest_blacksmith 1) ilerletiyor — oyuncu oyunun başında 800 akçeyle cebelü donatırsa kilitli quest_cebelu anında tamamlanır ve final görevi quest_campaign erkenden aktifleşir; bölüm/zincir mantığı deliniyor.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/systems/QuestSystem.js:464-483 (onEnemyDefeated)",
+     "what": "Harami öldürmeleri yalnızca quest_bandits 'active' veya 'available' iken sayılıyor. Görev henüz 'locked' iken (quest_inspect bitmeden) oyuncu kampa gidip 3 haramiyi öldürürse — engel yok, kamp yürüme mesafesinde — sayaç işlemez; haramiler respawn olmadığından (NPCManager.js:585-622 tek seferlik spawn) görev kalıcı olarak tamamlanamaz hale gelir.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/systems/PetitionSystem.js:64 + src/core/GameState.js:217",
+     "what": "gameState.daysPassed iki bağımsız sistemde artırılıyor: PetitionSystem her 45 gerçek saniyede +1, GameState.updateTime her ~8000 gerçek saniyede (24h/0.003) +1. Gün kavramı tutarsız: inşaat süreleri 45 sn'lik 'gün'lerle, Ali sayacı ve mevsimler ~133 dakikalık 'gün'lerle işliyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/systems/PetitionSystem.js:81,100,158 + src/ui/UIManager.js:679 + src/core/AudioManager.js",
+     "what": "soundManager.playNotification() ve playCoinJingle() AudioManager'da tanımlı değil (mevcut metodlar: playBirdChirp/Footstep/HorseHoof/SwordSwing/SwordClash/WarDrum/VictoryJingle — grep doğrulandı). try/catch hatayı yuttuğu için crash olmuyor ama arzuhal geldi/kabul edildi sesleri hiç çalmıyor — işitsel geri bildirim sessizce kayıp.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/systems/QuestSystem.js:491-500 (completeQuest)",
+     "what": "rewards.title hiç uygulanmıyor: quest_campaign'in 'Gazi Sancakbeyi Naibi' ve quest_save_ali_leg'in 'Vefakâr Gazi Sipahi' unvanları görev defterinde vaat ediliyor ama gameState.sipahi.title'a asla yazılmıyor (completeQuest'te title dalı yok).",
+     "severity": "orta"
+    },
+    {
+     "where": "src/systems/QuestSystem.js:499",
+     "what": "rewards.maxHealth (quest_blacksmith 15, quest_attar 20) yalnızca canı fulluyor (health = maxHealth); maxHealth değerini artırmıyor. Ödül adıyla davranışı çelişiyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/ui/UIManager.js:521-526 (renderQuestJournal ödül pill'leri)",
+     "what": "Görev günlüğü rewards.reputation ve rewards.morale anahtarlarını arıyor; ama görevler sancakReputation/reayaTrust/squadLoyalty/factionUlema/factionAhiler/maxHealth kullanıyor. Sonuç: 13 görevin itibar/sadakat/fraksiyon ödüllerinin hiçbiri oyuncuya gösterilmiyor — yalnızca akçe, asayiş, cebeluExp ve (zaten verilmeyen) title görünüyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/systems/HistoryEventSystem.js:29-33, 83-120",
+     "what": "simulateKaramanCampaign (1398) ve simulateAnkaraCampaign (1402 alternatif tarih) ölü kod: activeCampaign.id yalnızca 'nigbolu_1396' olarak set ediliyor (GameState.js:127 ve 273-284); karaman_1398/ankara_1402'yi set eden hiçbir kod yok (grep doğrulandı). Yazılmış iki tam sefer içeriği oyuncuya hiç ulaşmıyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/entities/NPCManager.js:193, 313 + src/systems/DialogueSystem.js:663",
+     "what": "saka_talk (Saka İbrahim) ve guard_talk (3 kale muhafızı: Kale Okçusu Balaban, Zırhlı Nefer Timur vb.) dialogueId'leri DialogueSystem'de tanımsız → getDialogueData null döner, UIManager.openDialogue (UIManager.js:389) sessizce çıkar: E tuşu bu 4 NPC'de hiçbir şey yapmıyor, oyuncuya geri bildirim yok.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/systems/PetitionSystem.js:117 + src/core/GameState.js:168-170",
+     "what": "fix_mosque arzuhalinin +20 moral ödülü kalıcı değil: modifyReayaTrust her çağrıldığında timar.morale = reputation.reayaTrust ile ezildiği için inşaat ödülü ilk itibar değişiminde silinir.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/services/GeminiService.js:6-12, 43",
+     "what": "API anahtarı localStorage'da düz metin saklanıyor ve URL query parametresi (?key=...) olarak gönderiliyor — query string'ler proxy/log katmanlarına sızabilir; x-goog-api-key header'ı tercih edilmeli. Ayrıca setApiKey()'i çağıran hiçbir UI/kod yok (grep doğrulandı): anahtar ancak DevTools'tan elle girilebilir, yani AI yolu fiilen erişilemez.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/core/GameState.js:266-271 + 273-284",
+     "what": "checkHistoricalEvents yalnızca yeni yılda year++ SONRASI çağrılıyor; year 1396'dan 1397'ye çıktıktan sonra 'year === 1396' koşulu asla doğru olamaz. 'Niğbolu Fermanı Geldi!' bildirimi ölü kod (activeCampaign zaten reset'te dolu olduğu için oyun kilitlenmiyor).",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/systems/QuestSystem.js:504",
+     "what": "Her görev tamamlanmasında aynı 'ACH_FIRST_PATROL' Steam başarımı tetikleniyor — 13 farklı görevin hepsi tek başarıma bağlı.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/systems/PetitionSystem.js:123",
+     "what": "İnşaat bitiş bildirimi bozuk Türkçe: 'İrfan eden ameleler boşa çıktı' — muhtemelen 'işi biten ameleler boşta kaldı' kastediliyor.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/systems/DialogueSystem.js:654-661",
+     "what": "8 alias'tan yalnızca cirak_talk bir NPC tarafından kullanılıyor; bakkal_talk, kadi_talk, seyis_talk, muhafiz_talk, hanci_idris, koca_dede, attar_mehmet alias'ları ölü (NPCManager dialogueId listesiyle karşılaştırıldı).",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/core/GameState.js:133-134 + src/systems/HistoryEventSystem.js",
+     "what": "activeCampaign.rewardAkce (1800) ve rewardRep (30) alanları hiç okunmuyor; simulateNigboluCampaign kendi sabitlerini (2200/900) kullanıyor — veri ile davranış çelişiyor.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/systems/DialogueSystem.js:74-95 (kethuda harami dalı)",
+     "what": "Kethüda'ya haramileri sormak advanceObjective('quest_inspect', 1) çağırıyor — oysa hedef metni 'Öşür vergisini adil belirle veya köylüye ziyafet ver'. Vergiyle ilgisi olmayan bir seçim vergi hedefini tamamlıyor; hedef metniyle davranış uyumsuz.",
+     "severity": "düşük"
+    }
+   ],
+   "engagement": [
+    "Tempo kırıcı ana sorun: Niğbolu finali (oyunun doruk noktası) daha ilk dakikada M haritasından tek tıkla oynanabiliyor ve tek bir 'sonuç metni' modalıyla bitiyor — 12 görevlik hazırlık zincirinin hiçbir mekanik karşılığı yok (UIManager.js:340-364).",
+    "Sefer bir savaş değil, anlık bir metin kutusu: joinActiveCampaign → simulateNigboluCampaign zar atıp sonucu basıyor; CampaignBattleSystem yazılmış ama bağlanmamış. Oyuncu final için hiçbir oynanış yaşamıyor.",
+    "HUD görev işaretçisi quest_inspect'ten sonra tamamlanamayan Su İhtilafı görevine kilitleniyor; oyuncu pusulayı takip ederse değirmende E basacak kimse bulamıyor ve neyin yanlış olduğunu asla öğrenemiyor.",
+    "Aynı anda birden çok görev 'active' olabiliyor ama HUD yalnızca dizideki ilkini gösteriyor; oyuncunun 'takip edilen görevi' seçme imkânı yok — 8. görevdeyken ekran hâlâ 2. görevi işaret edebiliyor.",
+    "Görev çeşitliliği düşük: 13 görevin 11'i 'X noktasına git, NPC ile konuş, bir seçenek tıkla' kalıbında; tek savaş görevi quest_bandits (3 düşman), tek soruşturma görevi quest_inn_spy de aslında iki tıklık diyalog.",
+    "Ödül hissi zayıf: itibar/sadakat/fraksiyon ödülleri günlükte hiç listelenmiyor (UIManager.js:521-526 yanlış anahtarlar), unvan ödülleri hiç verilmiyor, arzuhal/para sesleri (playCoinJingle) hiç çalmıyor.",
+    "Zaman baskısı bir illüzyon: quest_save_ali_leg '3 gün içinde' diyor ama sayaç hiç başlamıyor (legSevered ölü); oyuncunun hissedeceği tek gerilim unsuru fiilen yok.",
+    "Arzuhal sistemi 4 dilekçelik havuzuyla ~10 dakikada kendini tekrar ediyor; reddetme yalnızca sessiz bir -5 moral — yazılı gerekçe/kadı hükmü mekaniği bağlansaydı sistemin ruhu olacaktı.",
+    "Cevapsız arzuhalde 'köylü koşarak geliyor' bildirimi salt metin; gerçekte koşan bir NPC spawn edilmiyor (hasPendingMessenger yalnızca UIManager.js:634'te sıfırlanıyor, hiçbir görsel sistem okumuyor) — vaat edilen sahne oynanmıyor.",
+    "Saka İbrahim ve 3 kale muhafızı gibi isimli, modellenmiş NPC'lere E basınca hiçbir şey olmuyor — dünya 'dolu görünüp boş konuşuyor', keşif motivasyonunu düşürüyor.",
+    "trainCebelu tek tıkla 4 görev hedefini birden ilerletiyor; oyuncu farkında olmadan görev atladığında ilerleme bildirimleri üst üste yağıyor ve anlamsızlaşıyor."
+   ],
+   "contentInventory": "== GÖREV ENVANTERİ (QuestSystem.js, 13 görev, 4 bölüm) ==\\n1) quest_inspect 'Tımar Teftişi & Kethüda Görüşmesi' (Bölüm 1, veren: Koca Yakub, başlangıçta aktif): meydanda kethüda ile görüş + öşürü belirle VEYA ziyafet ver. Ödül: 250 akçe, +10 reaya güveni, +5 sancak itibarı, +10 asayiş. Zincirin kökü — 6 görevin ön koşulu.\\n2) quest_water_dispute 'Su Hakkı ve Değirmen Arkı İhtilafı' (ön koşul: 1): kırık seti incele + Molla Şemseddin ile hüküm ver. Ödül: 150 akçe, +15 güven, +10 itibar, +15 ulema. TAMAMLANAMAZ (diyaloğu hiçbir NPC'de yok).\\n3) quest_blacksmith 'Pusat ve Zırh Teftişi' (ön koşul: 1): Rüstem Usta'ya git + kılıç bilet/gürz al. Ödül: 150 akçe, +10 itibar, +10 sadakat, +15 ahiler, canFull.\\n4) quest_imam 'Mescid Ziyareti & Hayır Dua' (ön koşul: 1): mescide git + dua ve öğüt al. Ödül: +15 itibar, +15 güven, +20 ulema.\\n5) quest_cebelu 'Sadık Cebelü Ali'nin Talimi' (Bölüm 2, ön koşul: 3): talimgâha git + talim yap. Ödül: 100 akçe, +25 sadakat, +20 cebelü tecrübesi.\\n6) quest_inn_spy 'Köy Hanında Şüpheli Casus' (ön koşul: 1): Hancı İdris ile görüş + Cenevizli tüccarın odasında harita/mektup kanıtı bul. Ödül: 300 akçe, +20 itibar, +15 asayiş. Zincirin tek 'soruşturma' teması.\\n7) quest_attar 'Savaş İçin Şifalı Merhemler' (ön koşul: 1): attar tezgâhına git + merhem al (-40 akçe). Ödül: 100 akçe, +10 güven, +10 ahiler, canFull.\\n8) quest_dede_flag 'Koca Dede'nin 1389 Kosova Hatırası' (ön koşul: 1): çınar altındaki gaziyle görüş + duasını al. Ödül: +20 itibar, +15 sadakat, +15 güven. Saf tarih-anlatı görevi.\\n9) quest_neighbor 'Sancak İttifakı & Gazi Sungur Bey' (ön koşul: 5): kuzey yolundaki komşu sipahiyle ittifak sözü. Ödül: +20 itibar, +15 sadakat, +15 tecrübe.\\n10) quest_bandits 'Orman Harami Baskını' (ön koşul: 1): kuzeybatı kampına git + 3 harami öldür (sayaçlı, banditCount=3). Ödül: 500 akçe, +25 asayiş, +20 güven, +20 itibar. Tek savaş görevi; boss: Harami Elebaşı Kılçık Cafer (kethüda diyaloğunda adı geçiyor — güzel tutarlılık).\\n11) quest_castle 'Sancak Kalesi Teftişi & Dizdar Bey' (Bölüm 3, ön koşul: 9): doğu yolundan kaleye + Dizdar Hamza Bey ile yoklama. Ödül: 400 akçe, +30 itibar, +20 asayiş.\\n12) quest_campaign 'Sultan Yıldırım Bayezid Han'ın Fermanı: 1396 Niğbolu Seferi' (Bölüm 4, ön koşul: 11): en az 1 cebelü hazırla + alaya katıl. Ödül: 2000 akçe, +100 itibar, +50 sadakat, unvan 'Gazi Sancakbeyi Naibi' (verilmiyor — bug).\\n13) quest_save_ali_leg 'Can Yoldaşım: Gazi Cebelü Ali'yi Hayatta Tut' (ön koşul: 12, chapter alanı yok): attardan kantaron yağı (-30) + demirciden koltuk değneği (-40) + imamla yarayı sar. Ödül: 500 akçe, +30 güven, +40 sadakat, unvan 'Vefakâr Gazi Sipahi' (verilmiyor). Oyunun tek çok-duraklı 'fetch' zinciri ve duygusal doruğu — ama tetikleyicisi (bacağın kopması) ölü kodda.\\n\\n== NPC DİYALOG ENVANTERİ (DialogueSystem.js) ==\\n• KOCA YAKUB (kethuda_talk, 'Esselamü aleyküm ve rahmetullah Gazi Beyim!'): 40 yıllık köy ihtiyarı; saygılı, tecrübeli, hafif imtihan edici üslup ('kimi reayanın sırtına bindi, kimi köyümüzü gülzâr eyledi'). 3 dal: (a) defter/vergi — yetimlerin öşrünü affet (+15 güven, +10 ulema, +15 reaya) vs tam tahsil (+10 itibar, +5 güven) — oyunun en iyi ahlaki ikilemi; (b) ziyafet (-150 akçe, TimarSystem.feastVillagers); (c) harami istihbaratı ('Kılçık Cafer namındaki harami güneybatı meşeliğinde pusu kurar') → harami görevini aktive eder.\\n• MOLLA ŞEMSEDDİN (imam_talk): bilge-adil âlim; 'kılıç fetihler açar, lakin o fethi ayakta tutan ancak adalettir' — oyunun tematik manifestosu. 4 dal: Ali'yi kurtarma finali; gaza ahlakı vaazı ('gazâ kibir için değil, mazlumu zalimden korumak içindir'); Rumeli havadisi (Sigismund + Fransız asilzadeleri + Rodos şövalyeleri, yüz binlik ordu, Niğbolu muhasarası — tarih dersi diyaloğa gömülü); şer'i/örfi hukuk öğüdü ('Müslim olsun zimmî olsun, hak kimin ise ona teslim edilsin' — dönemin çoğulcu hukuk anlayışına dokunuş).\\n• DEMİRCİ RÜSTEM USTA (demirci_talk): Ahi piri, coşkulu zanaatkâr ('Körük harlar, örs çınlar. Ahi Evran ocağından feyiz almışız'). En mekanik-zengin diyalog: plaka zırha karşı gürz dersi (gerçek tarihsel silah taktiği oyun mekaniğine bağlanmış: equippedWeapon='mace'/weaponType='blunt'), kılıçta kalma seçeneği, Ali için koltuk değneği (-40), tamir (-30, canFull). Ahi kültürü vurgusu güçlü.\\n• TOY CEBELÜ ALİ (cebelu_talk, cirak_talk alias'ı): genç, hevesli, korkusunu itiraf eden çırak ('geceleri gözüme uyku girmez'). Oyuncu akıl hocası rolünde: 'cesaret korkuya rağmen safı bozmamaktır' repliği + kalkan talimi (+25 tecrübe) + atlı okçuluk öğüdü ('atlı okçuluk Türkün kadim sanatıdır'). Bölük komutları (Saf Tut/Hücum/Çekil) diyalogda öğretiliyor.\\n• KOCA DEDE (dede_talk): 90 yaşında Kosova gazisi; oyunun en edebi metni: Murad Hüdavendigâr'ın şehadet duası ('Ya Rabbi, beni bu millet yoluna şehit eyle'), 1389 anlatısı ve gaza vasiyeti ('Gazâ ganimet için değil, milletin namusu ve mazlumun duası içindir'). Saf tarih/değer aktarımı düğümü.\\n• HANCI İDRİS (hanci_talk): gözü açık esnaf, fısıltılı ihbar üslubu ('kulağına fısıldamam gereken mühim bir vukuat var'). Cenevizli casusun yastık altındaki krokisi (Niğbolu ikmal yolları işaretli — ana anlatıya bağlanıyor) + handa ziyafet (-30, can+stamina full).\\n• ATTAR MEHMET EFENDİ (attar_talk): tabip-esnaf; envanter sayımı gibi konuşur ('sarı kantaron yağı, çörek otu macunu, dağ kekiği, mürver merhemi'). Ali için acil merhem (-30) ve genel merhem (-40, canFull).\\n• GAZİ SUNGUR BEY (neighbor_talk): tecrübeli akıncı, kandaşlık dili ('Ahtımız aht olsun! ... tek yumruk gibi Tuna'ya varacak').\\n• DİZDAR HAMZA BEY (dizdar_talk): resmi-askeri ton; yoklama defteri teftişi, 'Tuna alayında yeriniz ön saflardır'.\\n• TELLAK HÜSEYİN AĞA (tellak_talk): oyundaki EN MİZAHİ karakter ('kemiklerini çatırdatıp... ak pak kese ile seni yenileyelim', 'Ohhh, yarasın beyime! Kuş gibi hafifledin'). 40 akçeye kese+köpük = can+stamina full, lastBathDay kaydı. Yetersiz akçede nazik ret sahnesi bile var.\\n• FİGÜRANLAR: Çiftçi Hasan (farmer_talk, tek replik şükran), Hamam Müşterisi ('Ohhh be! Sıcak göbek taşı bütün bel ağrılarımı aldı' — ikinci mizah kırıntısı).\\n• KONUŞAMAYANLAR: Saka İbrahim ve 3 isimli kale muhafızı (Kale Okçusu Balaban, Zırhlı Nefer Timur) — diyalog tanımsız.\\n\\n== TARİHİ İÇERİK ==\\n1389 I. Kosova (Koca Dede anlatısı, Murad Hüdavendigâr'ın şehadeti), 1396 Niğbolu (Sigismund, Fransız/Rodos şövalyeleri, sahte ricat/Turan taktiği — zafer metninde açıklanıyor, HistoryEventSystem.js:54), 1398 Karaman seferi (Konya/Larende fethi — ölü kod), 1402 Ankara 'TARİH YENİDEN YAZILDI' alternatif senaryosu (Timur'un filleri, Kara Tatarların saf değiştirmesi, Fetret Devri'nin önlenmesi — ölü kod ama yazılmış). Kurumsal tarih: tımar/öşür/cebelü mecburiyeti ('her 3000 akçe için 1 cebelü', GameState.js:94), kethüdalık, kadı naibi, ahi teşkilatı, dizdar/cebehane, zimmî hukuku, arzuhal geleneği.\\n\\n== DİNİ İÇERİK ==\\nDönem selamlaşmaları (esselamü aleyküm ve rahmetullah / ve aleyküm selam ve rahmetullahi ve berekâtüh), dua kalıpları ('Hızır yoldaşın olsun', 'Cenab-ı Hak seni muzaffer kılsın'), gaza ahlakı vaazları (imam + dede), şehadet kavramı (triggerMartyrdom fail-state metni), mescit onarımı arzuhali ('ahali cemaatle saf tutabilsin'), hicri takvim (798). Üslup saygılı ve öğretici; vaaz tonu ağır basıyor, hiciv yok.\\n\\n== MİZAH ==\\nNeredeyse yok: tellak sahnesi ve hamam müşterisinin 'Ohhh be'si dışında 13 görev + 12 diyalog tamamen ciddi/epik tonda. GeminiService trol-kelime listesi ('banane', 'para mara yok', GeminiService.js:116) istemeden komik tek modern dokunuş — ama erişilemez akışta.\\n\\n== ARZUHAL HAVUZU (PetitionSystem.js:16-53, 4 adet) ==\\nSu değirmeni inşası (400 akçe/3 ırgat/4 gün → +800 gelir), mescit onarımı (250/2/2 → +20 moral, 'lodos çatıyı uçurdu'), yeni tarla (150/4/5 → +450 gelir), kuyu (100/1/1 → +15 asayiş, 'kadınlarımız suya hasret kaldı'). Kadı hüküm metinleri (GeminiService) 5 farklı sonuç tonu içeriyor: gerekçesiz ('keyfi muameleden ötürü teessür'), trol ('boynu bükük ayrıldı'), güçlü ('haklı ve hikmetli'), zayıf-geçer ('mazereti kafi'), ret ('derdine derman olmaya yetmemiştir').",
+   "hooks": [
+    "HAZIR AMA BAĞLANMAMIŞ İÇERİK #1 — Gemini kadı akışı: UIManager.js:277'deki btn-reject-petition handler'ını openRejectionModal()'a yönlendirmek tek satırlık iş; oyunun en özgün yazı-tabanlı mekaniği (kendi fermanını yaz, kadı puanlasın) anında canlanır. Ayarlara bir API key alanı eklenirse (setApiKey zaten hazır, GeminiService.js:9) AI kadı da devreye girer.",
+    "HAZIR AMA BAĞLANMAMIŞ İÇERİK #2 — water_dispute_talk (DialogueSystem.js:357): NPCManager'da değirmen başına bir 'Değirmenci' NPC'si ekleyip dialogueId: 'water_dispute_talk' vermek hem kritik bugı çözer hem oyunun tek hukuki-ikilem görevini (su nöbeti takvimi vs tazminat — iki farklı adalet felsefesi) oynanır kılar.",
+    "HAZIR AMA BAĞLANMAMIŞ İÇERİK #3 — Karaman 1398 ve Ankara 1402 seferleri (HistoryEventSystem.js:83-120): Niğbolu sonrası checkHistoricalEvents'e (GameState.js:273) yıl bazlı kampanya ataması eklemek (1398→karaman, 1402→ankara) oyuna hazır yazılmış iki sefer ve bir alternatif-tarih finali kazandırır; 'Fetret Devri önlendi' senaryosu güçlü bir yeniden-oynanabilirlik kancası.",
+    "MİZAH KANCASI — saka_talk ve guard_talk tanımsız diyalogları (NPCManager.js:193/313): Saka İbrahim su taşıyıcı esprileri ('kuyudan çektiğim kadar laf çekmeyin beyim') ve nöbetçi muhafızların Kosova/Niğbolu dedikoduları için bomboş, isimli, modellenmiş sahne alanı. Tellak Hüseyin Ağa'nın tonu şablon alınabilir.",
+    "MİZAH/GÜNLÜK HAYAT KANCASI — hamam (tellak_talk zaten oyunun en sıcak sahnesi): lastBathDay alanı GameState'te tutuluyor ama hiç okunmuyor; 'uzun süre yıkanmayan sipahiye NPC'lerin burun kıvırması' gibi düşük maliyetli bir mizah döngüsü için altyapı hazır.",
+    "TARİH ÖĞRETİMİ KANCASI — Koca Dede modeli genişletilebilir: dede_talk tek anıyla sınırlı; 1361 Edirne'nin fethi, 1364 Sırpsındığı, Çandarlı ailesi gibi ek anı-dalları aynı düğüme choices olarak eklenebilir (kod deseni hazır, sadece veri).",
+    "TARİH ÖĞRETİMİ KANCASI — imam'ın 'Rumeli havadisleri' dalı (DialogueSystem.js:146-161) görev ilerledikçe güncellenen bir 'haber bülteni'ne dönüştürülebilir: quest durumuna göre farklı metin döndürmek için getDialogueData zaten her çağrıda yeniden değerlendiriliyor (fonksiyon statik data'yı runtime'da kuruyor, koşullu metin eklemek kolay).",
+    "DİNİ/KÜLTÜREL İÇERİK KANCASI — quest_imam 'Cuma Duası' başlığı taşıyor ama vakit kavramı yok: GameState.time.dayTimeHours ve dayCount zaten mevcut; cuma günü mescitte toplanan köylüler (VillagerAI socialPos altyapısı var) + imam hutbesi metni eklemek dönem atmosferini derinleştirir.",
+    "ARZUHAL ÇEŞİTLİLİĞİ KANCASI — petitionPool (PetitionSystem.js:16) düz veri dizisi; düğün izni, zimmî tüccarın pazar yeri talebi, köprü onarımı, kuraklıkta zekât dağıtımı gibi dönem-otantik dilekçeler eklemek yalnızca dizi elemanı eklemek kadar kolay. reward.type olarak 'income/morale/asayis' üçlüsü destekleniyor.",
+    "DRAMATİK GERİLİM KANCASI — CampaignBattleSystem.js:148'deki Ali yaralanması: joinActiveCampaign'in zafer sonucuna 'gameState.aliStatus.legSevered = true' bağlamak, yazılmış olan 3 günlük ölüm sayacını + taşlanma fail-state'ini + quest_save_ali_leg'in tüm duygusal ağırlığını tek satırla canlandırır.",
+    "GERİ BİLDİRİM KANCASI — hasPendingMessenger bayrağı (PetitionSystem.js:80): NPCManager'daki VillagerAI koşu davranışı mevcut; bayrak true olduğunda bir köylüyü oyuncuya koşturan küçük bir bağlantı, 'arzuhalimiz bekler!' bildirimini sahneye dönüştürür."
+   ],
+   "techDebt": [
+    "Ölü kod kümesi: GeminiService + openRejectionModal/submitRejectionReason/showKadiVerdict zinciri (UIManager.js:587-680), CampaignBattleSystem (yalnızca hiç çağrılmayan getBattleSystem üzerinden erişilebilir), simulateKaramanCampaign/simulateAnkaraCampaign (HistoryEventSystem.js:83-120), water_dispute_talk diyaloğu, checkHistoricalEvents'in 1396 dalı (GameState.js:273-284), DialogueSystem'deki 7 kullanılmayan alias (DialogueSystem.js:654-661).",
+    "Kullanılmayan veri alanları: quest.chapter (hiçbir UI okumuyor), quest_save_ali_leg'de chapter hiç yok (tutarsız şema), activeCampaign.rewardAkce/rewardRep, gameState.lastBathDay (yazılıyor, okunmuyor), quest.targetId/targetType çoğu akışta kullanılmıyor.",
+    "Zaman modeli çatallanmış: 'gün' kavramı PetitionSystem'de 45 sn, GameState'te ~8000 sn; daysPassed iki yerden artırılıyor — tek bir zaman otoritesine ihtiyaç var.",
+    "Diyalog verisi her çağrıda yeniden inşa ediliyor: getDialogueData statik ~650 satırlık nesneyi her openDialogue'da sıfırdan kuruyor; performans sorunu değil ama koşullu/duruma bağlı diyalog eklemeyi zorlaştıran bir yapı — data ile logic ayrıştırılmalı.",
+    "Ödül dağıtımı if-zinciri (QuestSystem.js:492-500) ile UI ödül render'ı (UIManager.js:521-526) farklı anahtar setleri kullanıyor; ödül şeması tek bir sözlükte merkezileştirilmeli (title ve maxHealth bug'larının kök nedeni bu kopukluk).",
+    "advanceObjective hem hedef ilerletme hem görev aktive etme işini yapıyor ve prerequisite kontrolünü baypas ediyor; 'activate' ile 'progress' ayrılmalı.",
+    "Sıra-bağımlı aktif görev seçimi: getActiveQuest/syncAvailableQuests dizi sırasına dayanıyor; öncelik alanı veya oyuncunun görev sabitlemesi (pin) yok — water_dispute kilitlenmesinin ikinci kök nedeni.",
+    "steamManager.unlockAchievement her yerde sabit string ('ACH_FIRST_PATROL'); görev-başarım eşlemesi veriye taşınmalı.",
+    "GeminiService API anahtarı URL query'de; x-goog-api-key header'ına taşınmalı, localStorage yerine Electron safeStorage düşünülmeli.",
+    "PetitionSystem.generatePetition aynı dilekçenin arka arkaya gelmesini engellemiyor (4 elemanlı havuzda %25 tekrar şansı) ve tamamlanan inşaatlar havuzdan düşmüyor (aynı değirmen defalarca inşa edilebilir, her seferinde +800 gelir — ekonomi enflasyonu riski)."
+   ]
+  },
+  "gameplay": {
+   "architecture": "**Girdi akışı (dövüş):** InputManager.js:82-83 sol tık mousedown'da `onAttack` callback'ini tetikler → main.js:137-141 `player.triggerAttack()` (Player.js:114-153: stamina kontrolü ≥15, 4 adımlı kombo sayacı, isRiding ise false döner) başarılıysa `combat.processPlayerAttack()` çağrılır. CombatSystem.processPlayerAttack (CombatSystem.js:171-322) fizik/raycast KULLANMAZ; menzil (dist<3.2) + bakış açısı dot-product (>0.4) testiyle anlık hasar uygular. Dört hedef grubu sırayla taranır: (1) npcManager.enemies, (2) npcManager.npcs (reaya — vurunca asayiş/güven/fraksiyon cezaları), (3) townGenerator.damageables (hayvan/fıçı — TownGenerator.js:780-857'de dolduruluyor, doğrulandı), (4) sabit kodlu 2 \"talim mankeni\" koordinatı. Hasar matrisi `CombatSystem.calculateDamage` (statik, CombatSystem.js:141-169): slashing/piercing/blunt × cloth/leather/mail/plate çarpanları; baz hasar `25 + swordLevel*8` (CombatSystem.js:175). weaponType yalnızca DialogueSystem.js:198 ('blunt', demirciden gürz alınca) ve :211 ('slashing') ile değişir. Düşman karşı saldırısı CombatSystem.update (CombatSystem.js:369-381): dist<2.0'da 1.6 sn cooldown ile sabit 18 hasar; blokla %80 emilim (CombatSystem.js:387-391). Vuruş geri bildirimi: emissive kırmızı flash (applyDamageFlash), kan/toz parçacıkları (spawnBloodAndDust), kamera sarsıntısı, ses, bildirim — hepsi mevcut ve çalışıyor.\n\n**Okçuluk:** main.js:157-161 R tuşu → ArcherySystem.toggleBowMode (ArcherySystem.js:40-54, swordDrawn=false yapar). update döngüsünde (ArcherySystem.js:118-129) `inputManager.mouse.leftDown` basılıyken drawProgress 1.2 sn'de dolar, bırakınca releaseArrow: hız `22 + power*35` m/s (ArcherySystem.js:102), uçuşta yerçekimi -14 m/s² (ArcherySystem.js:137) ile gerçek parabolik fizik. Çarpışma: yalnızca `town.archeryTargets` (TownGenerator.js:567-573'te tek hedef, x:175 z:-22, doğrulandı) düzlem testi (distZ<0.6) + radyal halka puanlama (göbek 0.40/orta 0.85/dış 1.40) ve zemin (y≤0.05). Düşman/NPC çarpışma testi YOK. `player.modelBuilder.createFirstPersonBow` ModelBuilder.js:1791'de mevcut (doğrulandı).\n\n**Talim:** TrainingSystem (singleton, TrainingSystem.js:153) 4 drill türü ve puan/madalya döngüsü tanımlar; ANCAK `startDrill/processShieldBlock/processSwordStrike/processSpearCharge/issueSquadOrder` metodlarını çağıran TEK BİR satır bile yok (tüm src grep'lendi, sadece tanımlar bulundu). CampaignBattleSystem.js:3'te import edilir ama hiç kullanılmaz. Yani talim mekaniği kod olarak var, oyunda yok. Fiili \"talim\": görünmez manken hit-box'larına kılıç sallamak (CombatSystem.js:296-319) ve okçuluk poligonu.\n\n**Niğbolu seferi — İKİ paralel implementasyon:** (A) CampaignBattleSystem (CampaignBattleSystem.js:16-187): 5 safhalı, seçenekli (başarı olasılığı + zafer puanı), safha başına metin; sonunda concludeBattle Ali'nin bacağının kopması dramını ve quest_save_ali_leg'i tetikler. Bu sistem HİÇBİR YERDEN ÇAĞRILMIYOR — tek referans HistoryEventSystem.js:9-11'deki `getBattleSystem()` ve o da hiç çağrılmıyor (doğrulandı). (B) Fiilen oynanan yol: UIManager.js:346/358 → HistoryEventSystem.joinActiveCampaign (HistoryEventSystem.js:12-36) → simulateNigboluCampaign (HistoryEventSystem.js:38-81): cebelü sayısı kontrolü + tek Math.random() zarı → anlık metin sonucu (showBattleResult modalı). Yani sefer savaşı OYNANMIYOR, tek tıkla çözülen metin.\n\n**İkmal:** SupplySystem (singleton, SupplySystem.js:126) dayanıklılık/at/sefer erzakı/yoklama tutar; ama `supplySystem.` çağrısı tüm src'de yalnızca CampaignBattleSystem.js:115'te (`reduceDurability('shield',15)` — kendisi ölü kodda). repairItem/feedHorse/purchaseSupply/conductInspection'ı çağıran yok; durability hiçbir hasar hesabına girmiyor; campaignSupplies.arrows ArcherySystem'e bağlı değil (sonsuz ok). Sistem tamamen ada.\n\n**Tımar ekonomisi:** TimarSystem statik metodları UIManager.js:225-260 (buton) ve DialogueSystem.js:33/47/63'ten (kethüda diyaloğu) çağrılır — bağlantı gerçek. Gelir: collectAnnualTax `annualIncome(3600) × (0.85 + morale/100×0.3)` (TimarSystem.js:17-19), düşman ganimeti (40-100 akçe, CombatSystem.js:330), sefer ganimeti (900-2200, HistoryEventSystem). Gider: yalnızca oyuncunun tek seferlik satın alımları (cebelü 800, teçhizat 300, at 500, ziyafet 150, diyalog harcamaları). PERİYODİK GİDER YOK (maaş/bakım/iaşe yok) — grep ile `akce -=` tüm noktaları doğrulandı. taxCollectedThisYear bayrağı GameState.advanceSeason'da (GameState.js:261) HER MEVSİM (10 günde bir) sıfırlanır → \"yıllık\" vergi yılda 4 kez toplanabilir. Zaman: GameState.updateTime (GameState.js:212-234) gün sayar, 10 günde mevsim, 4 mevsimde yıl; yıl dönümünde checkHistoricalEvents yalnız `year===1396` kontrolü yapar (GameState.js:272) — yıl 1397 olduğu için asla eşleşmez, yeni sefer hiç üretilmez.",
+   "bugs": [
+    {
+     "where": "src/systems/CampaignBattleSystem.js:26,97 (+ src/ui/UIManager.js:346,358)",
+     "what": "5 safhalı Niğbolu meydan muharebesi sistemi (startNicopolisBattle/executePhaseAction) hiçbir UI veya sistemden çağrılmıyor. Tek referans HistoryEventSystem.getBattleSystem() (satır 9-11) ve o metodu da çağıran yok. Oyuncu haritadan sefere katılınca HistoryEventSystem.joinActiveCampaign tek Math.random() zarıyla anlık metin sonucu döndürüyor. Oyunun en büyük set-piece'i tamamen ölü kod.",
+     "severity": "kritik"
+    },
+    {
+     "where": "src/systems/CampaignBattleSystem.js:148-159",
+     "what": "gameState.aliStatus.legSevered = true yalnızca concludeBattle() içinde set ediliyor; concludeBattle ölü kodda olduğu için Ali'nin bacak kopması dramı, 3 günlük mühlet sayacı (GameState.js:220-227), taşlanarak linç fail-state'i (GameState.js:236-245) ve quest_save_ali_leg görev zinciri (DialogueSystem'deki koltuk değneği/dağlama diyalogları dahil) oyunda asla tetiklenemiyor.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/systems/TrainingSystem.js:22-125",
+     "what": "startDrill, processShieldBlock, processSwordStrike, processSpearCharge ve issueSquadOrder metodlarını çağıran tek satır yok (tüm src grep ile doğrulandı). Talim sistemi tamamen ölü kod — 'talim mekaniği' oyunda mevcut değil. Ayrıca CampaignBattleSystem.js:3'te trainingSystem import edilip hiç kullanılmıyor.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/systems/SupplySystem.js:39-123",
+     "what": "repairItem, feedHorse, purchaseSupply ve conductInspection hiçbir yerden çağrılmıyor; reduceDurability'nin tek çağrısı ölü CampaignBattleSystem.js:115'te. Durability hiçbir hasar/savunma hesabına girmiyor, campaignSupplies.arrows (60 ok) ArcherySystem'e bağlı değil (ok sonsuz), at yemleme/stamina hiçbir hareket sistemini etkilemiyor. Sistem bütünüyle etkisiz ada.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/systems/ArcherySystem.js:144-183",
+     "what": "Ok çarpışma testi yalnızca town.archeryTargets ve zemini (y≤0.05) kontrol ediyor; npcManager.enemies referansı hiç yok. Yay ile düşmana hasar vermek imkansız — okçuluk sadece poligon oyuncağı, dövüşte kullanılamıyor.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/core/GameState.js:261 (+ src/systems/TimarSystem.js:11)",
+     "what": "taxCollectedThisYear bayrağı advanceSeason içinde her mevsim değişiminde (10 oyun gününde bir) sıfırlanıyor. 'Yıllık' öşür vergisi (≈3060-4140 akçe) yılda 4 kez tahsil edilebiliyor; ekonomi dengesi tamamen kırık.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/core/GameState.js:271-285 (+ src/systems/HistoryEventSystem.js:29-32)",
+     "what": "checkHistoricalEvents yalnız time.year === 1396 kontrolü yapıyor ama yıl artışından SONRA çağrıldığı için (1397, 1398...) koşul asla sağlanmıyor. HistoryEventSystem'in beklediği karaman_1398 ve ankara_1402 seferleri hiç oluşturulmuyor → simulateKaramanCampaign ve simulateAnkaraCampaign (Ankara alternatif tarih finali dahil) erişilemez ölü kod. Niğbolu sonrası oyunda sefer içeriği bitiyor.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/systems/CombatSystem.js:296-319",
+     "what": "'Talim Mankeni' hit-box'ları (175,-10) ve (175,-6) koordinatlarında sabit kodlu; TownGenerator'da bu konumda hiçbir manken modeli yok (grep: dummy/manken sıfır sonuç — orası okçuluk atış çizgisi, TownGenerator.js:577-585). Oyuncu boşluğa kılıç sallayınca 'Talim Mankenine tam isabet!' mesajı alıyor; ayrıca cooldown'suz sınırsız +5 XP farm'ı ve tek vuruşta iki mankene birden isabet mümkün (dist<3.4, dot>0.3).",
+     "severity": "orta"
+    },
+    {
+     "where": "src/systems/CombatSystem.js:31-60",
+     "what": "applyDamageFlash yarış durumu: 220ms içinde ikinci vuruş gelirse ikinci çağrı 'orijinal' emissive olarak 0xdd1111 (kırmızı) kaydediyor; ilk timeout doğru rengi geri yükledikten sonra ikinci timeout mesh'i kalıcı kırmızı parlar halde bırakıyor. Hızlı kombolarda düşmanlar kalıcı kırmızıya dönebilir.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/systems/ArcherySystem.js:45 (+ src/core/InputManager.js:83, src/main.js:137-141, src/entities/Player.js:117-119)",
+     "what": "toggleBowMode swordDrawn=false yapıyor; InputManager her sol tık mousedown'da onAttack'i de tetiklediği için yay modunda HER ok atışında triggerAttack çalışıp '⚠️ Önce pusatını kuşan! (Q Tuşuna bas)' bildirimi basıyor — yanıltıcı uyarı spamı.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/systems/ArcherySystem.js:153-155",
+     "what": "Hedef isabeti distZ<0.6 düzlem penceresiyle test ediliyor ama tam çekişte ok hızı 57 m/s → 60fps'te kare başına ~0.95m yol. Ok, 1.2m'lik pencereyi tek karede atlayabilir (tünelleme): tam güçlü atışlar hedefin içinden geçip isabet sayılmayabilir. Segment/ray testi yok.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/systems/TimarSystem.js:25,75 (+ src/core/GameState.js:170)",
+     "what": "timar.morale'in iki yazarı var: TimarSystem doğrudan değiştiriyor (vergi -5, ziyafet +20) ama GameState.modifyReayaTrust her çağrıldığında morale = reayaTrust ile eziyor. 150 akçelik ziyafetin morale etkisi ilk reaya güveni değişiminde siliniyor; vergi çarpanı (morale bazlı) tutarsız çalışıyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/systems/TrainingSystem.js:142 (+ CombatSystem.js:314, ArcherySystem.js:178)",
+     "what": "military.cebeluExperience 5 ayrı yerden artırılıyor ama tüm src'de hiçbir yerde OKUNMUYOR (seviye eşiği yok, UI'da gösterilmiyor, hasara etkisi yok). Ödül olarak verilen 'Cebelü Tecrübesi' tamamen boş bir sayaç.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/systems/CombatSystem.js:384-402",
+     "what": "enemyAttackPlayer sabit 18 hasar veriyor; oyuncunun armorLevel/armorType değerleri savunmada hiç kullanılmıyor (calculateDamage yalnız düşmana vururken çağrılıyor). upgradeArmorAndSword'un 'zırh pekiştirme' vaadi sadece maxHealth +20; zırh sistemi oyuncu için tek yönlü.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/systems/CombatSystem.js:156 (+ src/entities/Player.js:115)",
+     "what": "calculateDamage'daki at üstü piercing ×1.6 çarpanı erişilemez: processPlayerAttack yalnız triggerAttack true dönünce çağrılıyor (main.js:138) ve triggerAttack isRiding iken false dönüyor. Ayrıca weaponType 'piercing' hiçbir yerde set edilmiyor (yalnız 'blunt' ve 'slashing', DialogueSystem.js:198/211) — piercing dalı tamamen ölü.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/systems/TimarSystem.js:60-61",
+     "what": "patrolVillage, sipahi.reputation'ı doğrudan artırıyor ama modifySancakReputation kullanmıyor; reputation.sancakReputation güncellenmiyor. İki itibar kaydı (alias) ayrışıyor — diğer tüm sistemler modifySancakReputation üzerinden sipahi.reputation'ı ezdiğinden devriye bonusu ilk itibar değişikliğinde kayboluyor.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/systems/CombatSystem.js:202",
+     "what": "Vuruş geri tepmesi enemy.position.addScaledVector(playerDir, 0.8) çarpışma kontrolü olmadan uygulanıyor; düşman duvara/binaya itilerek gömülebilir.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/systems/CombatSystem.js:338-340",
+     "what": "'// Görev Sistemi Bildirimi' yorumu art arda iki kez kopyalanmış (kozmetik).",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/systems/SupplySystem.js:66",
+     "what": "Bildirim metninde yazım hatası: 'Kuvveti tamalandı' → 'tamamlandı'.",
+     "severity": "düşük"
+    }
+   ],
+   "engagement": [
+    "Oyunun doruk noktası olan Niğbolu seferi tek tıkla çözülen metin popup'ı (HistoryEventSystem.simulateNigboluCampaign): hazırlanan 5 safhalı, seçenekli, olasılıklı savaş motoru bağlanmadığı için oyuncu sefer için cebelü/ikmal/talim hazırlığı yapsa bile hiçbir hazırlığın (ok stoğu, dayanıklılık, yoklama notu) savaş sonucuna etkisi yok — cebelü sayısı ≥2 neredeyse garantili büyük zafer (HistoryEventSystem.js:40).",
+    "Talim vaadi boş: TrainingSystem ölü olduğu için 'talim' fiilen görünmez manken hit-box'larına kılıç sallamak; oyuncuya beceri kazandıran tek gerçek mini-oyun okçuluk poligonu, o da hiçbir ilerlemeye (okunmayan cebeluExperience dışında) bağlanmıyor.",
+    "Ekonomide baskı sıfır: periyodik gider yok, vergi mevsim başına toplanabiliyor, düşman ganimeti sınırsız — akçe monoton artıyor; 800 akçelik cebelü ve 300-500 akçelik yükseltmeler birkaç 'yıl' sonra anlamsızlaşıyor. Gelir-gider DÖNGÜSÜ yok, sadece gelir var.",
+    "Vuruş hissi yarım: hasar, kılıç animasyonunun DAHA BAŞINDA (mousedown anında, main.js:138-140) uygulanıyor; kamera sarsıntısı animasyonun %75'inde geliyor (Player.js:381) — görsel darbe ile hasar bildirimi senkron değil, vuruş 'önceden' hissediliyor.",
+    "Düşman öldürülünce ceset sahnede kalıyor (killEnemy sadece yatırıyor), respawn mekanizması grep'te bulunamadı — haydutlar tükenince dövüş içeriği ve asayiş/ganimet döngüsü tamamen bitiyor.",
+    "Reayaya kaza vuruşu aşırı cezalı: kalabalık köy meydanında tek yanlış swing -15 reaya güveni + -12 asayiş + -20 fraksiyon; reayaTrust ≤15'te anında oyun sonu (Çiftbozan). Düşman ve köylü hit-box'ları iç içe olduğundan (aynı swing hem düşmana hem köylüye isabet edebiliyor) oyuncu kontrolü dışında game-over spirali riski var.",
+    "Ölüm cezası ise tam tersine çok hafif: -100 akçe + konağa ışınlanma + 40 can (CombatSystem.js:404-409) — dövüşte gerilim yok. Ceza dengesi ters: köylüye vurmak ölümden 10 kat tehlikeli.",
+    "Yay modunda her atışta yanıltıcı 'Önce pusatını kuşan!' uyarısı basılıyor; ayrıca isabet bildirimleri 5 satırlık bildirim kuyruğunu (GameState.js:207) hızla doldurup önemli mesajları itiyor.",
+    "Niğbolu sonrası oyun hedefsiz kalıyor: 1397+ yıllarında yeni sefer üretilmiyor (checkHistoricalEvents bug'ı), kalan tek döngü vergi toplamak — geç oyun tamamen boş."
+   ],
+   "contentInventory": "**Tarihi içerik (bu alanda güçlü):** CampaignBattleSystem.getPhaseData (CampaignBattleSystem.js:40-95) gerçek Niğbolu 1396 muharebe akışını 5 safhada doğru sırayla anlatıyor: Jean de Nevers (Korkusuz Jean) komutasındaki kibirli Fransız-Burgonya öncü hücumu → kazık hattı ve okçu barajı → attan inmiş plaka zırhlı şövalyelerle yaya çarpışması (plakaya karşı gürz vurgusu tarihi olarak isabetli, CombatSystem hasar matrisiyle tutarlı) → Kral Sigismund'un Macar-Alman ana kuvveti → Stefan Lazareviç'in Sırp vasal süvarisi ve Yıldırım Bayezid'in ihtiyat karşı hücumu. Sahte ricat (Turan taktiği) hem burada hem HistoryEventSystem metninde geçiyor. HistoryEventSystem ayrıca Karaman 1398 (Konya/Larende fethi) ve 1402 Ankara alternatif tarihi (Timur'un filleri, Kara Tatarların saf değiştirmesi, Fetret Devri'nin önlenmesi) metinlerini içeriyor — ikisi de şu an erişilemez. **Osmanlı kurum terminolojisi:** öşür/cizye/rüsum (TimarSystem.js:12,27), tımar beratı, cebelü mecburiyeti (3000 akçeye 1 cebelü, GameState.js:94), çiftbozan fail-state'i, sancakbeyi yoklama teftişi A/B/C dereceli (SupplySystem.js:89-123), zahire/kile, ahi teşkilatı (demirci tamirlerinde ahiler fraksiyonu +5). **Dini içerik:** şehadet fail-state'i ('Şehadet şerbetini içtin', GameState.js:254 — triggerMartyrdom'u çağıran handlePlayerMartyrdom da ölü kodda), gaza/gazi kavramları her yerde, ulema fraksiyonu (reayaya saldırınca -10), 'Gazi-i Ekber' unvanı; namaz/ezan/dua bu alandaki dosyalarda yok. **NPC/karakter sesi:** Bu sistemlerdeki tüm 'diyalog' aslında addNotification tek satırlıkları — Demirci Rüstem Usta (tamir mesajı), cebelü isimleri havuzu (Sunguroğlu Mustafa, Gazi Murat, Demirci Çırağı Hamza, Yaycı Mehmet — TimarSystem.js:41), Sadık Cebelü Ali dramı (bacak kopması, 3 gün mühlet, taşlanma). Bölük emirleri Türkçe askeri seslenişler ('Safı bozmayın!', 'Hücum! Düşman Hattına Girin!' — TrainingSystem.js:107-112, ölü kod). **Mizah:** Bu 6 dosyada mizah SIFIR — ton tamamen epik/ciddi. En yakın renkli metin '12'den Vurdun (Sarı Göbek)' okçuluk mesajı (ArcherySystem.js:168) ve tavuk/koyun kesince '+10 Erzak' (CombatSystem.js:280).",
+   "hooks": [
+    "CampaignBattleSystem.getPhaseData (CampaignBattleSystem.js:40-95) tamamen data-driven: yeni safha/seçenek eklemek tek obje eklemek kadar kolay. UI'ya bağlandığı anda her safhaya tarihi mini-bilgi kartı ('Kazık hattı taktiği Ankara'da Timur'a karşı da denendi' gibi) eklenebilir — tarih öğretimi için en güçlü kanca.",
+    "executePhaseAction başarısızlık metni tek tip ('ÇETİN VURUŞMA', CampaignBattleSystem.js:116) — safhaya özgü başarı/başarısızlık anlatıları (ör. 2. safhada 'Şövalye atları kazıklara saplandı, D'Eu Kontu esir düştü') için hazır slot.",
+    "killEnemy (CombatSystem.js:324-342) sabit ganimet mesajı: düşman türüne göre tarihi ganimet çeşitliliği (Frenk miğferi, Ceneviz kumaşı) ve haydutların son sözleri (mizah kancası) eklenebilir; questSystem.onEnemyKilled entegrasyonu zaten çalışıyor.",
+    "ArcherySystem isabet mesajları (ArcherySystem.js:164-176): '12'den vurmak' deyiminin kökeni, Okçular Tekkesi/kabza geleneği, menzil taşları gibi mini tarih notları için doğal nokta; ayrıca puan tablosu/rekor mekaniği eklenirse tek gerçek beceri oyunu derinleşir.",
+    "SupplySystem.conductInspection desc alanları (SupplySystem.js:105-117) şu an tek cümle: yoklama teftişi bir diyalog sahnesine (sancakbeyi kethüdasının iğneleyici/övücü replikleri — mizah fırsatı) dönüştürülebilir; sistem UI'ya bağlanmayı bekliyor.",
+    "TimarSystem.collectAnnualTax (TimarSystem.js:10-30): öşür oranı (1/10), çift resmi gibi vergi türlerinin kethüda diyaloğunda açıklanması; köylülerin vergi gününe tepkileri (morale'e göre değişen mizahi tek satırlıklar) için kanca.",
+    "TrainingSystem.completeDrill madalya sistemi (TrainingSystem.js:127-150) hazır: drill'ler gerçek girdiye (mevcut kalkan bloğu Player.setBlocking, kılıç kombosu Player.comboStep, at hücumu isRiding+hız zaten kodda var) bağlanırsa cebelülerin talim sonrası tepkileri ('Beyim bu gidişle Yeniçeri ağası olursun!') eklenebilir.",
+    "CombatSystem dummyPositions (CombatSystem.js:296-299): gerçek manken modeli eklenince meç/lobut talimi tarihi bağlamı ve Rüstem Usta'nın manken hakkında esprili yorumu için nokta.",
+    "GameState.checkHistoricalEvents (GameState.js:271-285): 1397 İstanbul kuşatması, 1398 Karaman, 1402 Ankara fermanları için iskelet hazır (HistoryEventSystem simülasyonları yazılmış bile) — yıl kontrolü düzeltilince çok yıllık tarih kampanyası açılır.",
+    "enemyAttackPlayer blok mesajı (CombatSystem.js:391): mükemmel zamanlama/parry mekaniği eklenirse TrainingSystem.processShieldBlock(isTimingPerfect) parametresi zaten bunu bekliyor — iki ölü ucu birbirine bağlama fırsatı."
+   ],
+   "summary": "Gameplay alanı iki yüzlü bir tablo sunuyor: yakın dövüş (CombatSystem) ve okçuluk (ArcherySystem) gerçekten oynanan, geri bildirimi (kan/toz parçacıkları, damage flash, kamera sarsıntısı, ses) yerinde sistemlerken; TrainingSystem, CampaignBattleSystem ve SupplySystem'in neredeyse tamamı hiçbir yerden çağrılmayan ölü kod. En kritik bulgu: 5 safhalı, seçenekli Niğbolu meydan muharebesi motoru yazılmış ama UI'ya hiç bağlanmamış — oyuncu seferi tek tıkla çözülen bir metin popup'ı olarak yaşıyor ve buna bağlı Ali'nin bacak kopması dram zinciri de erişilemez durumda. Tımar ekonomisi tek yönlü: gelirler çalışıyor ama hiçbir periyodik gider yok ve 'yıllık' vergi her mevsim toplanabildiği için denge kırık. Sistemler arası kopukluk yapısal: ok stoğu yay ile, dayanıklılık hasarla, talim XP'si herhangi bir ilerlemeyle bağlantısız.",
+   "techDebt": [
+    "Büyük ölü kod kümeleri: TrainingSystem'in tamamı, CampaignBattleSystem'in tamamı (UI bağlantısı yok), SupplySystem'in ~%90'ı (yalnız reduceDurability'nin ölü koddan tek çağrısı var), HistoryEventSystem.getBattleSystem, simulateKaramanCampaign/simulateAnkaraCampaign, CombatSystem'deki piercing+isMounted dalları, GameState.triggerMartyrdom (çağıran handlePlayerMartyrdom da ölü).",
+    "Aynı işin iki paralel implementasyonu: Niğbolu savaşı hem CampaignBattleSystem (safhalı) hem HistoryEventSystem.simulateNigboluCampaign (anlık) olarak yazılmış; ödül değerleri birbiriyle çelişiyor (3000/1800 vs 2200/900 akçe, farklı itibar kazançları) — hangisi kanonik belirsiz.",
+    "Kullanılmayan import: CampaignBattleSystem.js:3 trainingSystem import edilip hiç kullanılmıyor.",
+    "Sabit kodlu dünya koordinatları: CombatSystem.js:296-299 manken pozisyonları TownGenerator'daki gerçek sahne düzeninden bağımsız elle yazılmış (tek kaynak ilkesi ihlali; TownGenerator'da manken zaten yok).",
+    "Çift kayıt/alias sorunları: sipahi.reputation ↔ reputation.sancakReputation ve timar.morale ↔ reputation.reayaTrust ikilikleri farklı yazarlarca tutarsız güncelleniyor (patrolVillage ve feastVillagers alias'ı atlıyor).",
+    "Bildirim tabanlı geri bildirim mimarisi: tüm sistemler addNotification'a tek satır basıyor; 5 mesajlık kuyruk (GameState.js:207) yoğun dövüşte kritik mesajları düşürüyor — geri bildirim kanalı ölçeklenmiyor.",
+    "CombatSystem.js:338-340 kopyala-yapıştır yorum tekrarı; SupplySystem.js:66 'tamalandı' yazım hatası.",
+    "Magic number yoğunluğu: menzil (3.2/3.0/3.4), dot eşikleri (0.4/0.45/0.35/0.3), hasar sabitleri (18, 25+level*8), ödül miktarları kod içine gömülü — denge ayarı için merkezi config yok."
+   ]
+  },
+  "ui": {
+   "summary": "UI alanı üç dosyadan oluşuyor: index.html (tüm HUD/modal iskeleti), src/style.css (tema ve HUD stilleri) ve src/ui/UIManager.js (1261 satırlık tek sınıf; HUD, 6 modal, pusula, mini-harita, dünya işaretçileri ve bildirimleri yönetiyor). Görsel kimlik güçlü (Osmanlı parşömen/altın teması, Cinzel+Amiri+Outfit fontları) ancak ciddi kablolama kopuklukları var: bildirim akışı her karede yeniden kurulduğu için animasyon sıfırlanıp fiilen görünmez kalıyor, dünya işaretçilerinin CSS'i hiç yazılmamış, pusula hedef metni tanımsız alan yüzünden \"undefined\" basıyor ve Gemini destekli Kadı/ret gerekçesi akışı hiçbir yerden çağrılmayan ölü özellik durumunda. Başlangıç ekranı butonları hem UIManager hem main.js tarafından bağlandığı için ses aç/kapa butonu kendini iptal ediyor. İçerik tonu tutarlı biçimde epik-tarihsel; mizah neredeyse hiç yok, dini/tarihi terminoloji (kadı, öşür, cebelü, hicri takvim) zengin ve yeni içerik için hazır kanca noktaları çok.",
+   "architecture": "VERİ AKIŞI: main.js:54'te `new UIManager()` kuruluyor; constructor (UIManager.js:15-147) ~90 DOM elemanını id ile `this.dom` sözlüğüne topluyor, bindEvents() (160-365) ile tüm buton dinleyicilerini bağlıyor ve updateStartScreenInfo() (367-376) ile prosedürel tımar bilgisini başlangıç ekranına basıyor. ANA DÖNGÜ: main.js:293'te her requestAnimationFrame karesinde `ui.update(playerPos, camera, playerYaw, npcs, enemies)` çağrılıyor; bu updateHUD'a (UIManager.js:1135-1195) delege ediyor ve sırayla: (1) updateCompass (836-858) yaw'ı dereceye çevirip #compass-tape'i translateX ile kaydırıyor ve yön adını yazıyor, (2) updateCompassWaypoint (860-893) questSystem.getActiveTargetInfo(playerPos) (QuestSystem.js:419-433'te tanımlı, doğrulandı) ile hedef açısını hesaplayıp 📍 işaretçisini konumlandırıyor, (3) updateMinimap (895-1047) 160x160 canvas'a 180m menzilli radar çiziyor (sabit landmark listesi 936-942, NPC/düşman noktaları, görev hedefi için pulse'lı yıldız 999-1024, merkezde oyuncu oku), (4) updateWorldMarkers (1049-1129) her karede container.innerHTML=''ile temizleyip NPC/düşman pozisyonlarını camera.project ile ekran koordinatına izdüşürüp marker div'leri üretiyor, (5) can/stamina/kaynak/tarih/görev metinleri gameState'ten okunup textContent ile yazılıyor (1152-1188), (6) renderNotifications (1249-1260) gameState.notifications dizisinden son 5 sn'lik kayıtları DOM'a basıyor, (7) checkFailState (1197-1247) gameState.failState.isGameOver ise tam ekran kırmızı overlay'i JS ile inline üretiyor. MODALLER: index.html'de 6 modal-backdrop var (diyalog 146, tımar defteri 166, görev defteri 224, harita 239, ret gerekçesi 273, kadı hükmü 304, savaş sonucu 331); açılışlar InputManager (Tab/J/M, InputManager.js:48-54) → main.js:184-196 → toggle* metodları üzerinden; E tuşu → main.js:202 → openDialogue(dialogueId, npcObj) → DialogueSystem.getDialogueData (DialogueSystem.js:11, doğrulandı) → renderDialogueChoices (415-436) seçenek butonları üretip choice.action() zinciriyle diyalog ağacında ilerliyor; npcObj.ai.setTalking ile NPC animasyonu duraklatılıyor. TIMAR DEFTERİ: butonlar TimarSystem'in statik metodlarına (TimarSystem.js:10-100'de tümü tanımlı, doğrulandı) bağlı; her tıklamada updateTimarBookUI (553-585) gelir dağılımını annualIncome'un %65/%22/%13 sabit oranlarıyla hesaplayıp basıyor, arzuhal kutusunu gameState.currentPetition'a göre gösterip gizliyor. HARİTA: toggleMapModal (683-698) renderCampaignMap'i (700-822) çağırıp 800x500 canvas'a stilize Rumeli haritası çiziyor (denizler, Tuna, 7 tarihi nokta 753-761); canvas tıklaması (331-354) sabit koordinatlara Math.hypot yakınlık kontrolüyle hızlı seyahat veya HistoryEventSystem.joinActiveCampaign (HistoryEventSystem.js:12, doğrulandı) tetikliyor; sefer sonucu showBattleResult (824-834) ile modala basılıyor. HIZLI SEYAHAT: executeFastTravel (153-158) → main.js:61-67'deki handler → player.position.set + bildirim. GEMINI AKIŞI: openRejectionModal (587-601) → submitRejectionReason (603-645) → geminiService.evaluateRejection (GeminiService.js:17, doğrulandı) → showKadiVerdict (647-681) asayiş/moral güncelleyip hüküm modalını açıyor — ancak openRejectionModal'ı çağıran hiçbir kod yok (tüm src grep'lendi).",
+   "bugs": [
+    {
+     "where": "src/ui/UIManager.js:1249-1260 (tetikleyen: src/main.js:293, animasyon: src/style.css:464,906-909)",
+     "what": "renderNotifications her karede notificationsContainer.innerHTML='' yapıp bildirimleri yeniden oluşturuyor. Her yeni DOM düğümünde 'slide-in 0.3s' animasyonu (opacity 0'dan başlar) sıfırdan başladığı için ~16ms'de tekrar yıkılıp kurulan bildirimler animasyonun ilk karesinde (opacity ~0) takılı kalıyor. Oyunun TÜM geri bildirimi (vergi, görev ilerlemesi, sefer uyarıları, hata mesajları) bu kanaldan aktığından oyuncu fiilen hiçbir bildirimi göremiyor.",
+     "severity": "kritik"
+    },
+    {
+     "where": "src/ui/UIManager.js:1049-1129 + src/style.css (eksik kurallar)",
+     "what": "updateWorldMarkers'ın ürettiği .world-marker, .marker-badge, .marker-hp-bar, .marker-hp-fill, .marker-dist, .marker-pointer sınıflarının ve #world-markers-container'ın CSS'i hiç yazılmamış (style.css'te 'marker' geçen tek kural .compass-waypoint-marker). Container statik akışta kaldığından style.left/top position:absolute olmadan etkisiz; z-index:1'li mutlak konumlu #game-container'ın (style.css:36-43) altında boyanıyor. Sonuç: NPC isim etiketleri, düşman HP barları ve [GÖREV] işaretçileri ekranda hiç görünmüyor — sistem komple görünmez.",
+     "severity": "kritik"
+    },
+    {
+     "where": "src/ui/UIManager.js:884",
+     "what": "compassWaypointText'e `targetInfo.questTitle` yazılıyor ama QuestSystem.getActiveTargetInfo (QuestSystem.js:419-433) sadece questId/title/shortTitle/targetPos/targetName/icon/distance döndürüyor; questTitle alanı yok. Pusula hedef metni her zaman 'undefined (37m)' şeklinde basılıyor.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/ui/UIManager.js:1107",
+     "what": "`activeTarget.targetId === npc.id` karşılaştırması yapılıyor ama getActiveTargetInfo targetId döndürmüyor (questId döndürüyor); NPC'lerin id'si dolu (NPCManager.js:35-301). undefined === 'kethuda' daima false olduğundan görev hedefi NPC'lerdeki '[GÖREV]' vurgusu, 📜 ikonu ve active-quest stili hiçbir zaman tetiklenmiyor.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/style.css (genel .hidden kuralı yok) — etkilenenler: index.html:291 (#rejection-loading), src/ui/UIManager.js:865 (#compass-waypoint-marker)",
+     "what": "CSS'te yalnızca .modal-backdrop.hidden, .interaction-prompt.hidden ve #start-screen.hidden tanımlı; genel bir `.hidden { display:none }` kuralı YOK. Bu yüzden (a) '⏳ Kadı ve Ahali Heyeti fermanı mütalaa ediyor' yükleme yazısı ret modalında her zaman görünür, (b) aktif görev hedefi yokken compassWaypointMarker.classList.add('hidden') hiçbir şey gizlemiyor — 📍 pusulada asılı kalıyor ve 'Hedef: 0m' metni hiç temizlenmiyor.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/ui/UIManager.js:587 (openRejectionModal) — çağıran yok (tüm src grep ile doğrulandı)",
+     "what": "Ret Gerekçesi modalı + Gemini Kadı hükmü akışı (openRejectionModal → submitRejectionReason → showKadiVerdict, index.html:273-328'deki iki modal dahil) hiçbir koddan çağrılmıyor. 'Reddet' butonu (UIManager.js:277-283) doğrudan petitionSystem.rejectPetition() çağırıp sabit -5 moral uyguluyor. Oyunun en özgün özelliği (AI kadıya gerekçe yazma) ulaşılamaz ölü kod.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/ui/UIManager.js:162-202 ile src/main.js:87-131 (çifte bağlama)",
+     "what": "Başlangıç ekranı butonları iki kez bağlanıyor: UIManager addEventListener ile, main.js onclick ile. Tek tıkta ikisi de çalışıyor: (a) ses butonu toggleMute'u iki kez çağırıp kendini iptal ediyor — SES AÇ/KAPA BUTONU HİÇ ÇALIŞMIYOR; (b) başlat butonunda iki farklı hoş geldin bildirimi ekleniyor (UIManager.js:189 ve main.js:123) ve zafer cıngılı üst üste iki kez çalıyor; (c) 'Yeni Tımar' butonu gameState.reset() + questSystem.syncWithGameState()'i iki kez koşturuyor.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "src/ui/UIManager.js:836-845 + index.html:67 + src/style.css:234-245",
+     "what": "#compass-tape boş bir div; ne HTML'de ne JS'de yön çentikleri/harfleri üretiliyor. Kod '900px genişliğinde şerit' varsayıyor ama CSS width:100% (280px). translateX boş elemanı kaydırdığı için pusula şeridi görsel olarak hiçbir şey göstermiyor — kayan şerit pusula tasarımı ölü, yön bilgisi yalnız alttaki derece metninde.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/ui/UIManager.js:1225-1235 + src/core/GameState.js:190-194",
+     "what": "Çiftbozan fail-state'i failState.desc alanını hiç set etmiyor (uzun açıklama yanlışlıkla reason alanına yazılmış); checkFailState overlay'i gameState.failState.desc'i bastığı için ekranda 'undefined' görünüyor. Ayrıca reason==='stoning_linch' ikon kontrolü bu yolda anlamsızlaşıyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/ui/UIManager.js:486-549 ile src/style.css:707-719",
+     "what": "Görev defteri JS'i quest-item-card, quest-card-header, quest-status-badge, quest-card-giver, selected, quest-detail-header, quest-desc-box, quest-objectives-box, quest-rewards-box, reward-pill, objective-item sınıflarını üretiyor ama CSS'te bunların HİÇBİRİ tanımlı değil; onun yerine hiç kullanılmayan .quest-list-item stillenmiş (ölü CSS). Görev listesi ve detay paneli tamamen stilsiz düz metin — seçim vurgusu, hover, ödül rozetleri görsel olarak yok.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/ui/UIManager.js:689 + index.html:242,252",
+     "what": "toggleMapModal, sefer adını #campaign-title'a yazıyor ama bu id modalın ana H2 başlığı ('🗺️ SANCAK HARİTASI & SEFER DERGÂHI'); açılışta harita başlığı sefer adıyla eziliyor. Kenar çubuğundaki asıl hedef olan #campaign-sidebar-title ('Büyük Sefer Fermanı') hiçbir koddan güncellenmiyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "src/ui/UIManager.js:676 (ayrıca PetitionSystem.js:81,100,158)",
+     "what": "soundManager.playNotification() AudioManager'da tanımlı değil (mevcut metodlar: playBirdChirp, playFootstep, playHorseHoof, playSwordSwing, playSwordClash, playWarDrum, playVictoryJingle — grep ile doğrulandı; playCoinJingle da yok). try/catch hatayı yuttuğu için olumsuz kadı hükmü ve arzuhal sesleri sessizce hiç çalmıyor.",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/ui/UIManager.js:142",
+     "what": "markerElementsPool dizisi tanımlanmış ama sınıfın hiçbir yerinde kullanılmıyor — DOM havuzlama niyetinin kalıntısı ölü kod (yerine her karede innerHTML='' ile tam yeniden kurulum yapılıyor).",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/ui/UIManager.js:357",
+     "what": "btnJoinCampaign'e addEventListener null-check'siz bağlanıyor; dosyadaki diğer tüm binding'ler `if (this.dom...)` korumalı. Eleman HTML'den kaldırılırsa/yeniden adlandırılırsa constructor TypeError ile patlar ve tüm UI kurulumunun kalanı çalışmaz.",
+     "severity": "düşük"
+    },
+    {
+     "where": "index.html:105 + src/ui/UIManager.js:1165",
+     "what": "HTML placeholder tarihi 'H. 805 / M. 1402' oyunun 1396/H.798 başlangıcıyla çelişiyor (ilk HUD güncellemesinde düzeliyor ama ilk karede yanlış görünür). Asayiş formatı da tutarsız: HTML '80%', JS '%80' (Türkçe doğru olan JS tarafı).",
+     "severity": "düşük"
+    },
+    {
+     "where": "src/style.css:373-393",
+     "what": ".minimap-wrapper iki kez tanımlanmış; ilk blok (373-382) tamamen ikincisi tarafından eziliyor — ölü CSS.",
+     "severity": "düşük"
+    }
+   ],
+   "engagement": [
+    "Bildirim sistemi kırık olduğundan (kritik bug) oyuncu hiçbir ekonomik/görev/savaş geri bildirimini göremiyor; TimarSystem, QuestSystem ve HistoryEventSystem'in tüm başarı-başarısızlık mesajları görünmez kanala akıyor — oyun 'tepkisiz' hissettiriyor.",
+    "Dünya işaretçileri görünmediği için (kritik bug) hedefe yönlendirme yalnızca minimap'teki yanıp sönen yıldıza kalıyor; pusula hedef metni de 'undefined' bastığından yeni oyuncunun görev hedefini bulması ciddi biçimde zor.",
+    "Modallar Escape ile kapanmıyor (InputManager.js'te Escape işlenmiyor) ve hiçbir modal kapanışında pointer lock geri istenmiyor — her Tab/J/M/diyalog sonrası oyuncu mouse-look için canvas'a yeniden tıklamak zorunda; akışı en çok kesen tekrarlayan sürtünme bu.",
+    "Tımar Defteri eylem butonlarında (index.html:213-218) akçe yetmediğinde disabled/gri durum yok; tıklayınca hiçbir görünür tepki alınmıyor (bildirim kanalı kırık olduğu için). Buton üzerindeki sabit maliyet yazıları da (-800 Akçe vb.) sistemdeki gerçek maliyetlerden bağımsız elle yazılmış.",
+    "'SULTANIN SEFERİNE KATIL' butonu koşul sağlanmadığında modal içinde hiçbir görsel geri bildirim vermiyor; ret sebebi yalnız (görünmez) bildirimde. Sefer tek tıkla anında sonuçlanıyor — büyük tarihi an (Niğbolu) bir modal metnine sıkışmış, gerilim/hazırlık temposu yok.",
+    "Bildirimler sabit 5 sn'de kayboluyor ve gameState.notifications 5 kayıtla sınırlı (GameState.js:207-209); yoğun anlarda mesajlar okunamadan siliniyor, kalıcı olay günlüğü (log) yok.",
+    "Diyalog penceresinde metin bir anda basılıyor (typewriter yok), NPC ses/animasyon geri bildirimi yok; seçim sonrası ekonomik sonuç (akçe düşmesi vb.) yalnız görünmez bildirimlerde — seçimlerin ağırlığı hissedilmiyor.",
+    "Görev tamamlandığında HUD kartı 'Vazifeler Tamamlandı / Sultanın yeni fermanı bekleniyor' diyor ama oyuncuya sefer haritasına gitmesi gerektiği gibi somut bir yönlendirme yapılmıyor.",
+    "updateWorldMarkers + renderNotifications + minimap her karede tam DOM/canvas yeniden kurulumu yapıyor — GC baskısı ve düşük donanımda kare düşüşü riski (markerElementsPool niyeti hayata geçmemiş).",
+    "Başlangıç ekranındaki 'Steam Sürümü v1.0 • Mount & Blade ve Kingdom Come İlhamlı' ibaresi (index.html:359) hem yanlış beklenti kuruyor hem marka adı kullanımı açısından riskli.",
+    "Erişilebilirlik sıfır: aria-* yok, role=dialog yok, focus trap yok, global user-select:none (style.css:23), 11-13px çok küçük fontlar, prefers-reduced-motion desteği yok; klavyeyle modal gezinme fiilen imkansız."
+   ],
+   "contentInventory": "MEVCUT METİN/İÇERİK (UI katmanından görünenler): (1) BAŞLANGIÇ EKRANI: Besmele tuğrası '﷽' (index.html:346), 'MÜLK-İ OSMANÎ / TIMARLI SİPAHİ 3D' başlığı, prosedürel sipahi adı + tımar/sancak/arazi/hazine/hane dökümü (UIManager.js:367-376; 4 tımar varyantı GameState.js:26-29: Akçaoba, Gölbaşı, Kızılhisar, Söğütcük — gerçek sancak adlarıyla: Hüdavendigâr, Karesi, Germiyan, Sultanönü). (2) HUD: dönemsel Osmanlıca terminoloji — Sıhhat/Kuvvet barları, Akçe, Cebelü, Asayiş, Ambar (Kile), 'VAZİFE-İ SİPAHİ' görev kartı, Hicri+Miladi çifte takvim (H.798/M.1396), mevsim rozetleri ('İlkbahar (Ekim Zamanı)' vb.). (3) TIMAR DEFTERİ: gerçek Osmanlı vergi terimleri — Öşür, Ağnam & Çift Resmi, Kovan & Değirmen Rüsumu, 'Kanunen Gereken Asker' (cebelü mükellefiyeti), 'Müslüman & Zimmî' hane ibaresi (UIManager.js:554); eylemler: vergi tahsili, devriye, reayaya ziyafet, cebelü donatma, pusat bileme, at yetiştirme. (4) SANCAK HARİTASI: hat sanatı stilinde 'RUMELİ BEYLERBEYLİĞİ', 'BAHR-İ SİYAH (KARADENİZ)', 'TUNA BEHRİ (DANUBIUS)' yazıları (UIManager.js:747-750); tarihi noktalar: Edirne (Payitaht), Bursa (Hüdavendigâr, Ulu Cami & İpek Pazarı), Niğbolu Kalesi (Kral Sigismund kuşatması), Gelibolu Tersanesi (753-761). (5) KADI HÜKMÜ AKIŞI (ölü ama yazılmış): 'Kadı Efendi ve Köy İhtiyar Heyeti', ret gerekçesi yazma, Gemini AI kadı değerlendirmesi, 'FERMAN HAKLI/HAKSIZ BULUNDU', ikna puanı — İslami hukuk (kadı, naib, ferman) teması derin işlenmiş (index.html:273-328). (6) SAVAŞ SONUÇLARI (HistoryEventSystem üzerinden UI'da): Niğbolu zaferi 'sahte ricat (Turan taktiği)' tarih dersiyle, Karaman 1398, alternatif tarih Ankara 1402 ('Timur püskürtüldü, Fetret Devri yaşanmadı'); kapatma butonu 'Gaza İle Zafer Kazandık'. (7) FAIL-STATE'LER: Çiftbozan azli (reaya kaçışı — gerçek tarihsel kavram), Cebelü Ali'nin ölümü sonrası taşlanma linci, Niğbolu şehadeti ('Şehadet şerbetini içtin'). (8) DİYALOG PENCERESİ DialogueSystem içeriğini sunuyor; NPC kadrosu UI'dan görünüyor: Kethüda Koca Yakub, Molla Şemseddin (Kadı Naibi & İmam), Demirci Rüstem Usta (Ahi Piri), Koca Dede (90 yaşında 1389 Kosova gazisi), Hancı İdris (casus hikayesi), Attar Mehmet Efendi, Gazi Sungur Bey, Dizdar Hamza Bey. (9) 13 GÖREV başlığı görev defterinde: teftiş, su hakkı ihtilafı, ahi ocağı, mescid ziyareti & hayır dua, cebelü talimi, han casusu, şifalı merhemler, Kosova hatırası, sipahi ittifakı, harami baskını, kale teftişi, Niğbolu seferi, Gazi Ali'yi kurtarma. DİNİ İÇERİK: besmele tuğraları (başlangıç + tımar defteri + kadı modalı), mescid landmark'ı, imam/kadı naibi NPC, 'Hayır Dua' ödülü, şehadet teması, gaza kavramı — saygılı ve dönem-uygun. MİZAH: neredeyse yok; tek hafif dokunuşlar NPC durum ekleri ('Uyuyor 💤', 'Yemek Yiyor 🍲', main.js:327-330) ve ödülsüz görevlerdeki 'Şeref ve Hayır Dua' dolgusu (UIManager.js:546). Ton tutarlı epik-tarihsel; Türkçe metin kalitesi genel olarak yüksek ve dönemsel ('Devletlü', 'mütalaa', 'berat', 'maslahat'), yalnız 'İrfan eden ameleler' (PetitionSystem.js:123) gibi anlamsız ifadeler ve HTML placeholder tutarsızlıkları var.",
+   "hooks": [
+    "renderDialogueChoices (UIManager.js:415-436): tüm diyalog seçenekleri tek noktadan geçiyor — seçeneklere risk/ödül etiketi, mizahi 'kötü seçenek' türü veya tarih bilgisi tooltip'i eklemek için ideal tek kanca.",
+    "btnRejectPetition handler'ı (UIManager.js:277-283): hazır yazılmış Gemini Kadı akışına (openRejectionModal, 587) tek satırla bağlanabilir — oyunun en zengin İslami hukuk/rol yapma içeriği (şer'i gerekçe yazma, kadı fetvası) böylece canlanır.",
+    "renderCampaignMap noktalar dizisi (UIManager.js:753-761): yeni tarihi lokasyon eklemek dizi elemanı eklemek kadar kolay; her noktanın desc alanı zaten var ama hiç gösterilmiyor — hover tooltip'iyle tarih öğretimi (ör. Gelibolu tersanesinin kuruluşu 1390) eklenebilir.",
+    "updateCompass yön adları (UIManager.js:848-856): sabit string tablosu — mescid yönüne kıble işareti 🕋 eklemek veya namaz vakitlerinde yön vurgusu yapmak için hazır nokta; timeClock (1174-1177) ile birleşince ezan vakti bildirimi kancası oluşur.",
+    "gameState.time + date-row (index.html:104-108): Hicri takvim zaten HUD'da — Ramazan/Cuma/kandil günlerinde season-pill benzeri rozet ve özel köy davranışı duyurusu için altyapı hazır.",
+    "addNotification type parametresi (GameState.js:200, style.css:467-469): success/alert/info'ya 'tarih' ve 'din' tipleri eklenip farklı renk/ikonla oynanış arasına küçük tarih dersleri ('Biliyor muydun: 1396'da...') damlatılabilir — önce bildirim render bug'ı düzeltilmeli.",
+    "showBattleResult loot listesi (UIManager.js:824-834): dize dizisi doğrudan basılıyor — savaş sonuçlarına 'Tarih Notu' satırı (gerçek Niğbolu anekdotları: Doğan Bey'in savunması, Yıldırım'ın esir fidyeleri) eklemek sıfır yapısal değişiklik ister.",
+    "reward-pill fallback'i 'Şeref ve Hayır Dua' (UIManager.js:546): manevi ödül kategorisi zaten var — dua, ulema itibarı, ahi loncası takdiri gibi ödül türleriyle genişletilebilir (rewards nesnesine alan eklemek yeterli).",
+    "updateStartScreenInfo (UIManager.js:367-376): prosedürel bilgi kutusu — sipahiye rastgele lakap/geçmiş hikayesi ('Kosova'da yararlık göstermiş...') ve mizahi tımar kusurları ('Değirmen taşı çatlak') eklemek için hazır yuva.",
+    "checkFailState overlay'i (UIManager.js:1226-1239): fail hikayeleri zaten edebi — her ölüm ekranına gerçek tarihsel bağlam dipnotu ('Çiftbozan resmi gerçek bir Osmanlı vergisiydi') eklenecek tek nokta.",
+    "hud-controls-help rozetleri (index.html:132-138): yeni mekanik eklendikçe tuş rehberi burada büyüyor; bağlama duyarlı ipucu sistemine (ör. arzuhal geldiğinde 'TAB' rozetinin yanıp sönmesi) dönüştürülebilir — hasPendingMessenger bayrağı (PetitionSystem.js:80) zaten set ediliyor ama UI hiç okumuyor.",
+    "interaction-prompt (UIManager.js:378-385): NPC durum ekleri ('Uyuyor 💤') mizahın tek yaşadığı yer — uyuyan NPC ile konuşmaya çalışınca özel huysuz diyalog varyantı gibi mizah genişletmeleri için doğal kanca."
+   ],
+   "techDebt": [
+    "UIManager 1261 satırlık tek sınıf: HUD, 6 modal, 2 canvas çizimi, bildirimler ve fail-state tek dosyada; ayrıca oyun mantığı da içeriyor (asayiş/moral güncellemesi UIManager.js:627-634, arzuhal temizliği 633-634) — görünüm/mantık katman ihlali.",
+    "index.html'de yoğun inline style: petition-section (198-210), ret modalı (274-298), kadı modalı (305-327) tamamen style attribute ile stillenmiş; style.css'teki tema değişkenlerinden kopuk.",
+    "Modal görünürlüğü iki ayrı mekanizmayla yönetiliyor: dialogue/timar hem class hem style.display (UIManager.js:410-411, 454-459), quest/map yalnız class (469-473, 693-696) — tutarsızlık toggleTimarModal'daki çifte isHidden kontrolünü (449) zorunlu kılmış.",
+    "Her karede innerHTML tabanlı tam DOM yeniden kurulumu (notifications 1250, world markers 1053) — markerElementsPool (142) havuzlama niyetinin kullanılmayan kalıntısı; textContent/style yazımları da her karede koşulsuz tekrarlanıyor.",
+    "Başlangıç ekranı mantığı UIManager.bindEvents (162-202) ile main.js setupStartButton (81-133) arasında duplike — çifte handler bug'ının kök nedeni; tek sahibi olmalı.",
+    "Ölü/uyumsuz CSS: .quest-list-item (707-719) hiç üretilmeyen sınıf, .minimap-wrapper çifte tanım (373-393), .dialogue-choice-btn kullanılmıyor (JS yalnız .choice-btn üretiyor); buna karşılık JS'in ürettiği ~15 sınıfın CSS'i hiç yok (quest kartları, world marker, reward-pill vb.).",
+    "Sihirli sayılar ve kopya koordinatlar: hızlı seyahat koordinatları (0,15 / 185,0 / -70,60) hem buton handler'larında (313-327) hem canvas tıklamasında (338-344) tekrarlanıyor; harita nokta koordinatları points dizisi (753) ile tıklama kontrolü (338-344) arasında elle senkron; minimap landmark listesi (936-942) TownGenerator'daki gerçek yapı konumlarından bağımsız sabit kod.",
+    "Google Fonts CDN bağımlılığı (index.html:7-9): Electron/Steam çevrimdışı senaryosunda Cinzel/Amiri/Outfit yüklenmez, tema ciddi bozulur — yerel font paketlenmeli.",
+    "Erişilebilirlik borcu: aria-label/role/focus yönetimi sıfır, global user-select:none, Escape ile kapanış yok, prefers-reduced-motion yok.",
+    "dist/ build çıktısı (dist/assets/index-BXIIX88b.css) depoda duruyor — kaynakla senkron kayması riski.",
+    "checkFailState overlay'i tamamen JS inline style ile üretiliyor (UIManager.js:1204-1239) — style.css temasından kopuk ikinci bir stil kaynağı."
+   ]
+  },
+  "docs": {
+   "architecture": "**Dokümantasyon katmanı ve destek dosyalarının çalışma şekli:**\n\n1) **docs/DEVELOPMENT_SPEC.md (407 satır):** 5 özelliğin (Hamam+Tellak, Evrensel Hasar, Okçuluk, Silah Kuşanma Q, Hikaye Hatırlatma) sıfırdan uygulanması için teknik talimatname. Her özellik dosya bazında hedef gösterir (ör. TownGenerator.js → buildHamam(), CombatSystem.js:96-164 → processPlayerAttack genişletme). Bağımlılık sırası tanımlı: Q silah toggle → hasar sistemi → okçuluk → hamam → hatırlatma (DEVELOPMENT_SPEC.md:398-406). Doğrulama: bu 5 özelliğin tamamı bugün kodda mevcut ve testlerde kapsanıyor (tests/systems.test.js Test 1-5). DİKKAT: dokümandaki tüm dosya linkleri eski proje yolunu (file:///c:/antigravity/yeni3d/) gösteriyor; güncel dizin D:\\antigravity\\sipahi.\n\n2) **docs/TARIHSEL_SENARYO_VE_GELISTIRME_PLANI.md (901 satır):** Projenin ana tasarım anayasası. Bölüm 3.1'de 6 bilinen çalışma zamanı bugı listeler; bölüm 4'te tarihsel omurga ve A/B/C/R güven etiketi sistemi; bölüm 5'te 4 perdelik/16 bölümlük kampanya; bölüm 12'de veri güdümlü görev durum makinesi şeması (locked/available/active/resolved/failed, historicalConfidence alanı, event bus, seed'li deterministik kayıt — satır 661-690); bölüm 13'te Aşama 0-5 yol haritası; bölüm 18'de sonradan eklenen mimari öneriler (antagonist profili, time-skip, fraksiyonlar, Çiftbozan, teçhizat üçgeni, Web Worker + IndexedDB).\n\n3) **tests/systems.test.js (471 satır):** `npm test` → `node tests/systems.test.js` (package.json:11). Satır 1-44'te Node için document/window/localStorage mock'u kurar (canvas context için Proxy tabanlı mockCtx). Satır 46-59'da GERÇEK modülleri import eder: gameState, ModelBuilder, TownGenerator, Player, NPCManager, CombatSystem, ArcherySystem, DialogueSystem, questSystem, saveManager, trainingSystem, supplySystem, campaignBattleSystem — hepsi src/ altında mevcut (Glob ile doğrulandı). 21 test bloğunda 97 assert çalıştırır (grep: 98 'assert(' eşleşmesi = 1 tanım + 97 çağrı). Framework yok; özel assert() sayaçla çalışır, başarısızlıkta akış durmaz, sonda passedTests !== totalTests ise process.exit(1) (satır 468-470). Çağrılan tüm metodların karşı tarafta tanımlı olduğu grep ile doğrulandı: QuestSystem.js:407/415/419/435/459 (getActiveQuest, getQuestById, getActiveTargetInfo, advanceObjective, onEnemyKilled→461'de onEnemyDefeated'a delege), GameState.js:11/168/183/212 (reset, modifyReayaTrust, modifyFaction, updateTime), DialogueSystem.js:11 (static getDialogueData; tellak_talk:585, kethuda_talk:16, imam_talk:107, demirci_talk:180, dede_talk:317, hanci_talk:406, attar_talk:462), CampaignBattleSystem.js:26/97/181, TrainingSystem.js:22/54/101, SupplySystem.js:30/39/56/89, Player.js:54 (toggleWeapon), ArcherySystem.js:40/63/118, CombatSystem.js:141 (static calculateDamage), SaveManager.js:86/124.\n\n4) **Zaman akışı:** main.js:253 → gameState.updateTime(delta) → GameState.js:212-234: dayTimeHours += delta × daySpeed; 24 saati aşınca dayCount++, Ali bacak sayacı işler (GameState.js:220-227), her 10 günde advanceSeason() (GameState.js:230-232, 257-269) → 4 mevsimde yıl + hicri yıl artar ve checkHistoricalEvents() tetiklenir (GameState.js:267). Yani 1 oyun yılı = 40 gün. TARIHSEL doc 3.1.3'te \"updateTime kullanılmıyor\" deniyordu — bu artık düzeltilmiş.\n\n5) **Electron akışı:** electron-main.cjs:18-53 → BrowserWindow (contextIsolation:true, preload) → önce http://localhost:5173 dener, hata olursa 3000, o da olmazsa dist/index.html yükler. F5/Ctrl+R/F12/F11 kısayolları before-input-event ile yakalanır (electron-main.cjs:56-67). electron-preload.cjs:8-14 steamworks.js'i require etmeye çalışır (AppID 480 Spacewar), başarısızsa sessizce geçer ve window.steamworks null olur; src/core/SteamManager.js:29-31 bu köprüyü okur.\n\n6) **Vite:** vite.config.js — base:'./' (Electron file:// uyumu için doğru), port 3000, build target esnext. package.json'da tek runtime bağımlılık three ^0.160.0; devDeps: electron ^44, vite ^5.\n\n7) **Kayıt zinciri:** SaveManager.js:14 → isIndexedDBSupported = typeof indexedDB !== 'undefined'. saveGame/loadGame async (86/124); IndexedDB yoksa await'e hiç girmeden senkron localStorage yoluna düşer, deserializeState (62-81) gameState alt objelerine Object.assign yapar ve questSystem.deserializeQuests'i çağırır. Test bu senkron yola dayanır (aşağıda bug olarak açıklandı).",
+   "summary": "Bu alan projenin dokümantasyon, test ve platform/derleme katmanını kapsıyor: iki tasarım dokümanı (5 özellik talimatnamesi + 901 satırlık tarihsel senaryo/geliştirme planı), README, 97 assert'lik entegrasyon test dosyası ve Vite/Electron yapılandırması. Test dosyası kopya/mock mantık DEĞİL, src/ altındaki gerçek modülleri import eden gerçek bir entegrasyon süitidir ve çağırdığı tüm metodların karşı tarafta tanımlı olduğu grep ile doğrulanmıştır. TARIHSEL doküman, oyunu \"NPC'ye uğra-konuş-ödül al\" döngüsünden çıkarıp 4 perdelik (16 bölümlük) 1396 Niğbolu kampanyasına taşıyan ayrıntılı bir plan ile A/B/C/R tarihsellik etiketi sistemi önerir; dokümanda listelenen 6 bilinen bugın en az üçü (getActiveTargetInfo, onEnemyKilled, updateTime) güncel kodda düzeltilmiş görünüyor, yani doküman koddan geride. En somut teknik bulgular: electron-preload'un package.json'da hiç olmayan steamworks.js paketini require etmesi (Steam entegrasyonu hiçbir zaman çalışmaz) ve README'deki 72/72 test iddiasının gerçek 97 assert ile çelişmesi.",
+   "bugs": [
+    {
+     "where": "electron-preload.cjs:9 + package.json:14-20",
+     "what": "require('steamworks.js') çağrılıyor ama bu paket package.json bağımlılıklarında YOK (deps: sadece three; devDeps: electron, vite). require her zaman fırlatır, catch sessizce yutar, window.steamworks daima null olur. Sonuç: README/kodda vadedilen Steam başarım/cloud/richPresence köprüsü (SteamManager.js:29 bunu bekliyor) hiçbir kurulumda çalışmaz — sessiz ölü özellik.",
+     "severity": "yüksek"
+    },
+    {
+     "where": "tests/systems.test.js:249-258 + src/core/SaveManager.js:86,124",
+     "what": "saveManager.saveGame() ve loadGame() async fonksiyonlar ama testte await'siz çağrılıp hemen ardından assert yapılıyor. Test yalnızca Node'da indexedDB tanımsız olduğu için (SaveManager.js:14 → isIndexedDBSupported=false → ilk await'e hiç girilmez, localStorage yolu senkron biter) geçiyor. Tarayıcıda (IndexedDB destekli ortamda) aynı çağrı deseni yarış durumu üretir; test gerçek üretim yolunu (IndexedDB) hiç sınamıyor ve ortam tesadüfüne dayanıyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "README.md:102 ve README.md:119 vs README.md:238",
+     "what": "Teknik altyapı tablosu ve kurulum bölümü '72/72 Tam Kapsamlı Sistem Testi' derken aynı README'nin test çıktısı bloğu '97/97' gösteriyor; gerçek dosyada 97 assert var (grep doğrulandı). Aynı doküman kendi içinde çelişiyor.",
+     "severity": "düşük"
+    },
+    {
+     "where": "electron-main.cjs:39-53 vs vite.config.js:6",
+     "what": "Electron önce http://localhost:5173 dener, oysa vite.config.js portu 3000'e sabitlemiş; 5173 denemesi bu projede daima boşa gider (gecikme). Daha kötüsü: makinede 5173 portunda BAŞKA bir Vite projesi çalışıyorsa Electron yanlış uygulamayı yükler. DEVELOPMENT_SPEC.md:5 de 'npm run dev → http://localhost:5173' diyerek yanlış portu belgeliyor.",
+     "severity": "orta"
+    },
+    {
+     "where": "tests/systems.test.js:48",
+     "what": "ModelBuilder import ediliyor ama dosyada hiçbir yerde kullanılmıyor — ölü import.",
+     "severity": "düşük"
+    },
+    {
+     "where": "tests/systems.test.js:68-76, 201",
+     "what": "Test tasarımı: assert başarısız olsa akış devam eder ve sonraki testler bozulmuş paylaşılan gameState singleton'ı üzerinde koşar (tek reset() çağrısı satır 201'de, Test 8 sonrası). Testler sıraya bağımlı; bir erken hata zincirleme yanlış-negatif üretir ve hata ayıklamayı zorlaştırır.",
+     "severity": "orta"
+    },
+    {
+     "where": "docs/DEVELOPMENT_SPEC.md:13-26 (ve dosya boyunca tüm linkler)",
+     "what": "Tüm dosya referansları file:///c:/antigravity/yeni3d/ yolunu gösteriyor; proje D:\\antigravity\\sipahi'de. Yeni geliştirici için kırık linkler.",
+     "severity": "düşük"
+    },
+    {
+     "where": "docs/TARIHSEL_SENARYO_VE_GELISTIRME_PLANI.md:30-36 (bölüm 3.1)",
+     "what": "Dokümanın 'mevcut bug' listesi koddan geride: (1) getActiveTargetInfo artık QuestSystem.js:419'da tanımlı, (2) onEnemyKilled artık QuestSystem.js:459'da tanımlı ve 461'de onEnemyDefeated'a delege ediyor (CombatSystem.js:341 çağrısı geçerli), (3) updateTime artık main.js:253'te çağrılıyor, (6) takvim 1396'ya çekilmiş (test 6 geçiyor). Doküman güncellenmediği için okuyan kişi düzeltilmiş sorunları hâlâ açık sanır.",
+     "severity": "düşük"
+    },
+    {
+     "where": "package.json:12",
+     "what": "'build:steam' scripti 'build' ile birebir aynı (sadece vite build). Steam paketleme/electron-builder adımı yok; isim vaadi boş — Electron dağıtımı üretilmiyor (electron-packager/builder devDeps'te de yok).",
+     "severity": "düşük"
+    },
+    {
+     "where": "tests/systems.test.js:353,358,370,375,411",
+     "what": "Test assert'leri diyalog metninin birebir alt dizgelerine bağlı ('Hızır yoldaşın olsun', 'Niğbolu Hisarı', 'Kosova' + 'Murad Han', 'Elhamdülillah', 'parşömene çizer'). Herhangi bir metin/yazım düzeltmesi işlevsel olarak doğru kodu test kırılmasına götürür — içerik ile testin aşırı sıkı bağlaşması.",
+     "severity": "düşük"
+    },
+    {
+     "where": "tests/systems.test.js:451-454",
+     "what": "Test 20 demirci collider'larını sihirli sayılarla (-68, -56, 3, 13, -67.5, 12.4) doğruluyor; TownGenerator yerleşimi 1 birim kayarsa test anlamını yitirir (yanlış-pozitif geçebilir çünkü ilk assert 'yok' kontrolü). Kırılgan regresyon testi.",
+     "severity": "düşük"
+    }
+   ],
+   "engagement": [
+    "TARIHSEL doc 3.1.5 + 14. bölüm önceliği: Niğbolu finali 'haritada noktaya tıkla → metin sonucu al' olarak eleştiriliyor; güncel CampaignBattleSystem da (tests/systems.test.js:314-340'ın gösterdiği üzere) 5 safhayı executePhaseAction('tactical_retreat'|'arrow_rain'|...) menü seçimleriyle ilerletiyor — oyunun bütün vaadi olan final hâlâ oynanan bir savaş değil, doğru şıkkı seçme sınavı.",
+    "TARIHSEL doc 3.2: Görevlerin çoğu aynı fiil — 'hedefe git, konuş, iki seçenekten birini seç, ödül al'. Doc 9.7 çözümü öneriyor: incele/al/taşı/onar/iz sür/mühürle fiilleri, en az iki çözüm yolu (savaş/ikna/ödeme/hukuk/gizlilik), başarısızlığın içerik üretmesi.",
+    "TARIHSEL doc 9.8: Neredeyse her eylem anında akçe/kalıcı gelir veriyor → hızlı para enflasyonu ve anlamsız ödül döngüsü. Mevsimsel gelir, düzenli giderler (yem, ok, tamir, cebelü ücreti) ve ganimetin taşıma/bölüşme gerektirmesi öneriliyor.",
+    "TARIHSEL doc 9.2: Yürüme/koşma hızları insan ölçeği için fazla yüksek ve ivmesiz; karakter ağırlıksız hissettiriyor. (DEVELOPMENT_SPEC.md:242-250 silahsızken hızı 15.0'a çıkararak bunu daha da büyütmüş.)",
+    "TARIHSEL doc 9.9 + 10.1: HUD ekranı dört koyu panel + kontrol şeridi + radar ile kaplıyor; dünya görünmüyor. Bağlamsal HUD, tek satıra küçülen görev kartı, aynı anda en fazla 3 bildirim öneriliyor.",
+    "TARIHSEL doc 6. bölüm: Günlük ritim (sabah divanı → saha işi → talim/bakım → riskli iş → akşam hesabı) tasarlanmış ama mevcut oyunda gün döngüsünün oynanışa bağlandığı tek yer Ali'nin ölüm sayacı (GameState.js:220-227) ve 10 günde bir mevsim — günün kendisi tempo üretmiyor.",
+    "DEVELOPMENT_SPEC Özellik 5 (hatırlatma sistemi) 120 saniyelik zamanlayıcı ve 5 bağlamsal tetikleyici tanımlıyor; bu, amaçsız dolaşma sorununa yara bandı — TARIHSEL doc 17. bölümün teşhisiyle uyumlu: asıl sorun görevlerin karar üretmemesi.",
+    "TARIHSEL doc 15/Oynanış dengesi: 'Oyuncu tek bir talimi tekrar ederek bütün sefer hazırlığını aşamamalı' — azalan getiri yok; ve 'iyi karar her değeri artırmamalı' — üç itibar ekseninin aynı anda yükselmemesi ilkesi henüz görev tasarımına yansımıyor (testlerdeki diyalog dalları tek 'doğru' cevap ödüllendiriyor, ör. tests/systems.test.js:351-353).",
+    "Fail-state tasarımı sert: Ali'nin bacağı senaryosunda 1 gün ihmal → taşlanarak linç Game Over (GameState.js:236-245). Oyuncuya telafi penceresi dar; TARIHSEL doc 15 'ölüm ve kayıp için kurtarma yolu tasarlanmalı' ilkesiyle gerilim içinde.",
+    "README kontrol tablosu 13 tuş/aksiyon listeliyor (README.md:74-88) — TARIHSEL doc 9.9'un 'kontrol yardımını yalnız ilk kullanımda göster' önerisi henüz uygulanmamışsa yeni oyuncu için bilişsel yük yüksek."
+   ],
+   "contentInventory": "**MEVCUT İÇERİK ENVANTERİ (dokümanlar + test doğrulamalı):**\n\n**NPC kadrosu ve replikleri (DialogueSystem.js'te grep ile doğrulanan düğümler):** kethuda_talk (Kethüda Koca Yakub — defter/öşür alt dallanması, yetimleri affetme kararına 'Hızır yoldaşın olsun' onayı), imam_talk (Molla Şemseddin — adalet öğüdü, Niğbolu Hisarı Haçlı kuşatması havadisi, Ali'yi kurtarınca 'Elhamdülillah' müjdesi; kadi_talk buna alias), demirci_talk (Ahi Demirci Rüstem Usta — Gürz vs Kılıç seçimi, plaka zırh delme sırrı, Ali için koltuk değneği), hanci_talk (Hancı İdris — casus soruşturması, parşömen kroki ele geçirme), dede_talk (Koca Dede — 1389 Kosova gazâ vasiyeti, 'Murad Han' anması), attar_talk (Attar Mehmet Efendi — kantaron/dağlama yağı; bakkal_talk buna alias), tellak_talk (Tellak Hüseyin Ağa — 40 akçeye kese-köpük, tam şifa). README'de ayrıca Gazi Sungur Bey (sancak ittifakı) ve Dizdar Hamza Bey (kale yoklaması) geçer.\n\n**Tarihi olaylar/dini içerik:** 1396 Niğbolu (5 safhalı final: öncü temas → kazık hattı/ok yaylımı → yaya şövalye çarpışması → Sigismund ana kuvveti/sahte ricat → Sırp vasal + ihtiyat karşı hücumu), 1389 Kosova hatırası, Hicri 798 takvim senkronu, mescid ziyareti + hayır dua bölümü (README bölüm 4), şehadet fail-state metni ('Şehadet şerbetini içtin', GameState.js:247-255), Çiftbozan azil fermanı, gazâ/gazi söylemi. **Mizah: dokümanlarda envantere girecek bilinçli mizah YOK; ton epik-ciddi.** TARIHSEL doc 11'in 'masöz', 'taktik radar', '12'den vurmak' gibi atmosfer kıran ifadeleri temizleme talimatı, eski sürümde istemsiz ton kaymaları olduğunu gösteriyor.\n\n**ÖNERİLEN KAMPANYA YAPISI (TARIHSEL doc bölüm 5 — tam özet):** Tasarım kararı: kampanya 1396 ilkbaharında başlar, 25 Eylül 1396 Niğbolu ile biter (1394 başlangıcı reddedilir; mevcut kapsam için ekonomik değil). Tarihsel sonuç SABİT: Osmanlı kazanır; oyuncu yalnız kendi bölük kaybını, köyün durumunu, sadakati, itibarı ve dönüş bedelini değiştirir.\n- **PERDE I — Emanet edilen dirlik:** Bölüm 0 'Beratın Mührü' (berat teslimi, 'toprağın sahibi değil mutasarrıfısın' öğretisi, hızlı at vs güvenli kervan ilk kararı), Bölüm 1 'Defter ile tarla arasında' (3 hane ziyareti: kuraklık/tohum borcu/eksik ölçüm; tahsilat-süre-kadıya kayıt üçlemi), Bölüm 2 'Su hakkı' (Müslüman ve zimmî hane değirmen arkı ihtilafı; tanık+sınır taşı kanıtı; uzlaşma veya kadı naibi), Bölüm 3 'Yoklama günü' (teçhizat/cebelü sistemi, eksik bildirme dürüstlük kararı).\n- **PERDE II — Talim ve yaklaşan fırtına:** Bölüm 4 'Cebelü Ali'nin gerçek talimi' (4 aşama: kalkan-mesafe, kılıç geçişleri, atlı mızrak hattı, komut; altın derece = Ali'yi yaralamadan bitirmek), Bölüm 5 'Yaylakta ok' (sabit/hareketli/atlı hedef; archeryMastery niteliği), Bölüm 6 'Harami değil, iz' (öldür/yakala/teslim al üç sonucu; yakalanan lider Haçlı istihbaratı verir), Bölüm 7 'Hanın yabancısı' (etnik önyargı yerine belge çelişkisiyle casus soruşturması; fail her oyunda değişebilir, kimse casus olmayabilir).\n- **PERDE III — Ferman ve toplanma:** Bölüm 8 'Tuğ çağrısı' (3 günde sefer hazırlığı; geçmiş kararlar erzak/gönüllü olarak geri döner), Bölüm 9 'Sancak yoklaması' (eksik saklama → Rumeli'de ağır kayıp), Bölüm 10 'Gelibolu geçişi' (lojistik seviyesi: iskele, at bindirme, fırtına).\n- **PERDE IV — Rumeli yürüyüşü ve Niğbolu:** Bölüm 11 'Çok dilli ordugâh' (akıncı, kapıkulu, tımarlı, Sırp vasal; Lazareviç diyalog/görsel anlatıyla), Bölüm 12 'Tuna'ya zor yürüyüş' (at dayanıklılığı, ikmal, sivil maliyet), Bölüm 13 'Niğbolu gecesi' (gece keşfi; Bayezid–Doğan Bey görüşmesi R-etiketli asker rivayeti olarak; kazık hattı yer seçimi ertesi günü fiziksel değiştirir), Bölüm 14 'Niğbolu Meydan Muharebesi' (5 performans-dostu safha; sonuç sabit, 7 performans çıktısı değişken: bölük kaybı, Ali'nin akıbeti, sancak/esir, kurtarılan dost/sivil, at-teçhizat kaybı, itibar, köyde kalan zahire), Bölüm 15 'Zaferin bedeli' (yaralı/esir/fidye; infaz anlatıları kodekste kaynak ihtilafıyla; ödül otomatik tımar büyümesi değil).\n\n**A/B/C/R TARİHSELLİK SINIFLANDIRMASI (doc 4.2):** Her kodeks maddesine güven etiketi: **A — Belgelenmiş** (tarih/kişi/ana sonuç, çok kaynaklı), **B — Kuvvetli yorum** (kaynaklarla uyumlu askerî/sosyal yeniden kurma), **C — Dramatik bileşim** (oynanış için yaratılmış NPC/diyalog/olay), **R — Rivayet** (dönem anlatısında geçen ama tartışmalı; ör. Bayezid'in gece kale önüne tek gitmesi). Görev verisinde `historicalConfidence: 'C'` alanı öngörülmüş (doc satır 665).\n\n**Bilinen/kabul edilen tarihsel düzeltme listesi (doc 3.2 + 11):** 'Cenevizli = casus' etnik kurgusu kaldırılacak; büyük köy hamamı vakıf/kaplıca/kasaba bağlamına oturtulacak; 'Kazasker zırhı' kaldırılacak (makam adıdır, zırh değil); Bursa Ulu Cami 1396'da 'inşası süren yapı' olarak gösterilecek (1396-1400); 'sahte ricat/Turan taktiği' tek açıklama olmaktan çıkarılacak (README.md:45 hâlâ bu ifadeyi kullanıyor — çelişki); 'küffar' yalnız karaktere özgü ağızda, sistem anlatıcısında 'Haçlı ordusu'. Ertelenen içerik: 1397 Karaman seferi, 1402 Ankara alternatif tarihi (ayrı genişleme olarak), rastgele tımar bölgeleri.\n\n**İlerleme/itibar önerisi (doc 7):** Tek XP yerine 5 ustalık (Binicilik, Yay, Mızrak, Kılıç-kalkan, İdare) + 3 itibar ekseni (Sancak itibarı, Reaya güveni, Bölük sadakati — testlerde reputation.reayaTrust/sancakReputation/squadLoyalty olarak uygulanmış, tests/systems.test.js:182-184).",
+   "hooks": [
+    "Kodeks sistemi (TARIHSEL doc 4.2 + 12): A/B/C/R etiketli tarih ansiklopedisi henüz kodda yok — tarih öğretimi için en büyük kanca. Görev verisindeki historicalConfidence alanı (doc satır 665) ile her görevden kodeks sayfası açılabilir; kaynak listesi hazır (doc 16. bölüm: TDV İslâm Ansiklopedisi, Froissart, Beldiceanu).",
+    "DialogueSystem.js:654-661 alias tablosu (bakkal_talk=attar_talk, kadi_talk=imam_talk, hanci_idris=hanci_talk...): şu an 5+ NPC aynı diyalogu paylaşıyor — her alias, sıfır altyapı maliyetiyle özgün mizah/karakter içeriği yazılabilecek hazır soket.",
+    "Hamam sahnesi (DEVELOPMENT_SPEC Özellik 1, tellak_talk DialogueSystem.js:585): klasik Osmanlı hamam sohbeti/dedikodu mekânı — kese sırasında köy söylentileri, latifeler ve görev ipuçları verilebilir; doc 15 'hamam yalnız iyileşme dükkânı olmamalı' diyerek bunu açıkça istiyor.",
+    "Koca Dede (dede_talk DialogueSystem.js:317): tek Kosova anısı var; R-etiketli rivayet anlatıcısı olarak genişletilebilir (1371 Çirmen, Rovine 1395 haberleri — doc 5. bölüm 1394 senaryosunda Rovine'yi zaten anıyor). Yaşlı gazi mizahı (abartılı kahramanlık anıları) için doğal ses.",
+    "GameState.js:267 checkHistoricalEvents() + src/systems/HistoryEventSystem.js: yıl dönümü tetikleyicisi zaten çalışıyor — tarihe dayalı haber/vaaz/pazar dedikodusu enjekte etmek için hazır olay kancası.",
+    "Molla Şemseddin (imam_talk DialogueSystem.js:107): doc 18.1 kuralı gereği din adamları daima bilge/iyi rehber — Cuma vaazı, adalet fıkhı ve gazâ ahlâkı üzerinden İslami içerik derinleştirme noktası; doc 15 'dinî mekân buff istasyonu olmasın' ilkesiyle mescide namaz vakti rutini ve vakit-bazlı diyalog eklenebilir (VillagerAI 24 saat döngüsü altyapısı mevcut).",
+    "Bölüm 7 'Hanın yabancısı' yeniden tasarımı (doc satır 169-176): İtalyan tüccar + Rum tercüman + Ragusalı ulak üçlüsü, her oyunda değişen fail — hem tarih öğretimi (Ceneviz-Bizans-Osmanlı ticaret ilişkileri) hem yanlış anlama komedisi için zengin kanca.",
+    "Bölüm 11 'Çok dilli ordugâh' (doc satır 203-208): akıncı/kapıkulu/tımarlı/Sırp vasal karışımı — 'iki dinin yekpare orduları değil' dersini diyalogla veren, tercüman görevi ve nal/erzak paylaşımı mini-olaylarıyla mizaha da açık sahne.",
+    "Sabah divanı / akşam hesabı döngüsü (doc 6. bölüm): her gün 2 sabit anlatı yuvası — kethüda raporuna dönemsel fıkra/atasözü, akşam hesabına köy söylentisi eklenebilir; tekrar oynanabilir metin havuzu için ideal.",
+    "Niğbolu 5 safhası (CampaignBattleSystem.js:97 executePhaseAction): her safha geçişi şu an kuru metin — safha aralarına A-etiketli tarih vinyetleri (kazık hattının kaynaklardaki tarifi, Lazareviç'in ihtiyattaki rolü) yerleştirilebilir.",
+    "Bayezid–Doğan Bey gece görüşmesi (doc satır 219): 'askerlerin anlattığı rivayet' formatı — kamp ateşi başında R-etiketli hikâye anlatma mekaniğinin pilot içeriği.",
+    "Arzuhal sistemi (doc 2. bölüm güçlü yanlar + src/systems/PetitionSystem.js mevcut): reaya dilekçeleri, dönem hukuku (şer'i/örfi ayrımı) öğretimi ve absürt-komik köylü talepleri için doğrudan içerik hunisi."
+   ],
+   "techDebt": [
+    "Doküman-kod senkron kopukluğu: TARIHSEL doc bölüm 3.1'deki bug listesinin en az 3 maddesi kodda düzeltilmiş (QuestSystem.js:419/459, main.js:253) ama doküman güncellenmemiş; DEVELOPMENT_SPEC.md ise tamamen uygulanmış özellikleri hâlâ 'yapılacak' diye anlatıyor ve eski c:/antigravity/yeni3d yollarını referans veriyor. Tek 'güncel durum' kaynağı yok.",
+    "README kendi içinde çelişkili: 72/72 test (README.md:102,119) vs 97/97 çıktı bloğu (README.md:238); 'sahte ricat (Turan taktiği)' ifadesi (README.md:45) TARIHSEL doc 3.2/11'in açıkça kaldırılmasını istediği basitleştirme; '12 Bölümlük' senaryo tablosu (README.md:53-68) TARIHSEL doc'un 16 bölümlük (0-15) perde yapısıyla eşleşmiyor — hangi kampanya yapısının geçerli olduğu belirsiz.",
+    "Test altyapısı framework'süz: özel assert, izolasyon yok, paylaşılan gameState singleton'ı üzerinde sıra-bağımlı 21 blok, başarısızlıkta devam eden akış (tests/systems.test.js:68-76). node:test veya vitest'e taşınıp her bloğun bağımsız reset ile koşması gerekir.",
+    "SaveManager async API'sinin testte senkron kullanımı (tests/systems.test.js:249-258) IndexedDB üretim yolunu sıfır kapsamda bırakıyor; kayıt sürümleme de yok — TARIHSEL doc 15 'kayıt sürümü tutulmalı, görev veri yapısı değişince eski kayıtlar sessizce bozulmamalı' uyarısı henüz karşılıksız.",
+    "Steam entegrasyonu yarım iskelet: steamworks.js bağımlılığı yok (electron-preload.cjs:9), AppID hâlâ 480/Spacewar test kimliği (electron-preload.cjs:10), build:steam scripti paketleme yapmıyor (package.json:12), electron-builder/packager kurulu değil. Ya tamamlanmalı ya kaldırılmalı.",
+    "Electron dev-URL sırası vite.config ile uyumsuz (electron-main.cjs:39 5173 vs vite.config.js:6 3000) ve DEVELOPMENT_SPEC.md:5 yanlış portu belgeliyor.",
+    "TARIHSEL doc 15'in kendisinin işaretlediği risk: src/services/GeminiService.js mevcut — 'ana görev çevrimiçi Gemini hizmetine bağlı olmamalı; çevrimdışı deterministik yedek bulunmalı' ilkesinin kodda karşılandığı doğrulanmalı (docs alanından yalnız riskin varlığı tespit edildi).",
+    "Görev mimarisi hedefi ile mevcut durum arası boşluk: doc 12. bölüm event bus, seed'li deterministik kayıt, deadline ve birbirini dışlayan dallar istiyor; testlerin gösterdiği mevcut yapı (advanceObjective + diyalog action() içinden doğrudan gameState mutasyonu, tests/systems.test.js:365 equippedWeapon örneği) 'diyalog sistemi ekonomi/görev durumunu gelişigüzel değiştirmemeli' (doc 15) ilkesini ihlal ediyor.",
+    "Lint/format/CI yapılandırması yok (package.json'da yalnız 6 script); testler CI kapısı olmadan elle koşuluyor.",
+    "Fontların çevrimiçi Google Fonts yerine paketle gelmesi (doc 9.9 ve 15: 'zorunlu varlıklar çevrimdışı Electron paketinde bulunmalı') henüz yapılacaklar listesinde — çevrimdışı masaüstü sürüm vaadiyle çelişir."
+   ]
+  }
+ },
+ "playerTrace": {
+  "timeline": "## YENİ OYUNCUNUN İLK 60 DAKİKASI — KOD ÜZERİNDEN SİMÜLASYON\n\n**DK 0:00 — Başlangıç Ekranı** (index.html:344-362)\nOyuncu tuğralı, Cinzel fontlu bir ekran görür: \"MÜLK-İ OSMANÎ / TIMARLI SİPAHİ 3D\". Altında prosedürel bilgi kutusu (UIManager.js:367-376): rastgele sipahi adı (ör. \"Balaban Gazi\"), tımar adı, sancak, hazine (850-1350 akçe), hane sayısı (GameState.js:16-33). Üç buton var: \"🎲 Yeni Tımar & Sipahi\" (çalışır ama çift binding yüzünden her tıklamada İKİ kez reset atar — main.js:97-106 onclick + UIManager.js:170-175 addEventListener), \"⚔️ TIMARI DEVRAL & BAŞLA\", ve 🔊 ses butonu. **Ses butonu hiçbir şey yapmaz**: iki handler (main.js:87-95 + UIManager.js:162-167) aynı tıklamada toggleMute()'u iki kez çağırır, mute durumu başladığı yere döner.\n\n**DK 0:30 — Oyuna Giriş**\nBaşla butonu da çift tetiklenir: iki hoş geldin bildirimi ve iki zafer cıngılı üst üste çalar (main.js:108-131 + UIManager.js:178-201). Pointer lock alınır. Oyuncu köy meydanında (0, 1.8, 12) birinci şahıs, kılıç elde başlar (Player.js:18, swordDrawn:true). Saat 08:00, sabah ışığı, ACES tone mapping, prosedürel rüzgâr+kuş sesleri (AudioManager.startAmbient). Ekranda: sol üstte sıhhat/kuvvet, sağ üstte akçe/cebelü/asayiş/ambar+tarih, üstte pusula şeridi, sol altta görev kartı \"Tımar Teftişi\", sağ altta mini harita + tuş rehberi (TAB/J/M/V/F — Q ve R rehberde YOK).\n\n**DK 1 — İlk NPC: Koca Yakub** \nTam 4m önünde Koca Yakub durur (NPCManager.js:34-48 — model dosyası **stanlee3d.obj**, yani kethüda kelimenin tam anlamıyla Stan Lee!). Prompt: \"E [E] Koca Yakub (Kethüda) (Çalışıyor ⚒️) ile Görüş\" — E rozeti çift görünür (index.html:24-26 sabit rozet + main.js:333 metne \"[E]\" ekler). E'ye basınca diyalog açılır ve **daha tek kelime seçmeden** onOpen tetiklenir (DialogueSystem.js:21-23): cıngıl + \"🎯 Görev İlerlemesi\" bildirimi. Oyuncu \"bir şey mi yaptım?\" hisseder.\n\n**DK 2-4 — İlk Karar Anı (oyunun en iyi anı)**\nDiyalog gerçekten zengin: öşür vergisi kararı (yetimleri affet ↔ tam tahsil), ziyafet (-150 akçe), harami sorgusu. Osmanlıca üslup (\"Hızır yoldaşın olsun Gazi Beyim!\") çok karakterli. Vergi kararı seçilince TimarSystem.collectAnnualTax çalışır (+~3000 akçe!), quest 1 tamamlanır (+250 akçe, cıngıl, \"🏆 VAZİFE TAMAMLANDI\"). Dikkat: \"haramilerden ne haber?\" bilgi dalı bile vergi hedefini tamamlar (DialogueSystem.js:81) — vergi kararı vermeden görev biter.\n\n**DK 4-5 — OYUN BURADA KIRILIR: 2. Görev Çıkmaz Sokak**\nAktif görev otomatik olarak \"2. Su Hakkı ve Değirmen Arkı İhtilafı\" olur (QuestSystem.js:51-75, hedef: -45, 22). AMA: bu görevi ilerletecek `water_dispute_talk` diyaloğu HİÇBİR NPC'ye atanmamış (DialogueSystem.js:357'de tanımlı, NPCManager'da hiçbir dialogueId eşleşmiyor — grep ile doğrulandı) ve hedef noktada TownGenerator hiçbir su değirmeni inşa etmiyor (nehir + kayalar var sadece, TownGenerator.js:108-120). **Görev sonsuza dek 'active' kalır**; getActiveQuest dizide ilk 'active'i döndürdüğü için (QuestSystem.js:407-408) HUD görev kartı, pusula iğnesi, mini harita altın yıldızı ve 100 saniyede bir gelen hatırlatma spam'i (main.js:226-239) OYUN BOYUNCA boş nehir kıyısını gösterir.\n\n**DK 5-8 — Yön Bulma Kabusu**\nOyuncu hedefe gitmeye çalışır ama: (1) Pusuladaki görev iğnesi 180° TERS yönü gösterir — angleToTarget hesabında kamera bakış yönü (yaw+π) hesaba katılmamış (UIManager.js:869-876); hedefe dönünce iğne kenara ◀/▶ iğnelenir, sırtını dönünce ortalanır. (2) Pusula metni \"undefined (34m)\" yazar — `targetInfo.questTitle` alanı yok, dönen alan `shortTitle` (UIManager.js:884 vs QuestSystem.js:424-432). (3) Pusula yön adları Doğu/Batı ters etiketli, üstelik içerikleri de yanlış: \"Doğu (Sancak Kalesi & Mescid)\" derken batıya bakıyorsunuz; \"Güney (Demirci)\" ama demirci batıda (UIManager.js:848-857). (4) Mini harita landmarkları yanlış yerlerde: \"Mescid\" (40,15) gerçekte (12,-4)'te, \"Demirci\" (-25,35) gerçekte (-62,8)'de, \"Değirmen\" (-55,-25) diye gösterilen yeldeğirmeni gerçekte (48,-38)'de (UIManager.js:936-942 vs TownGenerator.js:174,293,390). Tek güvenilir rehber mini haritadaki altın yıldız — o da çıkmaz görevin boş kıyısını gösteriyor.\n\n**DK 8-10 — Nehir ve Köprü Komedisi**\nBatıya yürüyen oyuncu taş kemer köprüye gelir: köprünün TAMAMI collider (TownGenerator.js:290) — görünmez duvar, üstünden GEÇİLEMEZ. Nehirde ise collider yok ve oyuncu göz hizası sabit 1.75'e mıhlı (Player.js:257-264) — su üstünde yürüyerek karşıya geçer. Hedef noktada (-45,22): hiçbir şey. Etkileşim yok, işaret yok. Oyuncu J'ye basar, görev defterini açar: 13 görevin TAMAMI ilk dakikadan listede, kilitliler bile \"Mevcut\" etiketiyle (UIManager.js:490-492) — 13. görevin başlığı \"Gazi Cebelü Ali'yi Hayatta Tut\" finaldeki bacak kopması dramını baştan SPOİLER eder.\n\n**DK 10-25 — Serbest Keşif (oyunun taşıyıcı kısmı)**\nHUD'u görmezden gelen oyuncu köyü gezer. Burası gerçekten iyi: mavi kubbeli mescid, Safranbolu evleri, yeldeğirmeni dönüyor, demirci örs başında kıvılcım saçıyor (VillagerAI.js:228-239), koyunlar-tavuklar kesilebiliyor (+10 erzak), fıçılar kırılıyor. Her NPC diyaloğu kendi görevini tetikler — kilit/önkoşul umursanmaz (advanceObjective locked görevi bile aktive eder, QuestSystem.js:439-441): İmam (dua + Niğbolu havadisi), Koca Dede (1389 Kosova hatırası — dokunaklı, tarihi olarak sağlam), Demirci Rüstem (plaka zırha karşı gürz dersi — mekanik olarak gerçekten silah tipini değiştirir, DialogueSystem.js:196-206), Attar, Hancı İdris (Ceneviz casusu mini soruşturması). AMA sürtünmeler: (a) İmam ve Attar'da \"Ali'nin bacağı koptu, merhem ver!\" seçenekleri savaş daha OLMADAN görünür ve tıklanabilir — 13. görev hikâye dışı tamamlanabilir (DialogueSystem.js:117-131, 472-484). (b) Demircinin çırağı Salih'e konuşunca \"Toy Cebelü Ali\" diyaloğu açılır (cirak_talk→cebelu_talk alias, DialogueSystem.js:657). (c) Saka İbrahim ve 3 kale nöbetçisinin dialogueId'leri (`saka_talk`, `guard_talk`) DialogueSystem'de tanımsız — E'ye basınca HİÇBİR ŞEY olmaz, sessiz başarısızlık (NPCManager.js:193,313; openDialogue null dönüşünde sessizce çıkar, UIManager.js:388-389).\n\n**DK 25-33 — Öğle Paydosu Kafası**\nOyun saati 12:30'u geçer (daySpeed 0.003 → 1 oyun saati ≈ 5.5 gerçek dakika, GameState.js:116). TÜM ana NPC'ler han önü masalara yemeğe yürür (VillagerAI.js:98-104). Görev hedef koordinatları statik olduğundan (QuestSystem targetPos) işaretçiler boş iş yerlerini gösterir; NPC'lerin baş üstü etiketlerinde \"[GÖREV]\" hiç çıkmaz çünkü getActiveTargetInfo `targetId` alanı döndürmüyor ama UIManager onu okuyor (UIManager.js:1107 — her zaman undefined). Oyuncu \"Yakub nerede?\" diye meydanda döner. NPC'ler yürürken duvarlardan geçer (VillagerAI çarpışma kontrolü yok).\n\n**DK 33-45 — Harami Avı (ilk gerçek aksiyon)**\nKethüda diyaloğundan veya kendiliğinden kuzeybatıya (-80,-80) gider — F ile ata binmek 18 m/s hız verir, at uzaktaysa F ile ışınlanıp yanına gelir (Player.js:92). Fast travel kullanırsa felaket: \"Orman Harami Sığınağı\" butonu (-70, +60)'a ışınlar — gerçek kamp (-80,-80)'de, yani ~150m YANLIŞ yere (UIManager.js:324-328 vs TownGenerator.js:724). Kampta 3 harami (biri \"Kılçık Cafer\", 220 HP boss) 30m'den saldırır. Dövüş fena değil: 4'lü kombo (Player.js:135-152), blok %80 hasar keser, kan/toz partikülleri, hasar flaşı, geri tepme. Ölen düşman +40-100 akçe düşürür; 3'ü ölünce görev tamamlanır (+500 akçe, QuestSystem.js:464-483). Ama okçuluğa geçen (R) oyuncu her ok atışında \"⚠️ Önce pusatını kuşan! (Q Tuşuna bas)\" uyarı spam'i yer — sol tık hem yayı hem kılıç saldırısını tetikliyor (main.js:137-141 + Player.js:117-120).\n\n**DK 45-55 — Sancak Kalesi Gezisi**\nDoğudaki taş yol (meşaleli, S kıvrımlı — güzel yapılmış, TownGenerator.js:648-699) 185m ötedeki kaleye götürür. Dizdar Hamza Bey diyaloğu quest 11'i bitirir (+400 akçe). Kale avlusunda okçuluk poligonu var: R ile yay, basılı tut-bırak, parabolik ok, hedef tahtasında göbek/orta/dış halka puanlaması (ArcherySystem.js:146-183) — çalışan hoş bir mini oyun. CombatSystem.js:296-318'deki \"talim mankenleri\" ise görünmez — o koordinatlarda mesh yok, boşluğa kılıç sallayınca \"Talim Mankenine tam isabet!\" yazar.\n\n**DK 55-60 — Niğbolu \"Seferi\": Balon Söner**\nM haritasından \"👑 SULTANIN SEFERİNE KATIL\" — şart: 1 cebelü, oyuncuda BAŞTAN BERİ 1 cebelü var (GameState.js:96 + 135). Yani bu buton DAKİKA 1'DEN İTİBAREN basılabilir ve tüm oyunu atlar: tek tıkla anında sonuç modalı, %70 ihtimalle büyük zafer, +2200 akçe, +800 yıllık gelir (HistoryEventSystem.js:38-81). 5 safhalı epik Niğbolu muharebe motoru (CampaignBattleSystem.js — kazık hattı, sahte ricat, Sigismund safhası, tamamı yazılmış!) HİÇBİR YERDEN çağrılmıyor; startNicopolisBattle ölü kod. Ali'nin bacağının kopması da (legSevered=true yalnız ölü CampaignBattleSystem.js:148'de) asla gerçekleşmez — 3 günlük ölüm sayacı ve taşlanma fail-state'i (GameState.js:220-245) fiilen erişilmez. Sonuç: 12 görevlik yolculuğun finali, savaşsız bir metin kutusudur.\n\n**Arka planda tüm saat boyunca:** ~45 sn'de bir arzuhal gelebilir (PetitionSystem.js:60-73) — değirmen, mescid onarımı, kuyu... TAB'dan kabul/ret. Kabul ırgat+akçe düşer, inşaat günler sonra biter (+gelir). Ret ise sadece -5 moral: index.html'deki \"Gemini Yapay Zeka Kadı\" ret gerekçesi modalı (index.html:273-328), GeminiService (169 satır) ve Kadı Hükmü ekranı TAMAMEN ÖLÜ — openRejectionModal hiçbir yerden çağrılmıyor (UIManager.js:587 tanım, çağrı 0; ret butonu doğrudan petitionSystem.rejectPetition çalıştırıyor, UIManager.js:276-283). Arzuhal geldiğinde ses de çalmaz: playNotification ve playCoinJingle AudioManager'da tanımsız (PetitionSystem.js:81,100,158 — try/catch yutuyor). Kayıt sistemi de yok: SaveManager ve SoloGameState hiçbir yerden import edilmiyor; köylüye 4 kez kılıç sallayan oyuncu (her vuruş -15 reaya güveni, 75→15, GameState.js:190) \"ÇİFTBOZAN\" game-over ekranı yer, açıklama satırında \"undefined\" yazar (failState.desc hiç set edilmiyor, GameState.js:192-193 vs UIManager.js:1233) ve tek çıkış window.location.reload — tüm ilerleme gider.",
+  "frictionPoints": [
+   "KRİTİK ÇIKMAZ (dk ~5): 2. görev 'Su İhtilafı' tamamlanamaz — water_dispute_talk diyaloğu hiçbir NPC'ye atanmamış, hedef noktada (-45,22) hiçbir obje/tetikleyici yok; görev sonsuza dek 'active' kaldığı için HUD görev kartı, pusula iğnesi, minimap yıldızı ve 100sn'lik hatırlatma spam'i tüm oyun boyunca boş nehir kıyısını gösterir (QuestSystem.js:51-75,407; DialogueSystem.js:357; main.js:226-239)",
+   "Pusula görev iğnesi 180° ters yönü gösteriyor — hedefe dönünce kenara kaçıyor, sırt dönünce ortalanıyor (UIManager.js:869-876, yaw+π düzeltmesi eksik); yeni oyuncunun ana rehberi aktif olarak yanıltıyor",
+   "Pusula hedef metni 'undefined (34m)' yazıyor — targetInfo.questTitle diye bir alan yok, shortTitle dönüyor (UIManager.js:884 vs QuestSystem.js:424-432)",
+   "SEKANS KIRICI: 'Sultanın Seferine Katıl' butonu dakika 1'de basılabilir (başlangıç cebelü=1, şart=1) — tek tıkla Niğbolu kazanılıyor, +2200 akçe, oyunun finali atlanıyor (HistoryEventSystem.js:19-21; GameState.js:96,135)",
+   "5 safhalı Niğbolu muharebe motoru (CampaignBattleSystem.js, 187 satır) hiçbir yerden çağrılmıyor — final tek metin modalı; Ali'nin bacak kopması/3 gün sayacı/taşlanma fail-state'i de bu yüzden erişilmez (legSevered yalnız ölü kodda set ediliyor, CampaignBattleSystem.js:148)",
+   "Gemini AI Kadı ret-gerekçesi sistemi (rejection modal + GeminiService 169 satır + Kadı Hükmü modalı) tamamen ölü — openRejectionModal hiçbir yerden çağrılmıyor, ret butonu düz -5 moral uyguluyor (UIManager.js:587 vs 276-283)",
+   "Ses aç/kapat butonu çalışmıyor: main.js:87-95 onclick + UIManager.js:162-167 addEventListener aynı tıklamada mute'u iki kez çeviriyor (net etki sıfır); başlat ve zar butonları da çift tetikleniyor (çift hoşgeldin bildirimi, çift cıngıl, çift reset)",
+   "Minimap landmark'ları yanlış konumda: Mescid (40,15)≠(12,-4), Demirci (-25,35)≠(-62,8), Değirmen (-55,-25)≠(48,-38) (UIManager.js:936-942 vs TownGenerator.js:174,293,390); pusula yön etiketleri Doğu/Batı ters ve içerikleri yanlış (UIManager.js:848-857)",
+   "Hızlı seyahat 'Orman Harami Sığınağı' (-70,+60)'a götürüyor; gerçek kamp (-80,-80) — ~150m yanlış nokta (UIManager.js:324-328,343 vs TownGenerator.js:724, NPCManager.js:585-589)",
+   "Taş köprünün tamamı collider — üstünden geçilemiyor; nehirde collider yok, oyuncu su üstünde yürüyor (TownGenerator.js:290; Player.js:257-264 sabit göz hizası)",
+   "Saka İbrahim ve 3 kale nöbetçisiyle konuşulamıyor: dialogueId'leri (saka_talk, guard_talk) DialogueSystem'de tanımsız, E'ye basınca sessizce hiçbir şey olmuyor (NPCManager.js:193,313; UIManager.js:388-389)",
+   "Görev NPC'sinin baş üstü '[GÖREV]' etiketi hiç çıkmıyor — getActiveTargetInfo targetId alanı döndürmüyor ama UIManager okuyor (UIManager.js:1107 vs QuestSystem.js:424-432)",
+   "Öğle 12:30'da (gerçek ~25. dk) tüm görev NPC'leri hana yemeğe gidiyor ama görev hedef koordinatları statik — oyuncu işaretçinin gösterdiği boş noktada NPC arıyor (VillagerAI.js:98-104 vs QuestSystem targetPos'ları)",
+   "Yay modunda her sol tık ayrıca kılıç saldırısını tetikleyip '⚠️ Önce pusatını kuşan! (Q)' uyarısı basıyor — her ok atışında yanlış uyarı spam'i (main.js:137-141 + Player.js:117-120 + ArcherySystem.js:44-46)",
+   "Görev defteri kilitli görevleri 'Mevcut' etiketiyle ve tam başlıklarıyla ilk dakikadan listeliyor — 13. görev başlığı ('Gazi Cebelü Ali'yi Hayatta Tut') final dramını baştan spoiler ediyor (UIManager.js:485-500)",
+   "İmam/Attar/Demirci diyaloglarında 'Ali'nin bacağı koptu' seçenekleri savaş olmadan görünür ve tıklanabilir — hikâye dışı görev tamamlama ve tutarsızlık (DialogueSystem.js:117-131, 223-236, 472-484)",
+   "advanceObjective kilitli görevleri aktive ediyor: TAB'dan 800 akçeye cebelü donatmak quest_campaign/quest_cebelu/quest_blacksmith hedeflerini zincir dışı tamamlıyor, aynı anda birden çok 'active' görev oluşuyor (QuestSystem.js:439-441; TimarSystem.js:49-52)",
+   "Çiftbozan game-over ekranında açıklama 'undefined' yazıyor — checkCiftbozan failState.desc yerine failState.reason dolduruyor (GameState.js:190-197 vs UIManager.js:1233); köylüye 4 kılıç darbesi (4x-15 güven) anında game-over + sayfa reload, kayıt sistemi yok (SaveManager hiç import edilmiyor)",
+   "soundManager.playNotification ve playCoinJingle tanımsız — arzuhal gelişi ve kabulü sessiz (PetitionSystem.js:81,100,158; UIManager.js:676; AudioManager'da yok)",
+   "Görev ödül rozetleri eksik gösteriliyor: journal rewards.reputation/morale okuyor ama görevler reayaTrust/sancakReputation/squadLoyalty/faction* veriyor (UIManager.js:521-526); 'maxHealth' ödülü max canı artırmıyor, sadece full heal yapıyor (QuestSystem.js:499)",
+   "Steam başarımı ACH_FIRST_PATROL tanımsız (her görev bitişinde boşa çağrılıyor, QuestSystem.js:504); ACH_FIRST_INSPECT/BLACKSMITH/CASTLE_DISCOVERY/BANDIT_SLAYER/NIGBOLU_VICTORY/WEALTHY_SIPAHI ise tanımlı ama hiç unlock edilmiyor",
+   "Etkileşim prompt'unda E rozeti çift: 'E [E] Koca Yakub ile Görüş'; at için 'E [F] Atına Bin' — rozet E derken metin F diyor (index.html:24-26 + main.js:333,340)",
+   "Diyalog açıkken E'ye tekrar basmak diyaloğu köke sıfırlıyor; modallar üst üste açılabiliyor (InputManager keydown'ları modal durumuna bakmıyor, InputManager.js:35-56)",
+   "Diyaloglar oyuncuya sabit 'Gazi Murad Bey' diye hitap ediyor ama isim prosedürel rastgele (DialogueSystem.js:111,550 vs GameState.js:16-32)",
+   "Demirci çırağı Salih'e konuşunca Toy Cebelü Ali'nin diyaloğu açılıyor (cirak_talk→cebelu_talk alias, DialogueSystem.js:657, NPCManager.js:100-109)",
+   "Kale avlusundaki 'talim mankenleri' görünmez — CombatSystem koordinat kontrolü var (CombatSystem.js:296-318) ama TownGenerator o noktalara mesh koymuyor; boşluğa vurunca 'tam isabet' bildirimi",
+   "quest_bandits kilitliyken haramiler öldürülürse sayaç ilerlemiyor (onEnemyDefeated yalnız active/available sayıyor, QuestSystem.js:465-466) — görev kalıcı 'Kalan: 3'te takılabilir"
+  ],
+  "firstHourVerdict": "İlk 10 dakika gerçekten umut verici: oyuncu tek tıkla atmosferik bir Osmanlı köyüne düşüyor, 4 metre önündeki Koca Yakub ile anında zengin, karakterli, tarihî dokusu sağlam bir diyaloğa giriyor ve ilk ahlaki kararını (yetimlerin öşrünü affet mi?) veriyor — bu açılış Mount&Blade esinini hak ediyor. Ses tasarımı, gün döngüsü, çalışan/yemek yiyen köylüler ve kombo-blok-okçuluk üçlüsü ilk saat için yeterli mekanik çeşitlilik sunuyor; meraklı bir oyuncu keşif ve diyalog zinciriyle 45-60 dakika dolu dolu geçirebilir. FAKAT oyuncu 5. dakikada oyunun kendisine verdiği ana göreve (Su İhtilafı) güvenirse oyun fiilen bitiyor: görev tamamlanamaz durumda, işaretçiler boş bir nehir kıyısını gösteriyor, pusula iğnesi 180° ters, minimap etiketleri yanlış ve her 100 saniyede bir \"görev bekliyor\" mesajı bu çıkmazı hatırlatıyor. Rehberlik katmanının tamamı (pusula, minimap, waypoint, hatırlatma) aktif biçimde yanlış yönlendirdiği için oyuncunun devam etmesinin tek yolu HUD'u görmezden gelip kendi kendine gezmek — bunu keşif seven oyuncular yapar, görev takipçileri 10-15. dakikada bırakır. Devam edenler için de iki büyük hayal kırıklığı bekliyor: dakika 1'den basılabilen 'Sefere Katıl' butonu tüm oyunu tek metin kutusuyla atlıyor (yazılmış 5 safhalı Niğbolu savaş motoru ve Ali'nin bacak dramı ölü kod) ve en yenilikçi özellik olan Gemini-AI Kadı ret sistemi hiç tetiklenmiyor. Özet: içerik ve atmosfer 'kalırım' dedirtiyor, rehberlik ve görev zinciri 'bırakırım' dedirtiyor; su ihtilafına bir NPC bağlamak, pusula matematiğini düzeltmek ve sefer butonunu görev önkoşuluna kilitlemek gibi üç-beş cerrahi düzeltme, ilk saat deneyimini bugünkü kırık halinden gerçekten tutan bir demoya çevirir."
+ }
+}
