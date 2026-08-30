@@ -43,9 +43,11 @@ export class Game {
     // 3. Prosedürel Kasaba, Zemin, Hayvanlar & Yataklar
     this.town = new TownGenerator(this.engine.scene);
     this.town.generateTown();
+    window.townGenerator = this.town;
 
     // 4. Tımarlı Sipahi Oyuncu Kontrolcüsü
     this.player = new Player(this.engine.camera, this.engine.scene, this.town.colliders);
+    window.player = this.player;
     if (this.town.horseEntity) {
       this.player.setHorse(this.town.horseEntity);
     }

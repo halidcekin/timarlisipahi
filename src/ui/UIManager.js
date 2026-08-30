@@ -1046,40 +1046,42 @@ export class UIManager {
     const w = canvas.width;
     const h = canvas.height;
 
-    // Arka Plan
-    ctx.fillStyle = '#dfd2be'; // Parşömen sarısı/bej
+    // Arka Plan (Parşömen)
+    ctx.fillStyle = '#dfd2be';
     ctx.fillRect(0, 0, w, h);
     
-    // Köy sınırlarını çizelim
-    ctx.strokeStyle = 'rgba(139, 30, 30, 0.2)';
+    // Köy Çeperi Çemberi
+    ctx.strokeStyle = 'rgba(139, 30, 30, 0.25)';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(w/2, h/2, 220, 0, Math.PI*2);
     ctx.stroke();
 
-    // Referans Çizgiler
-    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+    // Referans Eksenleri
+    ctx.strokeStyle = 'rgba(0,0,0,0.06)';
     ctx.beginPath();
     ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h);
     ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
     ctx.stroke();
 
-    // Binaları çiz (window.townGenerator üzerinden)
-    if (window.townGenerator && window.townGenerator.villageBuildings) {
-      const buildings = window.townGenerator.villageBuildings;
-      const mapScale = 2.5; // 3D dünyadaki X/Z birimini piksellere çevirir
+    const mapScale = 2.0; // 3D -> 2D Koordinat Dönüşüm Katsayısı
 
-      // Hedeflenen binayı belirginleştir
+    // Binaları çiz
+    if (window.townGenerator && window.townGenerator.villageBuildings && window.townGenerator.villageBuildings.length > 0) {
+      const buildings = window.townGenerator.villageBuildings;
       const targetWaypoint = gameState.customWaypoint;
 
       buildings.forEach(b => {
         const cx = w/2 + (b.x * mapScale);
-        const cz = h/2 + (b.z * mapScale); // 3D'de Z derinliktir, burada Y olarak kullanıyoruz
-        const r = (b.radius || 8) * mapScale * 0.8; // Görsel boyutlandırma
+        const cz = h/2 + (b.z * mapScale);
+        const r = (b.radius || 8) * 1.3;
 
         ctx.beginPath();
-        if (b.type === 'Sıhhat') ctx.arc(cx, cz, r, 0, Math.PI*2);
-        else ctx.rect(cx - r, cz - r, r*2, r*2);
+        if (b.type === 'Sıhhat') {
+          ctx.arc(cx, cz, r, 0, Math.PI*2);
+        } else {
+          ctx.roundRect ? ctx.roundRect(cx - r, cz - r, r*2, r*2, 4) : ctx.rect(cx - r, cz - r, r*2, r*2);
+        }
         
         ctx.fillStyle = b.color || '#5c4e3a';
         ctx.fill();
@@ -1087,49 +1089,57 @@ export class UIManager {
         ctx.strokeStyle = '#2b2112';
         ctx.lineWidth = 2;
         if (this.selectedVillageBuilding && this.selectedVillageBuilding.id === b.id) {
-          ctx.strokeStyle = '#ffffff'; // Seçili yapı
+          ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 4;
         } else if (targetWaypoint && targetWaypoint.id === b.id) {
-          ctx.strokeStyle = '#e6c66e'; // Hedef işaretli yapı
+          ctx.strokeStyle = '#e6c66e';
           ctx.lineWidth = 3;
-          ctx.setLineDash([5, 3]);
+          ctx.setLineDash([4, 2]);
         }
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // Çatıyı belirten çapraz çizgiler (dikdörtgen yapılarda)
+        // Çapraz çatı çizgileri
         if (b.type !== 'Sıhhat') {
            ctx.beginPath();
            ctx.moveTo(cx - r, cz - r); ctx.lineTo(cx + r, cz + r);
            ctx.moveTo(cx + r, cz - r); ctx.lineTo(cx - r, cz + r);
-           ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+           ctx.strokeStyle = 'rgba(0,0,0,0.2)';
            ctx.lineWidth = 1;
            ctx.stroke();
         }
 
-        // İsim Etiketi
-        ctx.font = 'bold 11px Arial';
-        ctx.fillStyle = '#111';
+        // İkon & İsim Etiketi
+        let icon = '🏠';
+        if (b.id === 'hamam') icon = '♨️';
+        else if (b.id === 'mescid') icon = '🕌';
+        else if (b.id === 'konak') icon = '🏛️';
+        else if (b.id === 'kale') icon = '🏰';
+        else if (b.id === 'sadirvan') icon = '⛲';
+        else if (b.type === 'Zanaat') icon = '⚒️';
+
+        ctx.font = 'bold 11px Cinzel, Arial';
+        ctx.fillStyle = '#1a140d';
         ctx.textAlign = 'center';
-        ctx.fillText(b.name, cx, cz - r - 6);
+        ctx.fillText(`${icon} ${b.name}`, cx, cz - r - 6);
       });
       
-      // Player konumunu (Kırmızı Ok) çizelim
-      if (window.player) {
+      // Oyuncu (Kırmızı İbre / SEN)
+      if (window.player && window.player.position) {
          const px = w/2 + (window.player.position.x * mapScale);
          const pz = h/2 + (window.player.position.z * mapScale);
          
-         ctx.fillStyle = '#e6c66e'; // Altın rengi
+         ctx.fillStyle = '#8b1e1e';
          ctx.beginPath();
          ctx.arc(px, pz, 6, 0, Math.PI*2);
          ctx.fill();
-         ctx.strokeStyle = '#8b1e1e';
+         ctx.strokeStyle = '#e6c66e';
          ctx.lineWidth = 2;
          ctx.stroke();
          
-         ctx.font = 'bold 10px Cinzel';
+         ctx.font = 'bold 11px Cinzel, Arial';
          ctx.fillStyle = '#8b1e1e';
-         ctx.fillText('SEN', px, pz + 16);
+         ctx.fillText('📍 SEN', px, pz + 16);
       }
     }
   }
@@ -1138,19 +1148,20 @@ export class UIManager {
     if (!window.townGenerator || !window.townGenerator.villageBuildings) return;
     const canvas = this.dom.villageMapCanvas;
     const rect = canvas.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const clickX = (e.clientX - rect.left) * scaleX;
+    const clickY = (e.clientY - rect.top) * scaleY;
     const w = canvas.width;
     const h = canvas.height;
-    const mapScale = 2.5;
+    const mapScale = 2.0;
 
     let found = null;
     window.townGenerator.villageBuildings.forEach(b => {
       const cx = w/2 + (b.x * mapScale);
       const cz = h/2 + (b.z * mapScale);
-      const r = (b.radius || 8) * mapScale * 0.8;
+      const r = (b.radius || 8) * 1.6;
       
-      // Basit bounding box / circle çarpışma tespiti
       if (Math.abs(clickX - cx) <= r && Math.abs(clickY - cz) <= r) {
         found = b;
       }
@@ -1168,6 +1179,10 @@ export class UIManager {
       this.dom.villageBuildingTitle.textContent = 'Köy Krokisi';
       this.dom.villageBuildingDesc.textContent = 'Haritadan bir yapı seçerek detaylarını görebilir ve oraya gitmek için işaret koyabilirsin.';
       this.dom.villageBuildingMeta.classList.add('hidden');
+      this.dom.btnSetWaypoint.classList.add('hidden');
+    }
+    this.renderVillageMap();
+  }
       this.dom.btnSetWaypoint.classList.add('hidden');
     }
     this.renderVillageMap();
