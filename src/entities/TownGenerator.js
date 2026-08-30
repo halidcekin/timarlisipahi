@@ -792,7 +792,7 @@ export class TownGenerator {
     const yardGeo = new THREE.PlaneGeometry(60, 60);
     yardGeo.rotateX(-Math.PI / 2);
     const yard = new THREE.Mesh(yardGeo, this.modelBuilder.materials.wall);
-    yard.position.set(0, 0.1, 0);
+    yard.position.set(0, 0.05, 0);
     castleGroup.add(yard);
 
     // Ana Surlar (Dört Taraf)
@@ -809,11 +809,20 @@ export class TownGenerator {
     const wallW2 = new THREE.Mesh(new THREE.BoxGeometry(2.5, 7.5, 26), this.modelBuilder.materials.wall);
     wallW2.position.set(-30, 3.75, 17);
 
-    // Kapı
-    const gate = new THREE.Mesh(new THREE.BoxGeometry(2.6, 5, 8), new THREE.MeshStandardMaterial({ color: 0x2b190e }));
-    gate.position.set(-30, 2.5, 0);
+    // Açık Kapı Kanatları
+    const gateMat = new THREE.MeshStandardMaterial({ color: 0x2b190e });
+    
+    // Sol Kapı (Dışa/İçe Açık)
+    const gateLeft = new THREE.Mesh(new THREE.BoxGeometry(2.6, 5, 4), gateMat);
+    gateLeft.position.set(-30, 2.5, -3.5);
+    gateLeft.rotation.y = -Math.PI / 3;
 
-    castleGroup.add(wallN, wallS, wallE, wallW1, wallW2, gate);
+    // Sağ Kapı
+    const gateRight = new THREE.Mesh(new THREE.BoxGeometry(2.6, 5, 4), gateMat);
+    gateRight.position.set(-30, 2.5, 3.5);
+    gateRight.rotation.y = Math.PI / 3;
+
+    castleGroup.add(wallN, wallS, wallE, wallW1, wallW2, gateLeft, gateRight);
 
     // 4 Köşe Nöbetçi Kuleleri
     const corners = [{ x: -30, z: -30 }, { x: 30, z: -30 }, { x: 30, z: 30 }, { x: -30, z: 30 }];
