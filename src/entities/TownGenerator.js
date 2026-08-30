@@ -336,31 +336,60 @@ export class TownGenerator {
     millRoof.position.set(-51, 6.75, 22);
     millRoof.rotation.y = Math.PI / 4;
 
-    // 2. Büyük Dönen Su Çarkı (Nehir Yatağında)
+    // 2. Büyük Dönen Su Çarkı (Nehir Yatağında - Geleneksel 12 Kollu Su Çarkı)
     const wheelGroup = new THREE.Group();
+
+    // Ana Ahşap Mil (Axle / Shaft)
+    const axle = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.18, 0.18, 2.6, 12),
+      this.modelBuilder.materials.wood
+    );
+    axle.rotation.x = Math.PI / 2;
+    wheelGroup.add(axle);
+
+    // Çark Göbeği (Hub)
     const wheelCenter = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.5, 0.5, 1.2, 12),
+      new THREE.CylinderGeometry(0.45, 0.45, 0.95, 16),
       this.modelBuilder.materials.wood
     );
     wheelCenter.rotation.x = Math.PI / 2;
     wheelGroup.add(wheelCenter);
 
-    const rimGeo = new THREE.TorusGeometry(2.4, 0.15, 8, 24);
-    const rim = new THREE.Mesh(rimGeo, this.modelBuilder.materials.wood);
-    wheelGroup.add(rim);
-
-    // Su Çarkı Kanatları
-    for (let i = 0; i < 8; i++) {
-      const angle = (i * Math.PI) / 4;
-      const paddle = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 2.2, 0.8),
+    // Çift Ahşap Kasnak / Çember (Dual Outer Rims)
+    for (let zOffset of [-0.4, 0.4]) {
+      const rim = new THREE.Mesh(
+        new THREE.TorusGeometry(2.2, 0.08, 8, 32),
         this.modelBuilder.materials.wood
       );
-      paddle.position.set(Math.cos(angle) * 1.2, Math.sin(angle) * 1.2, 0);
-      paddle.rotation.z = angle;
+      rim.position.z = zOffset;
+      wheelGroup.add(rim);
+    }
+
+    // 12 Adet Radyal Parmak Kirişi (Spokes) & Su Kepçesi (Paddles)
+    const spokeCount = 12;
+    for (let i = 0; i < spokeCount; i++) {
+      const angle = (i * 2 * Math.PI) / spokeCount;
+
+      // Merkezden dışa uzanan radyal ahşap kiriş
+      const spoke = new THREE.Mesh(
+        new THREE.BoxGeometry(0.1, 2.1, 0.1),
+        this.modelBuilder.materials.wood
+      );
+      spoke.position.set(Math.cos(angle) * 1.05, Math.sin(angle) * 1.05, 0);
+      spoke.rotation.z = angle - Math.PI / 2;
+      wheelGroup.add(spoke);
+
+      // Çember ucundaki su tutucu kepçe / kanat tahtası
+      const paddle = new THREE.Mesh(
+        new THREE.BoxGeometry(0.06, 0.55, 0.85),
+        this.modelBuilder.materials.wood
+      );
+      paddle.position.set(Math.cos(angle) * 2.15, Math.sin(angle) * 2.15, 0);
+      paddle.rotation.z = angle - Math.PI / 2;
       wheelGroup.add(paddle);
     }
-    wheelGroup.position.set(-46.5, 1.6, 22);
+
+    wheelGroup.position.set(-46.5, 1.8, 22);
     wheelGroup.name = 'waterMillWheel';
     millGroup.add(millBase, millRoof, wheelGroup);
 
