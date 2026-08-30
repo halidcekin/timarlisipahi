@@ -2,7 +2,7 @@
 
 **Doküman no:** 01 — Akış ve Tutundurma
 **Sürüm:** 1.0 — 30 Ağustos 2026
-**Bağlı olduğu dokümanlar:** `docs/TARIHSEL_SENARYO_VE_GELISTIRME_PLANI.md` (bundan sonra: TARIHSEL), `docs/DEVELOPMENT_SPEC.md`, `scratchpad/analiz-tam.json` (7 ajanlık kod analizi)
+**Bağlı olduğu dokümanlar:** `docs/TARIHSEL_SENARYO_VE_GELISTIRME_PLANI.md` (bundan sonra: TARIHSEL), `docs/DEVELOPMENT_SPEC.md`, `docs/fable_yol-haritasi/calisma-arsivi/analiz-tam.json` (7 ajanlık kod analizi)
 
 > **Bu doküman ne için:** Bu doküman, işverenin "insanların oynarken zamanın nasıl geçtiğini anlamayacağı, küçük nükte ve espirilerin olduğu akıcı bir oyun" hedefini, mevcut ~7000 satırlık Three.js kod tabanı üzerinde **dosya:satır düzeyinde uygulanabilir** tasarım kararlarına çevirir. İçinde: flow teorisinin bu oyundaki somut karşılıkları ve iç içe hedef döngüleri (Bölüm 1), zaman sisteminin yeniden dengelenmesi ve 1396 takvimine bağlanması (Bölüm 2), ilk 15 dakikanın dakika dakika yeniden tasarımı (Bölüm 3), ölü geri bildirim kanallarının öncelikli "juice" listesi (Bölüm 4), kayıt/oturum ritüeli (Bölüm 5), görev fiil çeşitliliği kalıpları (Bölüm 6), ekonomiye gider döngüsü (Bölüm 7) ve her kararın ölçülebilir kabul kriteri (Bölüm 8) vardır. Bu dokümanı uygulayacak geliştirici soru soramayacak; bu yüzden her madde (a) somut değer/metin içerir, (b) mevcut koda `dosya:satır` ile bağlanır, (c) denetçinin test edebileceği bir kabul kriteri taşır. TARIHSEL doc ile çelişmez; onun 5, 6, 9.7, 9.8 ve 18. bölümlerinin üzerine inşa eder.
 
@@ -65,7 +65,7 @@ Tek fiillik işler. Her mikro eylemin şeması: *hedef cümlesi → eylem → ç
 | Demirci/attar alışverişi | 1 dk | `playCoinJingle` + envanter satırı | teçhizat/merhem | `DialogueSystem.js:180-236, 462-484` |
 | Bir NPC sohbeti (havadis/mizah/kodeks) | 1-2 dk | yeni kodeks kartı rozeti | bilgi + 1 nükte | `DialogueSystem.js` düğümleri; alias soketleri `DialogueSystem.js:654-661` |
 
-**Kabul kriteri A:** Oyunun herhangi bir anında, oyuncunun 60 saniye içinde başlatıp 3 dakika içinde kapatabileceği en az 2 mikro eylem erişilebilir olmalı (telemetri: aktif hedef + arzuhal + talim erişilebilirlik bayrakları).
+**Kabul kriteri A:** Oyunun herhangi bir anında, oyuncunun 60 saniye içinde başlatıp 3 dakika içinde kapatabileceği en az 2 mikro eylem erişilebilir olmalı (ölçüm: aktif hedef + arzuhal + talim erişilebilirlik bayraklarını okuyan basit sayaç objesi — bkz. §8.1 K1 ölçüm notu — veya manuel gözlem çizelgesi; ayrı telemetri altyapısı kurulmaz).
 
 #### Döngü B — Görev/Gün (10-15 dakika)
 
@@ -77,7 +77,7 @@ Bir oyun günü = orta döngü. TARIHSEL 6. bölümdeki ritim birebir uygulanır
 4. **Riskli iş (ikindi-akşam):** devriye, harami izi, yolculuk.
 5. **Akşam hesabı (yatsı civarı):** gün özeti ekranı (Bölüm 5.2) + uyku → otomatik kayıt → yeni gün.
 
-**Kabul kriteri B:** Bir oyun günü (uyanış→uyku) medyan 12-18 gerçek dakika sürmeli (playtest telemetrisi); akşam hesabı ekranı %90+ oturumda görüntülenmeli.
+**Kabul kriteri B:** Bir oyun günü (uyanış→uyku) medyan 12-18 gerçek dakika sürmeli (kronometreli playtest gözlem çizelgesi); akşam hesabı ekranı %90+ oturumda görüntülenmeli.
 
 #### Döngü C — Perde / sefer hazırlığı (45-90 dakika)
 
@@ -89,7 +89,7 @@ Bir perde = 5-8 oynanır gün + atlama kartı. Perde kapanışları: Perde I son
 
 Kampanya hedefi HUD'daki "Sefer Hazırlık Defteri" ile sürekli görünür: cebelü sayısı/talimi, erzak, ok, nal, at kondisyonu, yoklama notu (`SupplySystem.js:89-123` iskeleti — teknik plan bağlar). Bu defter, B10 ile bağlanan 5 safhalı muharebede somut avantaja çevrilir (ör. ok stoğu 2. safhada yaylım sayısını belirler). Böylece "neden talim yapıyorum?" sorusunun cevabı oyunun ilk saatinden itibaren ekranda durur.
 
-**Kabul kriteri D:** Hazırlık defterindeki en az 5 kalemin her biri Niğbolu safhalarından en az birinde ölçülebilir fark üretmeli (düşük/yüksek hazırlıkla iki otomatik koşu arasında sonuç farkı).
+**Kabul kriteri D:** Hazırlık defterindeki en az 5 kalemin her biri Niğbolu safhalarından en az birinde ölçülebilir fark üretmeli (savaş metin-taktik olduğundan bot/otomatik koşu GEREKMEZ: `CampaignBattleSystem`'i düşük ve yüksek `SupplySystem` durumuyla çağıran iki birim test arasında sonuç farkı).
 
 ### 1.3 Boşluk anlarının doldurulması
 
@@ -99,7 +99,7 @@ Flow'u öldüren şey boşluktur. Mevcut `updateStoryGuidance` (`main.js:215-240
 - **Dünya nabzı:** hedefe yürürken yol üstü mikro sahneler: demirci örs kıvılcımı + usta-çırak azarı (`VillagerAI.js:228-239` senkronu hazır), saka su esprisi, meydan dedikodusu. Bunlar *durmayı gerektirmez*; yürürken duyulur/okunur (baloncuk).
 - **Vakit nabzı:** ezan vakti bildirimi + köylülerin mescide yönelmesi (Bölüm 2.3) — oyuncuya saati menüden değil dünyadan okutur.
 
-**Kabul kriteri:** 10 dakikalık serbest keşif kaydında oyuncunun 60 sn'den uzun "sıfır uyaran" penceresi olmamalı (ekran kaydı denetimi).
+**Kabul kriteri:** Tek 10 dakikalık serbest keşif ekran kaydında oyuncunun 60 sn'den uzun "sıfır uyaran" penceresi olmamalı. **Sayılabilir "uyaran" tanımı (K16 ile aynı):** (a) ekranda beliren bildirim/diyalog baloncuğu, (b) HUD hedef satırı değişimi, (c) adım/ortam gürültüsü dışında duyulur ses olayı (vakit bildirimi, replik, çevre sesi vurgusu), (d) görüş alanında NPC mikro-sahnesi (örs kıvılcımı, usta-çırak azarı, mescide yöneliş). Protokol: tek kayıt alınır, uyaranlar kayıt üzerinde zaman damgasıyla işaretlenir; bu dört sınıfın dışındaki hiçbir şey uyaran sayılmaz.
 
 ---
 
@@ -159,6 +159,8 @@ Gerekçe:
 | IV | 15 Zaferin bedeli | 26-27 Eylül | 2 | Final |
 | | | **Toplam** | **≈28 gün** | ≈ 8-11 saat ana yol |
 
+> **Ç1 uyum notu (`06-fazlar-ve-kabul.md`):** Ç1 kararı bu tablodaki miladi tarihleri kaydırarak uygular (kampanya başı **1 Nisan 1396**); kaydırma esas olarak Perde I-II'yi etkiler, Perde III-IV çıpaları (3 Ağustos ferman, 25 Eylül Niğbolu) sabit kalır. Gün-gün tam eşleme yalnız 06'nın **F2-02 perde tablosudur**; bu tablo veya §2.3 çıpaları ile F2-02 çelişirse **F2-02 esastır** — buradaki tarihler Ç1 öncesi taslak değerlerdir, hicri eşlemeler F2-02 üzerinden yeniden türetilir.
+
 ### 2.3 Hicri takvim, namaz vakitleri ve dinî takvim çıpaları
 
 `hijriYear: 798` alanı zaten var (`GameState.js:112`) ama işlenmiyor. Yeni takvimle birlikte hicri gün/ay da türetilir. Çıpalar (Jülyen↔Hicri çevrimi hesaplanmıştır; **B etiketi — ±1-2 gün kayma payı**, tarih danışmanı doğrulaması Aşama 5'te):
@@ -169,7 +171,7 @@ Gerekçe:
 | İlk cuma | 3 Mart 1396 | — | B | İlk cuma namazı sahnesi; `quest_imam` buraya bağlanır (Bölüm 6) |
 | Ramazan başı | ~8 Haziran 1396 | 1 Ramazan 798 | B | Ramazan segmenti (aşağıda) |
 | Ramazan Bayramı | ~8 Temmuz 1396 | 1 Şevval 798 | B | Atlama #3 kartında bayramlaşma vinyeti |
-| Kurban Bayramı | ~14 Eylül 1396 | 10 Zilhicce 798 | B | Ordugâhta bayram namazı + kurban sahnesi — savaştan 11 gün önce; ordunun manevi hazırlığı (tarihe uygun, güçlü an) |
+| Kurban Bayramı | ~14 Eylül 1396 | 10 Zilhicce 798 | B | Ordugâhta bayram namazı + kurban sahnesi (vinyet — kesim mekaniği yok, bkz. `04-islami-icerik.md` §2.4.3) — savaştan 11 gün önce; ordunun manevi hazırlığı (tarihe uygun, güçlü an) |
 | Niğbolu | 25 Eylül 1396 (Pazartesi) | 21 Zilhicce 798 | A | Final |
 
 **Karar Z6 — Ramazan segmenti (Perde II):** Tarihî takvim hediyesi: Ramazan 798, kampanya penceresinin tam ortasına düşer. 3 oynanır günlük segment: gündüz köy ritmi yavaşlar (öğle yemek yığılması yerine — `VillagerAI.js:98-104` — köylüler işte ağır çalışır), akşam **iftar sofrası** meydanda kurulur (sosyal toplanma sahnesi), yatsıdan sonra mescidde **teravih** (NPC'ler mescide yönelir). Oyuncuya oruç bir sayaçla dayatılmaz (angarya riski, TARIHSEL 15); iftar/sahur sahneleri atmosfer ve diyalog taşıyıcısıdır. Sefer/yolculuk ruhsatı imam diyaloğunda doğru fıkhî çerçevede anlatılır (Hanefî kaynaklarına uygun, sahih içerik). Bölüm 7 (Hanın yabancısı) bu segmentin içinde geçer: iftar sofrasındaki yabancılar, soruşturmaya doğal sahne kurar. **Mizah kuralı hatırlatması:** iftar sofrası muhabbeti (yemek, uyku, pide kavgası) mizaha açıktır; oruç, namaz, teravih **asla** espri konusu olmaz.
@@ -224,7 +226,7 @@ playerTrace bulgularına dakika dakika cevap. Varsayım: B1-B8, B13 çözüldü.
 | 0:40-1:30 | **Açılış: konak sofasında uyanış.** Oyuncu sedirde gözünü açar (uyku mekaniğinin ilk karesi = öğretimi bedava). Sabah ışığı, kuş sesi. Tek hedef satırı: "Kethüda Koca Yakub kapıda bekliyor." | Oyun meydanda kılıç elde başlıyordu; silah HUD karmaşası | Başlangıç pozisyonu `main.js` Player spawn; `swordDrawn:false` başlangıcı (`Player.js:18`) — kılıç kında başlar, Q öğretimi dk 7'ye taşınır |
 | 1:30-4:00 | **Sabah divanı = eski quest_inspect:** Yakub öşür kararını sorar (yetimleri affet ↔ tam tahsil — oyunun en iyi anı korunur). Diyalog açılır açılmaz görev ilerletmez; karar **seçilince** ilerler. Kapanışta Yakub günün 3 işini sayar: "değirmen arkı, demirci, mescid" → "Bugün" hedef listesi dolar | dk 1'de onOpen ile bedava görev ilerlemesi ("bir şey mi yaptım?"); "haramiler" bilgi dalının vergi hedefini tamamlaması | `DialogueSystem.js:21-23` (onOpen kaldırılır, karar düğümüne taşınır), `DialogueSystem.js:74-95` (harami dalı hedef bağı kesilir) |
 | 4:00-7:00 | **Su İhtilafı (yeniden tasarlanmış, Bölüm 6):** pusula artık doğru yönü ve "Değirmen Arkı (38m)" metnini gösterir. Yerinde: kırık set **incelenir** (E ile 2 nokta), değirmenci NPC'si tanıklık eder. İlk fiziksel fiil: "incele". | Tamamlanamayan görev + ters pusula + `undefined` metin (dk 4-10 çöküşü) | B1, B2; `QuestSystem.js:51-75` yeni hedef tipleri |
-| 7:00-8:30 | Arka dönüşte köprüden geçilir (collider düzeltmesi teknik planda); **ilk mizah anı:** Saka İbrahim yol üstünde: "Beyim, kuyudan çektiğim su zemzem değil ama niyet hâlis!" (saka_talk artık tanımlı — 18.1 sınırları içinde, dünyevi espri) | köprü görünmez duvar; Saka E'ye basınca sessiz | `NPCManager.js:189-193`, `DialogueSystem.js` yeni saka_talk düğümü |
+| 7:00-8:30 | Arka dönüşte köprüden geçilir (collider düzeltmesi teknik planda, F0-14); **ilk mizah anı:** Saka İbrahim yol üstünde — açılış repliği 02-mizah §3-a'daki saka_talk metnidir ("...kuyunun ipi benden evvel emekliye ayrıldı..."). NOT (Ç4): bu tabloda daha önce yer alan "zemzem" esprisi 04-islam §1.4 ve 02-mizah §1.3 gereği KULLANILMAZ. | köprü görünmez duvar; Saka E'ye basınca sessiz | `NPCManager.js:189-193`, `DialogueSystem.js` yeni saka_talk düğümü |
 | 8:30-10:00 | Su hükmü: Molla Şemseddin'e götür **veya** iki haneyi uzlaştır (iki çözüm yolu). Karar sonrası **ilk kodeks kartı** açılır: "Osmanlı'da su hakkı ve kadı" (C etiketi) + rozet animasyonu | görev zinciri kilitlenmesi; ödül hissizliği | `QuestSystem.js:485-511` completeQuest + kodeks kancası |
 | 10:00-11:00 | Öğle ezanı bildirimi; köylüler mescide/yemeğe akar — dünya "yaşıyor" anı. Cuma ise (3 Mart) cuma sahnesi: meydan boşalır, kısa hutbe vinyeti (metin, muteber içerik) | öğlen NPC kaybolması kafa karışıklığı (dk 25-33) — artık *anlatılan* bir ritim | `VillagerAI.js:85-119` + Z7 |
 | 11:00-13:30 | **Demirci Rüstem:** kılıç bileme + Q öğretimi ("pusatını kuşan" — ilk kez burada). Talimgâhda 3 vuruşluk mini talim: **gerçek manken modeli** önünde hit-stop'lu ilk vuruş hissi. İkinci fiil: "vur/talim" | görünmez manken absürtlüğü; R/Q tuşlarının rehberde olmaması | `CombatSystem.js:296-319` (manken modeli teknik plan), `index.html:132-138` tuş rehberi güncellemesi |
@@ -239,7 +241,7 @@ playerTrace bulgularına dakika dakika cevap. Varsayım: B1-B8, B13 çözüldü.
 
 **Kabul kriterleri (Bölüm 3):**
 - Yeni oyuncu playtesti (n≥3): dk 15'te tamamlanmış hedef sayısı ≥4; "ne yapacağımı bilmiyordum" ifadesi 0 kez.
-- Otomatik iz: ilk 15 dk telemetrisinde `objective.type` kümesi ≥3 farklı fiil içerir.
+- Otomatik iz: ilk 15 dk'da tamamlanan hedeflerin `objective.type` kümesi ≥3 farklı fiil içerir (ölçüm: hedef tamamlanınca `objective.type` başına artan basit sayaç objesi — ~2 saatlik küçük iş kalemi, bkz. `06-fazlar-ve-kabul.md` — veya manuel gözlem çizelgesi).
 - `undefined` dizgisi hiçbir HUD/modal alanında görünmez (DOM tarama testi).
 - Sefer butonu `quest_campaign.status !== 'active'` iken `disabled` + rozet (UI testi).
 - İlk otomatik kayıt dk 15'ten önce oluşur (kayıt slotu zaman damgası).
@@ -253,7 +255,7 @@ Analizin tespit ettiği **tüm** ölü geri bildirim kanalları, oyuncu hissine 
 | Öncelik | Kanal | Mevcut durum (kanıt) | Tasarım kararı |
 |---|---|---|---|
 | **P0-1** | Bildirim animasyonu | Her karede `innerHTML=''` ile yeniden kurulum; animasyon ilk karede takılı, bildirimler fiilen görünmez (`UIManager.js:1249-1260`, `style.css:464`) | B4 fix üstüne: aynı anda **en fazla 3** bildirim (TARIHSEL 9.9); önem sınıfları `savaş/görev/ekonomi/tarih/din`; süreler: savaş 3 sn, görev 5 sn, tarih/din 7 sn; taşan mesajlar doğrudan Vakayiname'ye (Bölüm 5.3) düşer — kaybolmaz |
-| **P0-2** | Vuruş hissi senkronu | Hasar mousedown anında uygulanıyor (`main.js:137-141`), sarsıntı animasyonun %75'inde (`Player.js:381`) — darbe "önceden" hissediliyor | **Karar J1:** Hasar uygulaması mousedown'dan **aktif vuruş karesine** taşınır: kombo animasyonunun %45-60 penceresinde tek kare "hit frame" (`Player.js:316-423 updateWeaponAnimation` faz bilgisini `CombatSystem.processPlayerAttack` çağrısına geçirir). O karede **aynı anda**: hasar + 60 ms hit-stop (TARIHSEL 9.3.7: 40-80 ms) + `playSwordClash` + kan/toz parçacığı + sarsıntı. Kabul: frame log'da hasar-ses-sarsıntı Δ=0 kare |
+| **P0-2** | Vuruş hissi senkronu | Hasar mousedown anında uygulanıyor (`main.js:137-141`), sarsıntı animasyonun %75'inde (`Player.js:381`) — darbe "önceden" hissediliyor | **Karar J1:** Hasar uygulaması mousedown'dan **aktif vuruş karesine** taşınır: kombo animasyonunun %45-60 penceresinde tek kare "hit frame" (`Player.js:316-423 updateWeaponAnimation` faz bilgisini `CombatSystem.processPlayerAttack` çağrısına geçirir). O karede **aynı anda**: hasar + 60 ms hit-stop (TARIHSEL 9.3.7: 40-80 ms) + `playSwordClash` + kan/toz parçacığı + sarsıntı. Kabul: hasar+ses+sarsıntı+parçacığın TEK çağrı noktasından (hit frame) tetiklendiğini gösteren kod-düzeyi assert + manuel his kontrolü (frame-log altyapısı kurulmaz) |
 | **P0-3** | cameraShake ölü | `addCameraShake` 5 yerden çağrılıyor ama `update()` kameraya hiç uygulamıyor (`Player.js:37, 72-74`; çağrılar `CombatSystem.js:195,226,267,309`, `ArcherySystem.js:113`) | `Player.update` kamera aşamasında sönümlü gürültü ofseti (tavan 0.2 mevcut); 6 kare içinde sıfıra iner. Erişilebilirlik: ayarlardan kapatılabilir (TARIHSEL 9.9) |
 | **P0-4** | playNotification / playCoinJingle tanımsız | Çağrılar bekliyor, metotlar yok; arzuhal/ulak/inşaat/kadı anları sessiz (`PetitionSystem.js:81,100,158`, `UIManager.js:676`, `AudioManager.js`) | İki kısa prosedürel ses: `playNotification` = 2 nota (E5→A5, 150 ms, üçgen dalga); `playCoinJingle` = 3 hızlı metalik tık (kare dalga + highpass). Akçe değişiminde HUD sayacı 400 ms'de sayarak akar (count-up) |
 | **P0-5** | Dünya işaretçileri görünmez | CSS hiç yazılmamış (`UIManager.js:1049-1129`) | B5 fix üstüne kural: işaretçi **mesafe ve keşfe bağlı** (TARIHSEL 10.9): görev NPC'si ≤60 m'de sancak/mühür ikonu; düşman HP çubuğu yalnız dövüşte; duvar arkasında solar |
@@ -280,7 +282,7 @@ Otomatik kayıt tetikleri (hepsi "yükleme sonrası tutarlı an"lardır — moda
 1. **Uyku** (Z8) — birincil ritüel kayıt.
 2. **Şafak** (gün-dönümü kancası, `GameState.js:214-233`) — uyumadan gün deviren oyuncu için sigorta.
 3. **Görev tamamlama** (`QuestSystem.js:485-511 completeQuest` sonu).
-4. **Atlama kartı / perde geçişi** (`chapter` slotu — geri dönüp farklı karar denemek için kalıcı).
+4. **Atlama kartı / perde geçişi** (`chapter` slotu tektir ve her atlama kartında üzerine yazılır — vaat yalnız **son perde başına** dönüp farklı karar denemektir; daha eski perdelere dönüş vaat edilmez).
 5. **Niğbolu safha aralar** (B10 bağlandığında safha bazlı checkpoint — TARIHSEL Aşama 4 gereksinimi).
 6. **Arzuhal kabulü / büyük harcama** (≥300 akçe) sonrası sessiz kayıt.
 
@@ -335,7 +337,7 @@ TARIHSEL 9.7 fiil seti (incele / al / taşı / onar / iz sür / mühürle) + "he
 | quest_water_dispute (Su Hakkı) | tamamlanamaz (B1) | Kırık ark **incele** (2 nokta), tanıkları dinle, eski sınır taşını **iz sür** ile bul (TARIHSEL Bölüm 2) | uzlaştır / kadı naibine götür / (kötü yol) zorla hükmet → göç riski |
 | quest_blacksmith (Pusat Teftişi) | konuş + satın al | Körük için kömür çuvalını handan **taşı** (fiziksel taşıma: yürüyüş yavaşlar, kılıç kullanılamaz) VEYA bedelini öde; gürz/kılıç seçimi (mevcut mekanik korunur — `DialogueSystem.js:196-206`) | taşı (bedava, zaman) / öde (30 akçe, hızlı) |
 | quest_imam (Cuma Duası) | konuş | **Zaman kapılı:** cuma günü öğle vaktinde mescid avlusu; hutbe vinyeti + dua. Vaktinde gitmezse görev beklemede kalır (fail yok — ibadet mekaniği ceza aracı yapılmaz) | erken git (imamla sohbet + kodeks kartı) / yalnız vakitte katıl |
-| quest_cebelu (Ali'nin Talimi) | konuş | **Gerçek talim** (TARIHSEL Bölüm 4, 4 aşama): 5 blok, 3 bölgeli vuruş, atlı geçiş, komut — `TrainingSystem.startDrill` bağlanır (teknik plan) | altın derece (Ali'yi yaralamadan) / bronz geç (3 başarısızlıkta önerilir) |
+| quest_cebelu (Ali'nin Talimi) | konuş | **Gerçek talim** (TARIHSEL Bölüm 4, 4 aşama): 5 blok, 3 bölgeli vuruş, atlı geçiş (yalnız `isRiding` + hız ile ölçülür; atlı saldırı girdisi İSTEMEZ — at üstünde kılıç savurma bilinçli kapsam dışıdır, bkz. `06-fazlar-ve-kabul.md` §11.3), komut — `TrainingSystem.startDrill` bağlanır (teknik plan) | altın derece (Ali'yi yaralamadan) / bronz geç (3 başarısızlıkta önerilir) |
 | quest_inn_spy (Handa Yabancı) | konuş ×2 | **Belge karşılaştırma** (TARIHSEL Bölüm 7): iki geçiş kâğıdını **incele** (tarih çelişkisi), gece mesajını **iz sür**; fail her oyunda değişir | doğru kişiyi kadıya teslim / yanlış suçlama → ticaret+zimmî güveni düşer (başarısızlık içerik üretir) |
 | quest_attar (Şifalı Merhemler) | konuş + satın al | Nehir kıyısında kantaron **topla/al** (3 bitki noktası, E ile) → attara **taşı**, merhem birlikte hazırlanır | topla (bedava, zaman) / hazırını satın al (40 akçe) |
 | quest_dede_flag (Kosova Hatırası) | konuş | Dinleme + **aktif hatırlama**: Dede anlatırken 2 soru sorulur (yanlış cevap kırmaz; doğru cevap kodeks kartını "tam" açar) | sabırla dinle / acele et (kısa versiyon, kart yarım açılır) |
@@ -353,7 +355,7 @@ TARIHSEL 9.7 fiil seti (incele / al / taşı / onar / iz sür / mühürle) + "he
 - 13 görevin en az 9'u konuşma dışı en az 1 hedef içerir (görev verisi denetimi: `objectives[].type !== 'talk'` sayımı).
 - En az 6 görev iki+ çözüm yoluyla biter (outcome dallanma testi: iki farklı yol iki farklı `outcomes` kaydı üretir).
 - quest_inn_spy'da yanlış suçlama oyunu kilitlemez; yeni içerik (tazmin görevi) açar.
-- İlk oturumda (30 dk) oyuncu ≥3 farklı fiil tipi tamamlar (Bölüm 8 KPI-1 ile aynı telemetri).
+- İlk oturumda (30 dk) oyuncu ≥3 farklı fiil tipi tamamlar (Bölüm 8 K1 ile aynı ölçüm: basit sayaç objesi veya manuel gözlem çizelgesi).
 
 ---
 
@@ -382,7 +384,7 @@ Gelir tek yönlü ve enflasyonist: periyodik gider sıfır (gameplay analizi: `a
 | **Teçhizat tamiri** | Kullanım bazlı: her 25 isabetli vuruşta bileme ihtiyacı | 20-30 akçe (demirci) | `SupplySystem.reduceDurability` iskeleti (`SupplySystem.js:39-123`) dövüşe bağlanır (teknik plan) |
 | **Hamam / merhem** | isteğe bağlı iyileşme | 40 / 30-40 | Mevcut (`DialogueSystem.js:585`, attar) |
 | **Ziyafet / hayır işleri** | isteğe bağlı itibar | 150 | Mevcut (`TimarSystem.js:75`); B12 fix ile etkisi kalıcı olur |
-| **Sefer hazırlık sepeti** | Bölüm 8 (tek büyük gider) | erzak 250 + ok/nal 120 + araba 100 = **~470** taban; memnun haneler gönüllü verirse −%40'a kadar düşer | TARIHSEL Bölüm 8'in "geçmiş kararlar geri döner" mekaniği: hane memnuniyeti Perde I kararlarından türetilir |
+| **Sefer hazırlık sepeti** | Bölüm 8 (tek büyük gider) | erzak 250 + ok/nal 120 + araba 100 = **~470** taban; indirim mevcut `reayaTrust` değerinden türetilir: trust ≥70 → −%40, 50-69 → −%20, <50 → 0 (sabitler `balance.js`'te) | TARIHSEL Bölüm 8'in "geçmiş kararlar geri döner" mekaniği: Perde I kararları zaten `reayaTrust`'a yazar — ayrı bir "hane memnuniyeti" alt sistemi KURULMAZ |
 
 ### 7.4 Sayısal başlangıç dengesi
 
@@ -400,10 +402,10 @@ Gelir tek yönlü ve enflasyonist: periyodik gider sıfır (gameplay analizi: `a
 Gider kalemleri Akşam Hesabı'nda tek tek görünür (Bölüm 5.2) — oyuncu "para nereye gidiyor?" sorusunun cevabını her akşam okur; kethüda satır aralarına dünyevi nükte düşer ("Ali'nin boğazı, beyim... bir orduyu doyurur"). Vergi terminolojisi (öşür, ağnam, çift resmi — `UIManager.js:554`'te zaten var) hasat ekranında 1 satırlık açıklamayla kodekse bağlanır: ekonomi ekranı aynı zamanda tarih dersi olur.
 
 **Kabul kriterleri (Bölüm 7):**
-- Otomatik 3 saatlik bot koşusunda (görev yolu) kasa eğrisi monoton artmaz; en az 2 kez net-negatif hafta oluşur.
+- Headless ekonomi simülasyonu birim testi (bot koşusu YOK): gün-dönümü kancası, betikli gelir/gider senaryosuyla kampanya boyunca (≈28 oynanır gün + atlama kartı ayları) döngüde çağrılır; kasa eğrisi monoton artmaz ve en az 2 "net-negatif 7-günlük pencere" (pencere içi toplam gider > toplam gelir) oluşur.
 - Vergi butonu hasat penceresi dışında pasif + tooltip ("Hasat vakti değil"); yılda 1'den fazla tahsilat imkânsız (birim test).
 - Aynı arzuhal yapısı iki kez inşa edilemez (birim test).
-- Sefer sepetinde hane memnuniyeti indirimi çalışır: yüksek/düşük güvenli iki kayıtla maliyet farkı ≥%25.
+- Sefer sepetinde `reayaTrust` indirimi çalışır: yüksek (≥70) ve düşük (<50) güvenli iki kayıtla maliyet farkı ≥%25 (birim test).
 
 ---
 
@@ -413,29 +415,29 @@ Gider kalemleri Akşam Hesabı'nda tek tek görünür (Bölüm 5.2) — oyuncu "
 
 | # | Tasarım kararı | Ölçülebilir hedef | Ölçüm yöntemi |
 |---|---|---|---|
-| K1 | Fiil çeşitliliği (Bölüm 6) | İlk oturumda (30 dk) oyuncu ≥3 farklı fiil tipinde hedef tamamlar | Telemetri: `objective.type` sayacı |
-| K2 | Zaman temposu (Z1) | 1 oyun günü medyan 12-18 gerçek dk | Telemetri: dayCount vs duvar saati |
+| K1 | Fiil çeşitliliği (Bölüm 6) | İlk oturumda (30 dk) oyuncu ≥3 farklı fiil tipinde hedef tamamlar | Basit sayaç objesi (`objective.type` başına artan; ~2 saatlik iş kalemi, bkz. `06-fazlar-ve-kabul.md`) veya manuel gözlem çizelgesi — ayrı telemetri altyapısı yok |
+| K2 | Zaman temposu (Z1) | 1 oyun günü medyan 12-18 gerçek dk | Kronometreli playtest gözlemi (dayCount vs duvar saati); bot koşusu gerekmez |
 | K3 | Tek zaman otoritesi (Z2) | `daysPassed` tek yazarlı; HUD/defter/kayıt aynı tarihi gösterir | Kod denetimi + tutarlılık testi |
 | K4 | İlk 15 dk (Bölüm 3) | ≥4 tamamlanmış hedef, 0 "ne yapacağımı bilmiyorum" anı, ilk otomatik kayıt <15 dk | Playtest (n≥3) + kayıt zaman damgası |
 | K5 | Sekans kırılması (B3) | Sefer butonu quest_campaign aktif olmadan basılamaz | UI testi (1. dakika denemesi) |
 | K6 | Bildirim görünürlüğü (P0-1) | Her bildirim ≥4 sn tam opak; aynı anda ≤3; hiçbiri kaybolmaz (Vakayiname'ye düşer) | DOM/opacity otomatik testi + stres testi |
-| K7 | Vuruş hissi (J1) | Hasar+ses+sarsıntı+parçacık aynı karede (Δ=0); hit-stop 40-80 ms | Frame log |
-| K8 | Ali yayı (Z9) | Tetiklenme→çözüm medyan 45-75 dk; mühlet dolumunda son fırsat sahnesi %100 | Playtest telemetrisi |
+| K7 | Vuruş hissi (J1) | Hasar+ses+sarsıntı+parçacık aynı karede (Δ=0); hit-stop 40-80 ms | Kod-düzeyi assert: dördü TEK çağrı noktasından (hit frame) tetiklenir + manuel his kontrolü (frame-log altyapısı yok) |
+| K8 | Ali yayı (Z9) | Tetiklenme→çözüm medyan 45-75 dk; mühlet dolumunda son fırsat sahnesi %100 | Playtest gözlem çizelgesi (kronometre) + son fırsat sahnesi birim testi |
 | K9 | Kayıt güvencesi (Bölüm 5) | Crash sonrası kayıp ≤1 oyun günü; round-trip'te aliStatus/activeCampaign/takvim korunur | Kill-process testi + serialize birim testi |
-| K10 | Oturum ritüeli (Bölüm 5) | Yükleme→oynanış ≤30 sn ("Kaldığın Yer" dahil); Akşam Hesabı gösterim oranı ≥%90 | Kronometre + telemetri |
-| K11 | Ekonomi baskısı (Bölüm 7) | Perde I sonu medyan kasa 600-900; bot koşusunda ≥2 net-negatif hafta | Bot telemetrisi |
-| K12 | Hazırlık anlamı (Döngü D) | Hazırlık defterindeki ≥5 kalem Niğbolu safhalarında ölçülebilir fark üretir | Düşük/yüksek hazırlıklı iki otomatik koşu karşılaştırması |
+| K10 | Oturum ritüeli (Bölüm 5) | Yükleme→oynanış ≤30 sn ("Kaldığın Yer" dahil); Akşam Hesabı gösterim oranı ≥%90 | Kronometre + gözlem çizelgesi |
+| K11 | Ekonomi baskısı (Bölüm 7) | Perde I sonu medyan kasa 600-900; simülasyonda ≥2 net-negatif 7-günlük pencere | Headless ekonomi simülasyonu birim testi (Bölüm 7 kabulü) + playtest gözlemi |
+| K12 | Hazırlık anlamı (Döngü D) | Hazırlık defterindeki ≥5 kalem Niğbolu safhalarında ölçülebilir fark üretir | `CampaignBattleSystem`'i düşük/yüksek `SupplySystem` durumuyla çağıran iki birim testin karşılaştırması |
 | K13 | Mizah yoğunluğu | İlk oturumda ≥2, her oyun gününde ortalama ≥1 mizah beat'i; dinî içerikte mizah 0 | İçerik kapsama tablosu + 18.1 denetim listesi |
 | K14 | Tarih/din öğretimi | İlk oturumda ≥3 kodeks kartı açılır; tüm kartlar A/B/C/R etiketli; dinî metinler kaynak onaylı | İçerik denetimi (Aşama 5 tarih danışmanı kapısı) |
 | K15 | `undefined` sıfır toleransı | Hiçbir HUD/modal alanında "undefined/NaN" görünmez | Otomatik DOM dizgi taraması |
-| K16 | Boşluk anı (1.3) | 10 dk serbest keşifte >60 sn sıfır-uyaran pencere yok | Ekran kaydı denetimi |
+| K16 | Boşluk anı (1.3) | 10 dk serbest keşifte >60 sn sıfır-uyaran pencere yok ("uyaran" = §1.3'teki sayılabilir dört sınıf) | Tek 10 dk'lık ekran kaydı protokolü (§1.3): uyaranlar zaman damgasıyla işaretlenir |
 | K17 | Vakit ritmi (Z7) | Namaz vakitlerinde NPC mescid yönelimi görsel olarak gerçekleşir; ezan sunumu 18.1 kurallarına uygun (sentez yok) | Görsel test + içerik denetimi |
-| K18 | Oturum uzunluğu (tutundurma) | Playtest oturumları doğal olarak Akşam Hesabı/atlama kartında biter; medyan oturum 45-90 dk | Playtest gözlemi |
+| K18 | Oturum uzunluğu (tutundurma) | Oturumların ≥%70'i Akşam Hesabı/atlama kartı ekranında kapanır; medyan oturum 45-90 dk | Playtest anketi ("Oturumu hangi ekranda kapattın?" sorusu) + oturum süresi kaydı |
 
 ### 8.2 Playtest protokolü (her sürüm kapısında)
 
-1. **Soğuk başlangıç testi (n=3, oyunu hiç görmemiş kişi):** İlk 15 dk sessiz gözlem + K4 anketi; ardından "kaldığın yerden devam" testi (K10).
-2. **Bot koşusu:** ana görev yolunu izleyen otomasyon 3 saat; K2, K11, K15 telemetrisi toplanır.
+1. **Soğuk başlangıç testi (n=3, oyunu hiç görmemiş kişi):** yalnız Faz 1 (ilk 15 dk) ve Faz 5 (KPI) kapılarında zorunludur; ara faz kapılarında geliştirici öz-checklist'i + tek tekrar-oyuncu yeterli sayılır (solo geliştirici gerçekliği). İçerik: ilk 15 dk sessiz gözlem + K4 anketi; ardından "kaldığın yerden devam" testi (K10).
+2. **Deterministik test paketi (bot koşusu YOK):** K11 headless ekonomi simülasyonu (Bölüm 7 kabulü), K12 çift birim test ve K15 DOM dizgi taraması otomatik çalıştırılır; K2 kronometreli playtest gözlemiyle ölçülür. (3 saatlik 3D bot otomasyonu bilinçli kapsam dışıdır — solo geliştirici için orantısız, ayrı bir mühendislik işidir.)
 3. **İçerik denetimi:** yeni yazılan tüm diyalog/kodeks metinleri iki listeden geçer: (a) tarihsellik etiketi atanmış mı (A/B/C/R), (b) 18.1 mizah sınırı ihlali var mı; dinî metinler için muteber kaynak referansı zorunlu (TDV İslâm Ansiklopedisi öncelikli — TARIHSEL 16. bölüm kaynakları).
 4. **Regresyon:** `npm test` 97/97 korunur; zaman sistemi değişikliği sonrası testlerdeki zaman varsayımları güncellenir (testler gerçek modülleri import ediyor — `tests/systems.test.js:46-59`; `daySpeed` değişimi Test 6 tipi assert'leri etkileyebilir, teknik plana not).
 

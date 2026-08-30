@@ -47,6 +47,6 @@
 
 ## 6. Yardımcı klasörler
 
-- `docs/_calisma-arsivi/` — bu setin üretim arşivi: 7 ajanlık **kod analizi** (`analiz-tam.json`: ~110 bug, oyuncu ilk-60-dakika simülasyonu), tasarım taslakları, bağımsız denetçi bulguları (`elestiri-bulgulari.json`) ve süreç durumu (`DURUM.md`). Uygulama sırasında bağlayıcı DEĞİLDİR; arka plan/gerekçe kaynağıdır.
+- `docs/fable_yol-haritasi/calisma-arsivi/` — bu setin üretim arşivi: 7 ajanlık **kod analizi** (`analiz-tam.json`: ~110 bug, oyuncu ilk-60-dakika simülasyonu) ve bağımsız denetçi bulguları (`elestiri-bulgulari.json`). Uygulama sırasında bağlayıcı DEĞİLDİR; arka plan/gerekçe kaynağıdır.
 - `docs/TARIHSEL_SENARYO_VE_GELISTIRME_PLANI.md` — senaryo temeli (perde/bölüm kurgusu, A/B/C/R tanımı). Bu set onunla çelişmez; onu uygulanabilir plana çevirir.
 - `docs/DEVELOPMENT_SPEC.md` — eski 5-özellik talimatnamesi; tarihî referanstır (F5-06'da "uygulandı" bandı eklenecek).

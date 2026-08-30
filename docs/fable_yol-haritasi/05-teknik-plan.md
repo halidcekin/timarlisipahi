@@ -206,7 +206,7 @@ Bu bölümdeki dört madde **Steam'e veya herhangi bir dağıtım kanalına çı
 **Karar önerisi: ŞİMDİ EKLEME (ertele), iskeleyi dürüstleştir.** Gerekçe: SteamManager simülasyon modu geliştirme için yeterli; Steam yayını kararlaştırılmadan native modül + AppID + partner hesabı maliyeti erken. Yapılacaklar iki aşamalı:
 
 **Şimdi (30dk):**
-1. `electron-preload.cjs`'e yorum bandı: `// steamworks.js is intentionally NOT a dependency yet — see docs/yol-haritasi/05-teknik-plan.md §3.4` (sessiz ölü özellik → belgeli bilinçli karar).
+1. `electron-preload.cjs`'e yorum bandı: `// steamworks.js is intentionally NOT a dependency yet — see docs/fable_yol-haritasi/05-teknik-plan.md §3.4` (sessiz ölü özellik → belgeli bilinçli karar).
 2. `package.json`'dan `build:steam` scriptini kaldır VEYA `"build:steam": "echo 'Steam pipeline not configured — see docs 05 §3.4' && exit 1"` yap (boş vaat bırakma).
 3. README'deki Steam başarım/cloud vaatleri "planlanan" diye işaretlenir.
 
