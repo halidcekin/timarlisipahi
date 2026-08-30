@@ -200,7 +200,7 @@ export class NPCManager {
       workType: 'well_water'
     });
 
-    // C) Pazar Yeri Baharatçısı Attar Mehmet Efendi
+    // C) Pazar Yeri Baharatçısı Attar Mehmet Efendi (Timur Geliyor 3D Modeli)
     const attar = this.createHumanNPC({
       id: 'attar_mehmet',
       name: 'Attar Mehmet Efendi',
@@ -209,6 +209,10 @@ export class NPCManager {
       kaftanColor: 0x8b6508,
       hairColor: 0x4a443a,
       headwear: 'turban',
+      objPath: 'attar.obj',
+      mtlPath: 'attar.mtl',
+      normalMapPath: 'attar_normal.jpg',
+      rmMapPath: 'attar_rm.jpg',
       dialogueId: 'attar_talk'
     });
     this.attachVillagerAI(attar, {
