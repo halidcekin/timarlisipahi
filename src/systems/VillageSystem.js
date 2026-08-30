@@ -4,9 +4,9 @@ import { questSystem } from './QuestSystem.js';
 import { steamManager } from '../core/SteamManager.js';
 
 /**
- * TimarSystem - Tımar Yönetimi, Öşür Vergisi, Asayiş ve Cebelü Donatımı
+ * VillageSystem - Köy Yönetimi, Öşür Vergisi, Asayiş ve Cebelü Donatımı
  */
-export class TimarSystem {
+export class VillageSystem {
   static collectAnnualTax() {
     if (gameState.timar.taxCollectedThisYear) {
       gameState.addNotification('Bu yılın öşür ve cizye vergisi zaten tahsil edildi!', 'alert');
@@ -66,7 +66,7 @@ export class TimarSystem {
     gameState.timar.asayis = Math.min(100, gameState.timar.asayis + 15);
     gameState.sipahi.reputation = Math.min(100, gameState.sipahi.reputation + 5);
 
-    gameState.addNotification('🛡️ Tımar arazisinde devriye gezildi. Köy asayişi ve güvenliği arttı (%+15).', 'success');
+    gameState.addNotification('🛡️ Köy arazisinde devriye gezildi. Köy asayişi ve güvenliği arttı (%+15).', 'success');
     return true;
   }
 

@@ -1,5 +1,5 @@
 import { gameState } from '../core/GameState.js';
-import { TimarSystem } from './TimarSystem.js';
+import { VillageSystem } from './VillageSystem.js';
 import { soundManager } from '../core/AudioManager.js';
 import { questSystem } from './QuestSystem.js';
 import { codexSystem } from './CodexSystem.js';
@@ -37,7 +37,7 @@ export class DialogueSystem {
                 {
                   label: '⚖️ "Yetim ve muhtaç hanelerin öşrü affedilsin, diğerlerinden kanun üzere tahsil edilsin."',
                   action: () => {
-                    TimarSystem.collectAnnualTax();
+                    VillageSystem.collectAnnualTax();
                     gameState.modifyReayaTrust(15);
                     gameState.modifyFaction('ulema', 10);
                     gameState.modifyFaction('reaya', 15);
@@ -51,7 +51,7 @@ export class DialogueSystem {
                 {
                   label: '🌾 "Tüm hasılatı deftere kaydet, kanuni öşür tam tahsil edilsin."',
                   action: () => {
-                    TimarSystem.collectAnnualTax();
+                    VillageSystem.collectAnnualTax();
                     gameState.modifySancakReputation(10);
                     gameState.modifyReayaTrust(5);
                     questSystem.advanceObjective('quest_inspect', 1);
@@ -67,7 +67,7 @@ export class DialogueSystem {
           {
             label: '🍞 "Bu akşam köy meydanında koca bir kazan kurulsun, ahaliye ziyafet verilsin (-150 Akçe)."',
             action: () => {
-              if (TimarSystem.feastVillagers()) {
+              if (VillageSystem.feastVillagers()) {
                 questSystem.advanceObjective('quest_inspect', 1);
                 return {
                   text: `"Cömert beyim! Akçaoba ahalisi genciyle ihtiyarıyla meydanda toplanır. Birliğimiz ve dirliğimiz pekişti."`,

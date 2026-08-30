@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { gameState } from '../core/GameState.js';
-import { TimarSystem } from '../systems/TimarSystem.js';
+import { VillageSystem } from '../systems/VillageSystem.js';
 import { DialogueSystem } from '../systems/DialogueSystem.js';
 import { HistoryEventSystem } from '../systems/HistoryEventSystem.js';
 import { campaignBattleSystem } from '../systems/CampaignBattleSystem.js';
@@ -248,42 +248,42 @@ export class UIManager {
     // Tımar Defteri Buton Aksiyonları
     if (this.dom.btnCollectTax) {
       this.dom.btnCollectTax.addEventListener('click', () => {
-        TimarSystem.collectAnnualTax();
+        VillageSystem.collectAnnualTax();
         this.updateTimarBookUI();
       });
     }
 
     if (this.dom.btnPatrolVillage) {
       this.dom.btnPatrolVillage.addEventListener('click', () => {
-        TimarSystem.patrolVillage();
+        VillageSystem.patrolVillage();
         this.updateTimarBookUI();
       });
     }
 
     if (this.dom.btnFeastVillagers) {
       this.dom.btnFeastVillagers.addEventListener('click', () => {
-        TimarSystem.feastVillagers();
+        VillageSystem.feastVillagers();
         this.updateTimarBookUI();
       });
     }
 
     if (this.dom.btnTrainCebelu) {
       this.dom.btnTrainCebelu.addEventListener('click', () => {
-        TimarSystem.trainCebelu();
+        VillageSystem.trainCebelu();
         this.updateTimarBookUI();
       });
     }
 
     if (this.dom.btnBlacksmithArmor) {
       this.dom.btnBlacksmithArmor.addEventListener('click', () => {
-        TimarSystem.upgradeArmorAndSword();
+        VillageSystem.upgradeArmorAndSword();
         this.updateTimarBookUI();
       });
     }
 
     if (this.dom.btnHorseBreed) {
       this.dom.btnHorseBreed.addEventListener('click', () => {
-        TimarSystem.breedWarHorse();
+        VillageSystem.breedWarHorse();
         this.updateTimarBookUI();
       });
     }
