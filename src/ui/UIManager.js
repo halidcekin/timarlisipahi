@@ -728,6 +728,15 @@ export class UIManager {
     if (this.dom.tbStanding) this.dom.tbStanding.textContent = gameState.sipahi.reputation > 50 ? 'Padişah Nezdinde Makbul' : 'Teftiş Altında';
     this.dom.tbMorale.textContent = `%${gameState.timar.morale} (${gameState.timar.morale > 70 ? 'Yüksek' : 'Vasat'})`;
 
+    if (this.dom.btnBlacksmithArmor) {
+      const level = gameState.sipahi.swordLevel || 1;
+      this.dom.btnBlacksmithArmor.textContent = `🗡️ Kılıç ve Zırhı Bilet (Kademe ${level + 1}) - Maliyet: ${level * 300} Akçe`;
+    }
+    if (this.dom.btnTrainCebelu) {
+      const count = gameState.military.cebeluCount || 0;
+      this.dom.btnTrainCebelu.textContent = `⚔️ Yeni Cebelü Donat - Maliyet: ${800 + count * 200} Akçe`;
+    }
+
     // Arzuhal Arayüzü Güncelleme
     if (this.dom.petitionSection) {
       const p = gameState.currentPetition;

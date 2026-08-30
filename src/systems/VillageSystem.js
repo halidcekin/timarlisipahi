@@ -30,7 +30,8 @@ export class VillageSystem {
   }
 
   static trainCebelu() {
-    const cost = 800;
+    const currentCount = gameState.military.cebeluCount || 0;
+    const cost = 800 + (currentCount * 200); // 800, 1000, 1200...
     if (gameState.timar.akce < cost) {
       gameState.addNotification(`Yetersiz Akçe! Yeni bir Cebelü donatmak için en az ${cost} Akçe gerekir.`, 'alert');
       return false;
@@ -87,18 +88,19 @@ export class VillageSystem {
   }
 
   static upgradeArmorAndSword() {
-    const cost = 300;
+    const level = gameState.sipahi.swordLevel || 1;
+    const cost = 300 * level; // 300, 600, 900...
     if (gameState.timar.akce < cost) {
       gameState.addNotification(`Demircide teçhizat biletmek için ${cost} Akçe gerekir!`, 'alert');
       return false;
     }
 
     gameState.timar.akce -= cost;
-    gameState.sipahi.swordLevel += 1;
+    gameState.sipahi.swordLevel = level + 1;
     gameState.sipahi.maxHealth += 20;
     gameState.sipahi.health = gameState.sipahi.maxHealth;
 
-    gameState.addNotification('🗡️ Demirci Rüstem Usta kılıcını biledi, zırhını pekiştirdi! (Sıhhat +20)', 'success');
+    gameState.addNotification(`🗡️ Demirci Rüstem Usta kılıcını biledi! (Sıhhat +20, Yeni Seviye: ${level + 1})`, 'success');
     soundManager.playSwordClash();
     return true;
   }

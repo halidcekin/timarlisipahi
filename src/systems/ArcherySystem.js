@@ -282,6 +282,9 @@ export class ArcherySystem {
           if (dist < 1.8) {
              isHit = true;
              target.health = (target.health || 20) - (35 + arr.power * 25);
+             if (target.type === 'enemy') {
+                target.attackCooldown = Math.min(-0.8, (target.attackCooldown || 0) - 1.2); // HIT STUN
+             }
              
              try { soundManager.playSwordClash(); } catch (e) {}
              
@@ -311,17 +314,44 @@ export class ArcherySystem {
         // Ok saplandı
         arr.mesh.position.y = Math.max(0.05, arr.mesh.position.y);
         this.stuckArrows.push(arr.mesh);
-        if (arr.trail) this.scene.remove(arr.trail);
+        if (arr.trail) {
+           this.scene.remove(arr.trail);
+           if (arr.trail.geometry) arr.trail.geometry.dispose();
+           if (arr.trail.material) arr.trail.material.dispose();
+        }
         this.activeArrows.splice(i, 1);
 
         // Fazla ok birikirse eskilerini temizle
         if (this.stuckArrows.length > 25) {
            const old = this.stuckArrows.shift();
+           old.traverse((child) => {
+             if (child.isMesh) {
+               if (child.geometry) child.geometry.dispose();
+               if (child.material) {
+                 if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+                 else child.material.dispose();
+               }
+             }
+           });
            this.scene.remove(old);
         }
       } else if (arr.life <= 0) {
+        arr.mesh.traverse((child) => {
+          if (child.isMesh) {
+            if (child.geometry) child.geometry.dispose();
+            if (child.material) {
+               if (Array.isArray(child.material)) child.material.forEach(m => m.dispose());
+               else child.material.dispose();
+            }
+          }
+        });
         this.scene.remove(arr.mesh);
-        if (arr.trail) this.scene.remove(arr.trail);
+        
+        if (arr.trail) {
+           this.scene.remove(arr.trail);
+           if (arr.trail.geometry) arr.trail.geometry.dispose();
+           if (arr.trail.material) arr.trail.material.dispose();
+        }
         this.activeArrows.splice(i, 1);
       }
     }

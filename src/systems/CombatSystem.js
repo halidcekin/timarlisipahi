@@ -204,6 +204,7 @@ export class CombatSystem {
 
           gameState.addNotification(`⚔️ ${enemy.name} darbe aldı! (-${finalDamage} Sıhhat | Zırh: ${enemyArmor})`, 'alert');
           enemy.position.addScaledVector(playerDir, 0.8);
+          enemy.attackCooldown = Math.min(-0.8, (enemy.attackCooldown || 0) - 1.2); // HIT STUN EKLENDİ
 
           if (enemy.health <= 0) {
             this.killEnemy(enemy);
