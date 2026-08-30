@@ -221,6 +221,19 @@ export class Game {
         return;
       }
 
+      // Sefer Çıkış Kapısı (x: 0, z: 75)
+      const gatePos = new THREE.Vector3(0, 0, 75);
+      const distToGate = this.player.position.distanceTo(gatePos);
+      if (distToGate < 10.0) {
+        const timurQuest = questSystem.getQuestById('quest_timur_ankara');
+        if (timurQuest && timurQuest.status === 'active') {
+          this.ui.openBattleModal('ankara');
+        } else {
+          this.ui.openBattleModal('nigbolu');
+        }
+        return;
+      }
+
       if (this.town.horseEntity) {
         const dist = this.player.position.distanceTo(this.town.horseEntity.position);
         if (dist < 4.0) {
@@ -364,6 +377,19 @@ export class Game {
     const nearbyEvidence = evidenceSystem.getNearbyEvidence(this.player.position, 4.0);
     if (nearbyEvidence) {
       this.ui.showInteractionPrompt(nearbyEvidence.prompt);
+      return;
+    }
+
+    // Sefer Çıkış Kapısı (x: 0, z: 75)
+    const gatePos = new THREE.Vector3(0, 0, 75);
+    const distToGate = this.player.position.distanceTo(gatePos);
+    if (distToGate < 10.0) {
+      const timurQuest = questSystem.getQuestById('quest_timur_ankara');
+      if (timurQuest && timurQuest.status === 'active') {
+        this.ui.showInteractionPrompt('[E] 🐘 1402 Ankara Meydan Muharebesi\'ne Katıl (Timur\'un Fillerine Karşı)');
+      } else {
+        this.ui.showInteractionPrompt('[E] ⚔️ 1396 Niğbolu Meydan Muharebesi\'ne Çık (Sultanın Sancağına Katıl 🚩)');
+      }
       return;
     }
 

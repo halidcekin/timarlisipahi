@@ -3,6 +3,7 @@ import { gameState } from '../core/GameState.js';
 import { TimarSystem } from '../systems/TimarSystem.js';
 import { DialogueSystem } from '../systems/DialogueSystem.js';
 import { HistoryEventSystem } from '../systems/HistoryEventSystem.js';
+import { campaignBattleSystem } from '../systems/CampaignBattleSystem.js';
 import { soundManager } from '../core/AudioManager.js';
 import { questSystem } from '../systems/QuestSystem.js';
 import { petitionSystem } from '../systems/PetitionSystem.js';
@@ -342,25 +343,17 @@ export class UIManager {
         } else if (Math.hypot(clickX - 420, clickY - 360) < 35) {
           this.executeFastTravel(-70, 60, 'Orman Harami Sığınağı');
         } else if (Math.hypot(clickX - 260, clickY - 100) < 35) {
-          // Niğbolu Seferi
-          const result = HistoryEventSystem.joinActiveCampaign();
-          if (result) {
-            this.toggleMapModal(false);
-            this.showBattleResult(result);
-            questSystem.advanceObjective('quest_campaign', 1);
-          }
+          // Niğbolu Seferi Meydan Muharebesi
+          this.openBattleModal('nigbolu');
+          questSystem.advanceObjective('quest_campaign', 1);
         }
       });
     }
 
     // Sefere Katılma Butonu
     this.dom.btnJoinCampaign.addEventListener('click', () => {
-      const result = HistoryEventSystem.joinActiveCampaign();
-      if (result) {
-        this.toggleMapModal(false);
-        this.showBattleResult(result);
-        questSystem.advanceObjective('quest_campaign', 1);
-      }
+      this.openBattleModal('nigbolu');
+      questSystem.advanceObjective('quest_campaign', 1);
     });
   }
 
@@ -1272,5 +1265,140 @@ export class UIManager {
         this.dom.notificationsContainer.appendChild(item);
       }
     });
+  }
+
+  openBattleModal(battleType = 'nigbolu') {
+    this.toggleMapModal(false);
+    this.toggleTimarModal(false);
+    this.toggleQuestModal(false);
+
+    let modal = document.getElementById('battle-active-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'battle-active-modal';
+      modal.style.position = 'fixed';
+      modal.style.top = '0';
+      modal.style.left = '0';
+      modal.style.width = '100vw';
+      modal.style.height = '100vh';
+      modal.style.background = 'radial-gradient(circle, rgba(30, 8, 4, 0.97) 0%, rgba(10, 3, 2, 0.99) 100%)';
+      modal.style.zIndex = '9999';
+      modal.style.display = 'flex';
+      modal.style.flexDirection = 'column';
+      modal.style.alignItems = 'center';
+      modal.style.justifyContent = 'center';
+      modal.style.color = '#fff';
+      modal.style.fontFamily = 'Cinzel, Georgia, serif';
+      modal.style.padding = '24px';
+      modal.style.boxSizing = 'border-box';
+      document.body.appendChild(modal);
+    }
+    modal.style.display = 'flex';
+
+    if (battleType === 'ankara') {
+      campaignBattleSystem.startAnkaraBattle();
+    } else {
+      campaignBattleSystem.startNicopolisBattle();
+    }
+
+    this.renderBattlePhase(modal);
+  }
+
+  renderBattlePhase(modal) {
+    const isAnkara = campaignBattleSystem.currentBattleType === 'ankara';
+    const phaseData = campaignBattleSystem.getPhaseData(campaignBattleSystem.currentPhase);
+
+    if (!phaseData) return;
+
+    modal.innerHTML = `
+      <div style="max-width: 820px; width: 100%; background: rgba(20, 10, 8, 0.85); border: 2px solid #e6c66e; border-radius: 12px; padding: 28px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); text-align: center;">
+        <div style="font-size: 14px; letter-spacing: 3px; color: #e6c66e; margin-bottom: 8px;">
+          ${isAnkara ? '🐘 1402 ÇUBUK OVASI HARP MEYDANI' : '🚩 1396 TUNA BOYU NİĞBOLU MEYDAN MUHAREBESİ'}
+        </div>
+        <h2 style="font-size: 26px; color: #ffeb99; margin: 0 0 16px 0; border-bottom: 1px solid rgba(230,198,110,0.3); padding-bottom: 10px;">
+          ${phaseData.name}
+        </h2>
+        <div style="display: flex; justify-content: space-around; margin-bottom: 18px; font-size: 15px; color: #ffd885; background: rgba(0,0,0,0.4); padding: 8px 12px; border-radius: 6px;">
+          <span>⚔️ <strong>Düşman:</strong> ${phaseData.enemy}</span>
+          <span>🏆 <strong>Zafer Puanı:</strong> ${campaignBattleSystem.battleScore}</span>
+          <span>🩸 <strong>Kayıplar:</strong> ${campaignBattleSystem.playerLosses}</span>
+        </div>
+        <p style="font-size: 17px; line-height: 1.6; color: #f0e6d2; margin-bottom: 24px; text-align: left; background: rgba(30,15,10,0.6); padding: 16px; border-left: 4px solid #e6c66e; border-radius: 4px;">
+          ${phaseData.desc}
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 12px;" id="battle-options-container">
+          ${phaseData.options.map(opt => `
+            <button class="battle-opt-btn" data-opt-id="${opt.id}" style="padding: 14px 20px; font-size: 16px; font-weight: bold; background: linear-gradient(135deg, #4a1515 0%, #2a0b0b 100%); color: #ffeb99; border: 1px solid #e6c66e; border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.2s;">
+              ${opt.text}
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    const optButtons = modal.querySelectorAll('.battle-opt-btn');
+    optButtons.forEach(btn => {
+      btn.addEventListener('mouseenter', () => {
+        btn.style.background = 'linear-gradient(135deg, #7a2222 0%, #4a1515 100%)';
+        btn.style.borderColor = '#ffffff';
+        btn.style.transform = 'translateY(-2px)';
+      });
+      btn.addEventListener('mouseleave', () => {
+        btn.style.background = 'linear-gradient(135deg, #4a1515 0%, #2a0b0b 100%)';
+        btn.style.borderColor = '#e6c66e';
+        btn.style.transform = 'none';
+      });
+      btn.addEventListener('click', () => {
+        const optId = btn.getAttribute('data-opt-id');
+        const res = campaignBattleSystem.executePhaseAction(optId);
+
+        if (res && res.isElephantMartyrdom) {
+          modal.style.display = 'none';
+          this.checkFailState();
+          return;
+        }
+
+        if (campaignBattleSystem.isBattleActive) {
+          this.renderBattlePhase(modal);
+        } else {
+          this.renderBattleConclusion(modal, res);
+        }
+      });
+    });
+  }
+
+  renderBattleConclusion(modal, outcome) {
+    if (!outcome) {
+      modal.style.display = 'none';
+      return;
+    }
+
+    modal.innerHTML = `
+      <div style="max-width: 820px; width: 100%; background: rgba(20, 10, 8, 0.9); border: 2px solid #e6c66e; border-radius: 12px; padding: 28px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); text-align: center;">
+        <div style="font-size: 48px; margin-bottom: 12px;">🏆 ⚔️ 🚩</div>
+        <h2 style="font-size: 28px; color: #ffeb99; margin: 0 0 16px 0;">
+          ${outcome.title}
+        </h2>
+        <p style="font-size: 18px; line-height: 1.6; color: #f0e6d2; margin-bottom: 24px; text-align: left; background: rgba(30,15,10,0.7); padding: 18px; border-left: 4px solid #e6c66e; border-radius: 4px;">
+          ${outcome.desc}
+        </p>
+        <div style="display: flex; justify-content: center; gap: 24px; margin-bottom: 24px; font-size: 16px; color: #ffd885;">
+          <span>💰 <strong>Ganimet:</strong> +${outcome.lootAkce} Akçe</span>
+          <span>⚜️ <strong>İtibar:</strong> +${outcome.repGain}</span>
+          <span>🏆 <strong>Meydan Skoru:</strong> ${outcome.score}</span>
+        </div>
+        <button id="btn-close-battle-modal" style="padding: 14px 36px; font-size: 18px; font-weight: bold; background: linear-gradient(135deg, #1b4332 0%, #081c15 100%); color: #fff; border: 2px solid #40916c; border-radius: 8px; cursor: pointer;">
+          🏡 Akçaoba Tımarına Dön
+        </button>
+      </div>
+    `;
+
+    const closeBtn = document.getElementById('btn-close-battle-modal');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        modal.style.display = 'none';
+        this.updateHUD();
+      });
+    }
   }
 }

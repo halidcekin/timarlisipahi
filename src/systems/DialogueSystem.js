@@ -155,6 +155,18 @@ export class DialogueSystem {
                       text: `"Maaşallah! Gazânız şimdiden mübarek olsun. Rabbim seni korusun."`,
                       choices: [{ label: 'Sağ olasın hocam.', action: null }]
                     })
+                  },
+                  {
+                    label: '🚩 "Sultanımızın sancağı altına katılmaya hazırım, derhal Niğbolu Meydanına yürüyelim!"',
+                    action: () => {
+                      if (typeof window !== 'undefined' && window.gameInstance?.ui?.openBattleModal) {
+                        window.gameInstance.ui.openBattleModal('nigbolu');
+                      }
+                      return {
+                        text: `"Gazânız mübarek olsun evlat! Bismillah diyerek Tuna boyuna yürü!"`,
+                        choices: [{ label: 'Bismillah!', action: null }]
+                      };
+                    }
                   }
                 ]
               };
@@ -755,16 +767,19 @@ export class DialogueSystem {
               text: `"Emir Timur Han yüz binlik ordusu, Çağatay süvarileri ve Hindistan\'dan getirdiği zırhlı SAVAŞ FİLLERİYLE Anadolu\'ya girdi! Sultanımız tüm tımarlı sipahileri Ankara Çubuk Ovası\'na orduya çağırıyor! Bu gazâ er meydanının en büyüğüdür!"`,
               choices: [
                 {
-                  label: '🐘 "Sultanımızın fermanı baş üstüne! 1402 Ankara Meydanı\'na yürüyoruz!"',
+                  label: '🐘 "Sultanımızın fermanı baş üstüne! Derhal 1402 Ankara Meydanına Yürü!"',
                   action: () => {
                     const quest = questSystem.getQuestById('quest_timur_ankara');
                     if (quest) {
                       quest.status = 'active';
                       questSystem.syncWithGameState();
                     }
+                    if (typeof window !== 'undefined' && window.gameInstance?.ui?.openBattleModal) {
+                      window.gameInstance.ui.openBattleModal('ankara');
+                    }
                     return {
-                      text: `"Gazânız mübarek olsun! Çubuk Ovası\'nda saf tutmaya hazır olasın!"`,
-                      choices: [{ label: 'Bismillah diyerek sefere çıkalım!', action: null }]
+                      text: `"Gazânız mübarek olsun! Çubuk Ovası'nda saf tutuluyor!"`,
+                      choices: [{ label: 'Allahu Ekber!', action: null }]
                     };
                   }
                 }
