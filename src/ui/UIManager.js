@@ -1179,11 +1179,6 @@ export class UIManager {
       this.dom.villageBuildingTitle.textContent = 'Köy Krokisi';
       this.dom.villageBuildingDesc.textContent = 'Haritadan bir yapı seçerek detaylarını görebilir ve oraya gitmek için işaret koyabilirsin.';
       this.dom.villageBuildingMeta.classList.add('hidden');
-      this.dom.btnSetWaypoint.classList.add('hidden');
-    }
-    this.renderVillageMap();
-  }
-      this.dom.btnSetWaypoint.classList.add('hidden');
     }
     this.renderVillageMap();
   }
