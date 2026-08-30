@@ -188,13 +188,19 @@ function createWindow() {
     return { action: 'deny' };
   });
 
-  // İzin isteklerini reddet (kamera, mikrofon vs.)
+  // Güvenlik: Yalnızca zararsız izinlere onay ver, diğerlerini reddet (kamera, mikrofon vs.)
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    callback(false);
+    if (permission === 'pointerLock' || permission === 'fullscreen') {
+      callback(true);
+    } else {
+      callback(false);
+    }
   });
 
   startProjectServer((url) => {
-    mainWindow.loadURL(url);
+    mainWindow.loadURL(url).then(() => {
+      mainWindow.focus();
+    });
   });
 
   // Geliştirici Kısayolları (F5, Ctrl+R, F12, F11)
