@@ -2,6 +2,7 @@ import { gameState } from '../core/GameState.js';
 import { TimarSystem } from './TimarSystem.js';
 import { soundManager } from '../core/AudioManager.js';
 import { questSystem } from './QuestSystem.js';
+import { codexSystem } from './CodexSystem.js';
 
 /**
  * DialogueSystem - 14. Yüzyıl Osmanlı Dönemi Çok Katmanlı Dallanan Dramatik Diyalog Ağacı
@@ -9,6 +10,11 @@ import { questSystem } from './QuestSystem.js';
  */
 export class DialogueSystem {
   static getDialogueData(dialogueId) {
+    // Menâkıbnâme kilitlerini diyalog bağlamında aç
+    try {
+      if (dialogueId) codexSystem.unlockForDialogue(dialogueId);
+    } catch (e) {}
+
     const data = {
       // =======================================================================
       // 1. KÖY KETHÜDASI KOCA YAKUB (Tımar İdaresi, Reaya Dertleri ve Borçlar)

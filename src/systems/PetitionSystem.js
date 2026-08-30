@@ -1,8 +1,10 @@
 import { gameState } from '../core/GameState.js';
 import { soundManager } from '../core/AudioManager.js';
+import { randomService } from '../core/RandomService.js';
 
 /**
  * PetitionSystem - Köylülerin (Reaya) Sipahi'ye sunduğu Arzuhalleri (İnşaat, İzin) yönetir
+ * V2 Standartları: Deterministik RNG ve zaman yönetimi
  */
 export class PetitionSystem {
   constructor() {
@@ -44,7 +46,7 @@ export class PetitionSystem {
       {
         id: 'water_well',
         title: 'Köy Meydanına Kuyu Kazılması',
-        desc: 'Yaz kurak geçti, kadınlarımız suya hasret kaldı. Meydana derin bir kuyu vurdurursak asayişimiz ferahlar.',
+        desc: 'Yaz kurak geçti, ahali suya hasret kaldı. Meydana derin bir kuyu vurdurursak asayişimiz ferahlar.',
         costAkce: 100,
         costIrgat: 1,
         timeDays: 1,
@@ -56,17 +58,15 @@ export class PetitionSystem {
   update(delta) {
     this.timer += delta;
 
-    // Her 45 saniyede bir yeni arzuhal üretme şansı (Eğer bekleyen arzuhal yoksa)
+    // Dilekçe ve inşaat kontrolü
     if (this.timer > this.eventInterval) {
       this.timer = 0;
-      
-      // Oyunda gün atlaması (1 gün = 45 saniye simülasyonu)
-      gameState.daysPassed += 1;
       this.processConstructions();
 
       if (!gameState.currentPetition) {
-        // %40 ihtimalle yeni bir dilekçe gelir
-        if (Math.random() < 0.4) {
+        // Deterministik PRNG ile yeni dilekçe olasılığı (%40)
+        const chance = randomService.simulation.next();
+        if (chance < 0.4) {
           this.generatePetition();
         }
       }
@@ -89,8 +89,8 @@ export class PetitionSystem {
   }
 
   generatePetition() {
-    // Havuzdan rastgele bir dilekçe seç
-    const randIndex = Math.floor(Math.random() * this.petitionPool.length);
+    // Deterministik havuzdan seçim
+    const randIndex = randomService.simulation.range(0, this.petitionPool.length - 1);
     const selected = this.petitionPool[randIndex];
 
     gameState.currentPetition = {

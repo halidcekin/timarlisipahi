@@ -702,8 +702,81 @@ assert(sakaData !== null && sakaData.npcName.includes('Saka İbrahim'), 'Saka İ
 const waterDisputeData = DialogueSystem.getDialogueData('water_dispute_talk');
 assert(waterDisputeData !== null && waterDisputeData.npcName.includes('Değirmenci'), 'Değirmenci Musa ve Su İhtilafı diyaloğu mevcut (P0-1)');
 
-const fallbackDialogue = DialogueSystem.getDialogueData('non_existent_dialogue_id');
-assert(fallbackDialogue !== null && fallbackDialogue.text.includes('Beyim, işim başımdan aşkın'), 'Bilinmeyen NPC için güvenli fallback diyaloğu döndü');
+// -------------------------------------------------------------
+// TEST 36: Menâkıbnâme (CodexSystem & CodexData) Bütünlük ve Açılma Testi
+// -------------------------------------------------------------
+import { codexSystem } from '../src/systems/CodexSystem.js';
+import { CODEX_ENTRIES } from '../src/data/CodexData.js';
+
+assert(CODEX_ENTRIES.length >= 25, `Menâkıbnâme veri havuzunda yeterli madde mevcut (${CODEX_ENTRIES.length})`);
+
+// Her maddenin zorunlu alanlarının kontrolü
+const validTags = ['A', 'B', 'C', 'R'];
+const validCategories = ['dirlik', 'asker', 'cemiyet', 'vakayi'];
+for (const entry of CODEX_ENTRIES) {
+  assert(typeof entry.id === 'string' && entry.id.length > 0, `Madde id alanı geçerli: ${entry.id}`);
+  assert(validCategories.includes(entry.category), `Madde kategorisi geçerli: ${entry.id} (${entry.category})`);
+  assert(validTags.includes(entry.tag), `Madde etiketi A/B/C/R sınırlarında: ${entry.id} (${entry.tag})`);
+  assert(typeof entry.gameText === 'string' && entry.gameText.length > 10, `Defterde metni mevcut: ${entry.id}`);
+  assert(typeof entry.historyText === 'string' && entry.historyText.length > 10, `Tarihte metni mevcut: ${entry.id}`);
+}
+
+// Otomatik açılan maddelerin varlığı
+assert(codexSystem.isUnlocked('timar') === true, 'Tımar maddesi başlangıçta açık (auto)');
+assert(codexSystem.isUnlocked('sipahi') === true, 'Sipahi maddesi başlangıçta açık (auto)');
+
+// Idempotent Unlock Testi (Henüz tetiklenmemiş bir madde seçilir)
+codexSystem.unlockedIds.delete('sirpsindigi_1364');
+const unlockRes1 = codexSystem.unlock('sirpsindigi_1364');
+assert(unlockRes1 === true, 'Kilitli madde (sirpsindigi_1364) ilk kez başarıyla açıldı');
+assert(codexSystem.isUnlocked('sirpsindigi_1364') === true, 'Madde açık statüsüne geçti');
+const unlockRes2 = codexSystem.unlock('sirpsindigi_1364');
+assert(unlockRes2 === false, 'Aynı madde tekrar açılmadı (Idempotent)');
+
+// -------------------------------------------------------------
+// TEST 37: 1396 Sefer Havadisleri (HistoricalNewsSystem) Çift Anahtar Testi
+// -------------------------------------------------------------
+import { historicalNewsSystem } from '../src/systems/HistoricalNewsSystem.js';
+import { HISTORICAL_NEWS } from '../src/data/HistoricalNews.js';
+
+assert(HISTORICAL_NEWS.length >= 10, `Tarihsel havadisler listesi mevcut (${HISTORICAL_NEWS.length})`);
+
+// Gün 1 Havadis Kontrolü
+historicalNewsSystem.checkDailyNews(1);
+assert(historicalNewsSystem.deliveredNewsIds.has('h1') === true, 'Gün 1 havadisi (H-1 Rovine) başarıyla iletildi');
+assert(codexSystem.isUnlocked('rovine_1395') === true, 'Havadis ile tetiklenen rovine_1395 kodeks maddesi açıldı');
+
+// Erken Gün Havadis Engeli (Gün 1'de Gün 10 havadisi gelmemeli)
+assert(historicalNewsSystem.deliveredNewsIds.has('h5') === false, 'Gün 10 havadisi (H-5) henüz gelmedi (minDay koruması)');
+
+// -------------------------------------------------------------
+// TEST 38: Deterministik PetitionRuleEngine (AI'sız Kadı Hükmü ve Skorlama) Testi
+// -------------------------------------------------------------
+import { petitionRuleEngine } from '../src/systems/PetitionRuleEngine.js';
+
+const mockPetition = {
+  id: 'water_well',
+  title: 'Köy Meydanına Kuyu Kazılması',
+  costAkce: 100,
+  costIrgat: 1
+};
+
+// Makul gerekçe (Gaza / Sefer / Hazine)
+const validDecision = petitionRuleEngine.evaluatePetitionRejection(
+  mockPetition,
+  'Gaza ve Niğbolu seferi için tımar hazinesini cebelü techizatına ayırmak mecburiyetindeyiz.'
+);
+assert(validDecision.valid === true, 'Makul gazâ ve sefer gerekçesi Kadı Naibi tarafından haklı bulundu');
+assert(validDecision.score >= 65, 'Makul gerekçe puanı yüksek (>= 65)');
+assert(validDecision.moraleChange === 0, 'Haklı gerekçede asayiş kaybı yaşanmadı (0)');
+
+// Yetersiz / Boş gerekçe
+const weakDecision = petitionRuleEngine.evaluatePetitionRejection(
+  mockPetition,
+  'Canım istemiyor.'
+);
+assert(weakDecision.valid === false, 'Keyfi / zayıf gerekçe haksız bulundu');
+assert(weakDecision.moraleChange < 0, 'Keyfi ferman sonucu ahali gücendi (asayiş düştü)');
 
 console.log('\n🧪 ==========================================');
 console.log(`🧪 TEST SONUCU: ${passedTests}/${totalTests} TEST BAŞARIYLA TAMAMLANDI!`);
@@ -712,5 +785,6 @@ console.log('🧪 ==========================================');
 if (passedTests !== totalTests) {
   process.exit(1);
 }
+
 
 

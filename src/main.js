@@ -13,6 +13,8 @@ import { gameState } from './core/GameState.js';
 import { questSystem } from './systems/QuestSystem.js';
 import { petitionSystem } from './systems/PetitionSystem.js';
 import { evidenceSystem } from './systems/EvidenceSystem.js';
+import { codexSystem } from './systems/CodexSystem.js';
+import { historicalNewsSystem } from './systems/HistoricalNewsSystem.js';
 import { BattlefieldScene } from './entities/BattlefieldScene.js';
 import { BattlefieldCinematics } from './systems/BattlefieldCinematics.js';
 import { soundManager } from './core/AudioManager.js';
@@ -215,6 +217,11 @@ export class Game {
       this.ui.openEveningAccountingModal();
     };
 
+    // N Tuşu: Menâkıbnâme / Kâtibin Defteri (Tarih Kodeksi)
+    this.input.onToggleCodex = () => {
+      this.ui.toggleCodexModal();
+    };
+
     // E Tuşu: Etkileşim
     this.input.onInteract = () => {
       const nearbyNPC = this.npcManager.getNearbyNPC(this.player.position, 4.2);
@@ -359,11 +366,17 @@ export class Game {
 
         // 12. Arzuhal ve Dilekçe Sistemi Zamanlayıcısı
         petitionSystem.update(delta);
+
+        // 13. Menâkıbnâme Bildirim Kuyruğu & Tarihsel Havadis Akışı
+        codexSystem.update(delta);
+        if (gameState.time && gameState.time.dayCount) {
+          historicalNewsSystem.checkDailyNews(gameState.time.dayCount);
+        }
       } catch (err) {
         console.warn('Oyun mantığı döngü uyarısı:', err);
       }
 
-      // 13. Render
+      // 14. Render
       try {
         if (this.engine) {
           this.engine.render();

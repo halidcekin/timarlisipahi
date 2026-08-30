@@ -25,6 +25,7 @@ export class InputManager {
     this.onToggleQuests = null;  // J Tuşu
     this.onToggleMap = null;     // M Tuşu
     this.onToggleEvening = null; // K Tuşu (Akşam Hesabı)
+    this.onToggleCodex = null;   // N Tuşu (Menâkıbnâme / Kâtibin Defteri)
 
     this.onToggleWeapon = null;  // Q Tuşu (Kılıcı Kına Koy / Kuşan)
     this.onToggleBow = null;     // R Tuşu (Okçuluk / Yay Çek)
@@ -55,6 +56,8 @@ export class InputManager {
         if (this.onToggleMap) this.onToggleMap();
       } else if (e.code === 'KeyK') {
         if (this.onToggleEvening) this.onToggleEvening();
+      } else if (e.code === 'KeyN') {
+        if (this.onToggleCodex) this.onToggleCodex();
       }
     });
 

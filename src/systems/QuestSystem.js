@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { gameState } from '../core/GameState.js';
 import { soundManager } from '../core/AudioManager.js';
 import { steamManager } from '../core/SteamManager.js';
+import { codexSystem } from './CodexSystem.js';
 
 /**
  * QuestSystem - Mülk-i Osmanî: Tımarlı Sipahi 3D Veri Güdümlü Görev ve Olay Durum Makinesi
@@ -610,6 +611,11 @@ export class QuestSystem {
     } catch (e) {}
 
     gameState.addNotification(`🏆 VAZİFE TAMAMLANDI: ${quest.title}`, 'success');
+
+    // Menâkıbnâme Kilitlerini Aç (D2 İlkesi: Önce Yaşa, Sonra Oku)
+    try {
+      codexSystem.unlockForQuest(questId);
+    } catch (e) {}
 
     this.syncAvailableQuests();
     this.syncWithGameState();

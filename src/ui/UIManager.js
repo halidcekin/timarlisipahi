@@ -7,7 +7,8 @@ import { campaignBattleSystem } from '../systems/CampaignBattleSystem.js';
 import { soundManager } from '../core/AudioManager.js';
 import { questSystem } from '../systems/QuestSystem.js';
 import { petitionSystem } from '../systems/PetitionSystem.js';
-import { geminiService } from '../services/GeminiService.js';
+import { petitionRuleEngine } from '../systems/PetitionRuleEngine.js';
+import { codexSystem } from '../systems/CodexSystem.js';
 
 /**
  * UIManager - Arayüz, HUD, Tımar Defteri, Görev Defteri, 3D İşaretçiler ve Mini-Harita Yönetimi
@@ -103,6 +104,12 @@ export class UIManager {
       questItemsList: document.getElementById('quest-items-list'),
       questDetailContent: document.getElementById('quest-detail-content'),
 
+      // Menâkıbnâme Modal (N Tuşu / Kâtibin Defteri)
+      codexModal: document.getElementById('codex-modal'),
+      codexCloseBtn: document.getElementById('codex-close-btn'),
+      codexItemsList: document.getElementById('codex-items-list'),
+      codexDetailContent: document.getElementById('codex-detail-content'),
+
       // Butonlar
       btnCollectTax: document.getElementById('btn-collect-tax'),
       btnPatrolVillage: document.getElementById('btn-patrol-village'),
@@ -140,6 +147,8 @@ export class UIManager {
     };
 
     this.selectedQuestId = 'quest_inspect';
+    this.selectedCodexCategory = 'dirlik';
+    this.selectedCodexId = null;
     this.markerElementsPool = [];
     this.onFastTravel = null;
 
@@ -207,11 +216,23 @@ export class UIManager {
     if (this.dom.timarCloseBtn) this.dom.timarCloseBtn.addEventListener('click', () => this.toggleTimarModal(false));
     if (this.dom.mapCloseBtn) this.dom.mapCloseBtn.addEventListener('click', () => this.toggleMapModal(false));
     if (this.dom.questCloseBtn) this.dom.questCloseBtn.addEventListener('click', () => this.toggleQuestModal(false));
+    if (this.dom.codexCloseBtn) this.dom.codexCloseBtn.addEventListener('click', () => this.toggleCodexModal(false));
     if (this.dom.btnBattleOk) {
       this.dom.btnBattleOk.addEventListener('click', () => {
         this.dom.battleResultModal.classList.add('hidden');
       });
     }
+
+    // Menâkıbnâme Kategori Sekmeleri
+    const codexTabs = document.querySelectorAll('.codex-tab');
+    codexTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        codexTabs.forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        this.selectedCodexCategory = tab.getAttribute('data-cat') || 'dirlik';
+        this.renderCodexList();
+      });
+    });
 
     // Aktif Görev Paneline Tıklanınca Görev Defterini Aç
     if (this.dom.activeQuestPill) {
@@ -466,6 +487,149 @@ export class UIManager {
     }
   }
 
+  toggleCodexModal(forceState) {
+    if (!this.dom.codexModal) return;
+    const isHidden = this.dom.codexModal.classList.contains('hidden');
+    const newState = (forceState !== undefined) ? forceState : isHidden;
+
+    if (newState) {
+      this.renderCodexList();
+      this.dom.codexModal.classList.remove('hidden');
+      try { document.exitPointerLock(); } catch (e) {}
+    } else {
+      this.dom.codexModal.classList.add('hidden');
+    }
+  }
+
+  renderCodexList() {
+    if (!this.dom.codexItemsList) return;
+
+    const entries = codexSystem.getEntriesByCategory(this.selectedCodexCategory);
+    this.dom.codexItemsList.innerHTML = '';
+
+    // İlk açılan maddeyi seçili yap
+    if (!this.selectedCodexId && entries.length > 0) {
+      const firstUnlocked = entries.find(e => codexSystem.isUnlocked(e.id));
+      if (firstUnlocked) this.selectedCodexId = firstUnlocked.id;
+    }
+
+    entries.forEach(entry => {
+      const isUnlocked = codexSystem.isUnlocked(entry.id);
+      const isSelected = entry.id === this.selectedCodexId;
+
+      const btn = document.createElement('button');
+      btn.className = `codex-item-btn ${isSelected ? 'selected' : ''} ${isUnlocked ? '' : 'locked'}`;
+
+      if (isUnlocked) {
+        btn.innerHTML = `
+          <span>📜 ${entry.title}</span>
+          <span class="tag-badge tag-badge-${entry.tag}" title="${this._getTagDesc(entry.tag)}">${entry.tag}</span>
+        `;
+        btn.addEventListener('click', () => {
+          this.selectedCodexId = entry.id;
+          this.renderCodexList();
+          this.renderCodexDetail(entry);
+        });
+      } else {
+        btn.innerHTML = `
+          <span>🔒 — ???</span>
+          <span class="tag-badge" style="background: #ccc; color: #666;">?</span>
+        `;
+      }
+
+      this.dom.codexItemsList.appendChild(btn);
+    });
+
+    // Detayı güncelle
+    const currentEntry = codexSystem.getEntryById(this.selectedCodexId);
+    if (currentEntry && codexSystem.isUnlocked(currentEntry.id)) {
+      this.renderCodexDetail(currentEntry);
+    } else {
+      if (this.dom.codexDetailContent) {
+        this.dom.codexDetailContent.innerHTML = `
+          <div class="codex-placeholder" style="color: #666; font-style: italic; margin-top: 40px; text-align: center;">
+            Soldaki listeden açık bir varak seçiniz.
+          </div>
+        `;
+      }
+    }
+  }
+
+  renderCodexDetail(entry) {
+    if (!this.dom.codexDetailContent || !entry) return;
+
+    let relatedHtml = '';
+    if (entry.related && entry.related.length > 0) {
+      const relatedButtons = entry.related
+        .map(relId => {
+          const relEntry = codexSystem.getEntryById(relId);
+          if (!relEntry) return '';
+          const isRelUnlocked = codexSystem.isUnlocked(relId);
+          if (!isRelUnlocked) return `<span class="codex-related-btn locked" style="opacity: 0.5;">🔒 ${relEntry.title}</span>`;
+          return `<button class="codex-related-btn" data-codex-id="${relId}">🔗 ${relEntry.title}</button>`;
+        })
+        .join('');
+      
+      relatedHtml = `
+        <div class="codex-section">
+          <div class="codex-section-label">İLGİLİ VARAKLAR:</div>
+          <div class="codex-related-links">${relatedButtons}</div>
+        </div>
+      `;
+    }
+
+    this.dom.codexDetailContent.innerHTML = `
+      <div class="codex-detail-header">
+        <h3 class="codex-detail-title">${entry.title}</h3>
+        <span class="tag-badge tag-badge-${entry.tag}" style="font-size: 13px; padding: 4px 8px;" title="${this._getTagDesc(entry.tag)}">
+          Etiket: [${entry.tag}] ${this._getTagDesc(entry.tag)}
+        </span>
+      </div>
+
+      <div class="codex-section">
+        <div class="codex-section-label">📖 DEFTERDE (KÂTİP KAYDI):</div>
+        <p class="codex-section-text">"${entry.gameText}"</p>
+      </div>
+
+      <div class="codex-section">
+        <div class="codex-section-label">🏛️ TARİHTE (TARİHSEL HAKİKAT):</div>
+        <p class="codex-section-text history">${entry.historyText}</p>
+      </div>
+
+      ${relatedHtml}
+    `;
+
+    // İlgili varak butonlarına tıklama
+    const relBtns = this.dom.codexDetailContent.querySelectorAll('.codex-related-btn[data-codex-id]');
+    relBtns.forEach(b => {
+      b.addEventListener('click', () => {
+        const targetId = b.getAttribute('data-codex-id');
+        const targetEntry = codexSystem.getEntryById(targetId);
+        if (targetEntry) {
+          this.selectedCodexCategory = targetEntry.category;
+          this.selectedCodexId = targetId;
+          // Sekmeyi aktif yap
+          const codexTabs = document.querySelectorAll('.codex-tab');
+          codexTabs.forEach(t => {
+            if (t.getAttribute('data-cat') === targetEntry.category) t.classList.add('active');
+            else t.classList.remove('active');
+          });
+          this.renderCodexList();
+        }
+      });
+    });
+  }
+
+  _getTagDesc(tag) {
+    switch (tag) {
+      case 'A': return 'Belgeli ve Kesin';
+      case 'B': return 'Kuvvetli Tarihsel Yorum';
+      case 'C': return 'Oyun Kurgusu / Uyarlama';
+      case 'R': return 'Dönem Rivayeti';
+      default: return 'Tarihsel Kayıt';
+    }
+  }
+
   renderQuestJournal() {
     const quests = questSystem.getAllQuests();
     const activeQuest = questSystem.getActiveQuest();
@@ -610,16 +774,19 @@ export class UIManager {
     }
 
     try {
-      const result = await geminiService.evaluateRejection(p, reason);
+      const result = petitionRuleEngine.evaluatePetitionRejection(p, reason);
 
       this.dom.rejectionReasonModal.classList.add('hidden');
       if (this.dom.rejectionLoading) this.dom.rejectionLoading.classList.add('hidden');
       if (this.dom.btnSubmitRejection) this.dom.btnSubmitRejection.disabled = false;
 
-      // Asayiş & Hoşnutluk Güncellemesi
+      // Asayiş & Reaya Güveni Güncellemesi
       if (result.moraleChange !== 0) {
         gameState.timar.asayis = Math.max(0, Math.min(100, gameState.timar.asayis + result.moraleChange));
         gameState.timar.morale = Math.max(0, Math.min(100, gameState.timar.morale + result.moraleChange));
+      }
+      if (result.trustChange) {
+        gameState.modifyReayaTrust(result.trustChange);
       }
 
       // Arzuhali temizle
@@ -651,11 +818,11 @@ export class UIManager {
     }
 
     if (this.dom.kadiVerdictText) {
-      this.dom.kadiVerdictText.textContent = `"${result.verdict}"`;
+      this.dom.kadiVerdictText.textContent = `"${result.verdictText}"`;
     }
 
     if (this.dom.kadiScoreText) {
-      this.dom.kadiScoreText.textContent = `${result.score} / 100 (${result.isAi ? 'Gemini AI Kadısı' : 'Kadı Naibi'})`;
+      this.dom.kadiScoreText.textContent = `${result.score} / 100 (Kadı Naibi İncelemesi)`;
     }
 
     if (this.dom.kadiMoraleText) {
