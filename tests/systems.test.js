@@ -57,6 +57,7 @@ import { saveManager } from '../src/core/SaveManager.js';
 import { trainingSystem } from '../src/systems/TrainingSystem.js';
 import { supplySystem } from '../src/systems/SupplySystem.js';
 import { campaignBattleSystem } from '../src/systems/CampaignBattleSystem.js';
+import { evidenceSystem } from '../src/systems/EvidenceSystem.js';
 
 console.log('🧪 ==========================================');
 console.log('🧪 MÜLK-İ OSMANÎ: SİSTEMİK TEST SÜİTİ');
@@ -460,6 +461,104 @@ campaignBattleSystem.handlePlayerMartyrdom();
 assert(gameState.failState.isGameOver === true, 'Şehitlik durumunda Game Over tetiklendi');
 assert(gameState.failState.reason === 'martyrdom', 'Fail-state sebebi martyrdom olarak kaydedildi');
 assert(gameState.failState.title.includes('ŞEHİT'), 'Şehadet başlığı doğru üretildi');
+
+// -------------------------------------------------------------
+// TEST 22: Gazi Sungur Bey Dönüş Trajedisi & Cinayet İftirası ile Asayiş Kilidi (%40)
+// -------------------------------------------------------------
+gameState.failState = { isGameOver: false };
+campaignBattleSystem.startNicopolisBattle();
+campaignBattleSystem.battleScore = 150;
+const nigboluEndOutcome = campaignBattleSystem.concludeBattle();
+
+assert(gameState.murderCase.hasSungurDied === true, 'Gazi Sungur Bey dönüş yolunda şehit düştü');
+assert(gameState.murderCase.isAccused === true, 'Yabancı Dimitri cinayet iftirasında bulundu');
+assert(gameState.murderCase.isAsayisLocked === true, 'Köy asayişi %40 seviyesine kilitlendi');
+
+// Asayiş artırma denemesi (Kilitliyken engellenmeli)
+gameState.modifyAsayis(30);
+assert(gameState.reputation.asayis === 40, 'Asayiş kilitliyken %40 üzerine çıkarılamaz');
+
+// -------------------------------------------------------------
+// TEST 23: İpucusuz Dünya Dedektifliği & Kanıt Toplama Testi
+// -------------------------------------------------------------
+assert(!gameState.hasSufficientEvidence(), 'Başlangıçta yeterli delil yok');
+
+// 1. Sungur Bey'in Atının Kesik Kolanını Bul (x: 14, z: -38)
+const strapItem = evidenceSystem.collectNearbyEvidence(new THREE.Vector3(14, 0, -38));
+assert(strapItem !== null && strapItem.key === 'severedStrap', 'Kesik eyer kolanı başarıyla bulundu ve envantere alındı');
+assert(gameState.murderCase.evidence.severedStrap === true, 'Kesik kolan delili kaydedildi');
+
+// 2. Köy Hanı Arkasındaki Frenk Casus Mektubunu Bul (x: -21, z: 32)
+const letterItem = evidenceSystem.collectNearbyEvidence(new THREE.Vector3(-21, 0, 32));
+assert(letterItem !== null && letterItem.key === 'spyLetter', 'Venedik dükası ve Haçlı casus mektubu başarıyla bulundu');
+assert(gameState.murderCase.evidence.spyLetter === true, 'Casus mektubu delili kaydedildi');
+assert(gameState.hasSufficientEvidence() === true, 'Beraat için yeterli temel deliller tamamlandı');
+
+// -------------------------------------------------------------
+// TEST 24: Şer'i Mahkeme & Kanıtsız İdam Fail-State Testi (trial_execution)
+// -------------------------------------------------------------
+gameState.murderCase.evidence.severedStrap = false;
+gameState.murderCase.evidence.spyLetter = false;
+gameState.failState = { isGameOver: false };
+
+const courtTrialData = DialogueSystem.getDialogueData('court_trial_talk');
+assert(courtTrialData !== null, 'Molla Şemseddin Şer\'i Mahkeme divanı mevcut');
+
+const trialNoEvidenceChoice = courtTrialData.choices[1]; // Delil sunamama seçeneği
+trialNoEvidenceChoice.action();
+assert(gameState.failState.isGameOver === true, 'Kanıtsız yargılamada İdam Game Over tetiklendi');
+assert(gameState.failState.reason === 'trial_execution', 'Fail-state sebebi trial_execution olarak kaydedildi');
+
+// -------------------------------------------------------------
+// TEST 25: Şer'i Mahkeme & Kanıtlı Beraat, Dimitri Tutuklanması & Asayiş Kilidi Kalkışı
+// -------------------------------------------------------------
+gameState.failState = { isGameOver: false };
+gameState.murderCase.evidence.severedStrap = true;
+gameState.murderCase.evidence.spyLetter = true;
+
+const trialWithEvidenceChoice = courtTrialData.choices[0]; // Delilleri sunma seçeneği
+const beraatOutcome = trialWithEvidenceChoice.action();
+assert(gameState.murderCase.trialStatus === 'acquitted', 'Sipahi Murad Bey mahkemede beraat etti');
+assert(gameState.murderCase.isAsayisLocked === false, 'Mahkeme sonrası Asayiş kilidi kalktı');
+assert(gameState.murderCase.banditRaidsActive === true, 'Harami baskınları aktifleşti');
+assert(beraatOutcome.text.includes('müfteri Frenk ajanı derhal zindana atıla'), 'Dimitri suçüstü yakalanıp zindana atıldı');
+
+// Asayiş kilidi kalktığı için artık asayiş yükseltilebilir
+gameState.modifyAsayis(45);
+assert(gameState.reputation.asayis > 40, 'Asayiş kilidi kalktıktan sonra asayiş yükseltilebildi');
+
+// -------------------------------------------------------------
+// TEST 26: Saray Ulağı Havadisleri & 1402 Ankara Savaşı
+// -------------------------------------------------------------
+const messengerData = DialogueSystem.getDialogueData('messenger_talk');
+assert(messengerData !== null, 'Saray Ferman Ulağı diyalogu mevcut');
+const messengerNews = messengerData.choices[0].action();
+assert(messengerNews.text.includes('SAVAŞ FİLLERİYLE'), 'Ulak Timur\'un zırhlı savaş fillerini haber verdi');
+
+// -------------------------------------------------------------
+// TEST 27: 1402 Ankara Savaşı & Timur'un Savaş Fili Altında Şehadet Testi
+// -------------------------------------------------------------
+campaignBattleSystem.startAnkaraBattle();
+assert(campaignBattleSystem.currentBattleType === 'ankara', '1402 Ankara Meydan Muharebesi başladı');
+
+// 1. 2. 3. safhalar geçilir
+campaignBattleSystem.executePhaseAction('shield_circle');
+campaignBattleSystem.executePhaseAction('hold_hill');
+campaignBattleSystem.executePhaseAction('aim_eyes');
+
+// 4. Safha: Savaş filine cansiperane hücum ve filin ayağı altında ezilme
+gameState.failState = { isGameOver: false };
+campaignBattleSystem.executePhaseAction('heroic_charge');
+assert(gameState.failState.isGameOver === true, 'Fil ayağı altında ezilerek Şehadet Game Over tetiklendi');
+assert(gameState.failState.reason === 'elephant_martyrdom', 'Fail-state sebebi elephant_martyrdom olarak kaydedildi');
+assert(gameState.failState.title.includes('SAVAŞ FİLİ'), 'Fil şehadeti başlığı doğru üretildi');
+
+// -------------------------------------------------------------
+// TEST 28: Muharebe Mağlubiyeti & Yeniden Başlatma Testi
+// -------------------------------------------------------------
+campaignBattleSystem.handleBattleDefeat();
+assert(gameState.failState.isGameOver === true, 'Muharebe mağlubiyeti Game Over tetiklendi');
+assert(gameState.failState.reason === 'battle_defeat', 'Fail-state sebebi battle_defeat olarak kaydedildi');
 
 console.log('\n🧪 ==========================================');
 console.log(`🧪 TEST SONUCU: ${passedTests}/${totalTests} TEST BAŞARIYLA TAMAMLANDI!`);

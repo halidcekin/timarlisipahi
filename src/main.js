@@ -12,6 +12,7 @@ import { DialogueSystem } from './systems/DialogueSystem.js';
 import { gameState } from './core/GameState.js';
 import { questSystem } from './systems/QuestSystem.js';
 import { petitionSystem } from './systems/PetitionSystem.js';
+import { evidenceSystem } from './systems/EvidenceSystem.js';
 import { soundManager } from './core/AudioManager.js';
 import { steamManager } from './core/SteamManager.js';
 
@@ -214,6 +215,12 @@ export class Game {
         return;
       }
 
+      // İpucusuz Dünya Dedektifliği & Cinayet Kanıtı Toplama
+      const nearbyEvidence = evidenceSystem.collectNearbyEvidence(this.player.position, 4.0);
+      if (nearbyEvidence) {
+        return;
+      }
+
       if (this.town.horseEntity) {
         const dist = this.player.position.distanceTo(this.town.horseEntity.position);
         if (dist < 4.0) {
@@ -350,6 +357,13 @@ export class Game {
     const distToMill = this.player.position.distanceTo(waterMillPos);
     if (distToMill < 6.5) {
       this.ui.showInteractionPrompt('[E] Kırık Su Bendini İncele (Su İhtilafı Kanıtı 💧)');
+      return;
+    }
+
+    // İpucusuz Dünya Dedektifliği & Cinayet Kanıtı Noktası
+    const nearbyEvidence = evidenceSystem.getNearbyEvidence(this.player.position, 4.0);
+    if (nearbyEvidence) {
+      this.ui.showInteractionPrompt(nearbyEvidence.prompt);
       return;
     }
 

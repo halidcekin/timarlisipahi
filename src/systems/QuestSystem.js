@@ -397,6 +397,111 @@ export class QuestSystem {
           title: 'Vefakâr Gazi Sipahi'
         },
         status: 'locked'
+      },
+
+      // 14. GAZİ SUNGUR BEY'İN ŞÜPHELİ ÖLÜMÜ & ŞER'İ MAHKEME
+      {
+        id: 'quest_murder_trial',
+        chapter: 4,
+        title: '14. Gazi Sungur Bey\'in Şüpheli Ölümü & Şer\'i Mahkeme',
+        shortTitle: 'Cinayet İftirası & Mahkeme',
+        giver: 'Kadı Naibi Molla Şemseddin & Ahali',
+        giverRole: 'Köy Şer\'i Mahkeme Heyeti',
+        desc: 'Gazi Sungur Bey dönüş yolunda şehit düştü ve yabancı Dimitri seni cinayetle suçladı. Köy Asayişi %40\'a KİLİTLENDİ! Dünyayı dikkatlice araştır, kumpasın delillerini bul ve Molla Şemseddin\'in divanında kendini akla!',
+        targetType: 'npc',
+        targetId: 'court_trial',
+        targetName: 'Molla Şemseddin Mahkeme Divanı',
+        targetPos: new THREE.Vector3(10, 0, 2),
+        icon: '⚖️',
+        prerequisites: ['quest_campaign'],
+        objectives: [
+          { text: 'Dünyayı kendi dikkatinle ara ve sabotaj delillerini topla (İpucusuz Soruşturma)', completed: false },
+          { text: 'Molla Şemseddin\'in Şer\'i Mahkemesinde delilleri sun ve beraat et', completed: false }
+        ],
+        rewards: {
+          akce: 1000,
+          reayaTrust: 40,
+          sancakReputation: 40,
+          title: 'Ak Alınlı Gazi Sipahi'
+        },
+        status: 'locked'
+      },
+
+      // 15. KÖYÜ HARAMİ AKINLARINDAN KORU & ASAYİŞİ YÜKSELT
+      {
+        id: 'quest_bandit_raids',
+        chapter: 4,
+        title: '15. Köy Sınırlarını Harami Akınlarından Koru',
+        shortTitle: 'Harami Baskını & Asayiş',
+        giver: 'Köy Kethüdası Koca Yakub',
+        giverRole: 'Köy Meclisi',
+        desc: 'İftira kargaşasından cesaret alan haramiler köye saldırmaya başladı! Saldırganları püskürt, köy sınırlarını temizle ve asayişi yükselt!',
+        targetType: 'location',
+        targetId: 'village_square',
+        targetName: 'Köy Meydanı & Sınırlar',
+        targetPos: new THREE.Vector3(0, 0, 8),
+        icon: '⚔️',
+        prerequisites: ['quest_murder_trial'],
+        objectives: [
+          { text: 'Köy sınırlarına saldıran harami akıncılarını kılıç ve okla etkisiz hale getir', completed: false },
+          { text: 'Köy asayişini %80 üzerine çıkar', completed: false }
+        ],
+        rewards: {
+          akce: 800,
+          sancakReputation: 30,
+          squadLoyalty: 30
+        },
+        status: 'locked'
+      },
+
+      // 16. SARAY ULAĞINDAN SEFER HAVADİSLERİ
+      {
+        id: 'quest_messenger_news',
+        chapter: 5,
+        title: '16. Saray Ulağından Sefer Havadisleri',
+        shortTitle: 'Saray Ulağı',
+        giver: 'Saray Ferman Ulağı',
+        giverRole: 'Süvari Habercisi',
+        desc: 'Sultan Yıldırım Bayezid Han\'ın atlı ulağı köy meydanına geldi. Rumeli ve Anadolu fetih haberlerini dinle.',
+        targetType: 'npc',
+        targetId: 'ulak_talk',
+        targetName: 'Saray Ferman Ulağı',
+        targetPos: new THREE.Vector3(0, 0, 8),
+        icon: '🐎',
+        prerequisites: ['quest_bandit_raids'],
+        objectives: [
+          { text: 'Saray Ulağı ile görüş ve fetih havadislerini dinle', completed: false }
+        ],
+        rewards: {
+          akce: 500,
+          sancakReputation: 20
+        },
+        status: 'locked'
+      },
+
+      // 17. 1402 ANKARA MEYDAN MUHAREBESİ & TİMUR'UN SAVAŞ FİLLERİ
+      {
+        id: 'quest_timur_ankara',
+        chapter: 5,
+        title: '17. 1402 Ankara Meydan Muharebesi & Timur\'un Savaş Filleri',
+        shortTitle: '1402 Ankara Savaşı',
+        giver: 'Sultan Yıldırım Bayezid Fermanı',
+        giverRole: 'Padişah Fermanı',
+        desc: 'Emir Timur yüz binlik ordusu ve zırhlı savaş filleriyle Çubuk Ovası\'na indi! Sultan Yıldırım Bayezid ile birlikte Türk tarihinin en çetin meydan muharebesine katıl!',
+        targetType: 'campaign',
+        targetId: 'ankara_campaign',
+        targetName: 'Çubuk Ovası Harp Meydanı',
+        targetPos: new THREE.Vector3(0, 0, 75),
+        icon: '🐘',
+        prerequisites: ['quest_messenger_news'],
+        objectives: [
+          { text: '1402 Ankara Meydan Muharebesi\'nde saf tut', completed: false },
+          { text: 'Zırhlı Savaş Filine karşı cansiperane hücuma kalk', completed: false }
+        ],
+        rewards: {
+          title: 'Şanlı Ankara Şehidi'
+        },
+        status: 'locked'
       }
     ];
 

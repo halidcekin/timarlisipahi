@@ -661,6 +661,121 @@ export class DialogueSystem {
             action: null
           }
         ]
+      },
+
+      // =======================================================================
+      // 13. YABANCI AJAN DİMİTRİ (İFTİRA VE CİNAYET SUÇLAMASI)
+      // =======================================================================
+      dimitri_talk: {
+        npcName: 'Yabancı Efendi Lucas (Haçlı Ajanı Dimitri)',
+        npcRole: 'Frenk Taciri & Gizli Casus',
+        icon: '🕵️',
+        text: `"Ey Ahali ve Kadı Efendi! Gazi Sungur Bey dağ başında kaza ile ölmedi! Bu Sipahi Murad Bey, Sungur Bey'in tımarlarına ve yaylaklarına çökmek için onu dağ başında attan itti, katletti! Şer'i mahkeme kurulsun, bu katilden hesap sorulsun!"`,
+        choices: [
+          {
+            label: '⚔️ "Yalan söylersin müfteri Frenk! Sungur Bey benim silah arkadaşımdı, asıl senin foyan ortaya çıkacak!"',
+            action: () => ({
+              text: `"Göreceğiz Gazi Bey! Mahkeme kurulduğunda deliller konuşacak. Ahali arkamdadır, bu cinayetin hesabı sorulacak!"`,
+              choices: [{ label: 'Hak divanında görüşürüz.', action: null }]
+            })
+          }
+        ]
+      },
+
+      // =======================================================================
+      // 14. ŞER'İ MAHKEME DİVANI (MOLLA ŞEMSEDDİN & KOCA YAKUB)
+      // =======================================================================
+      court_trial_talk: {
+        npcName: 'Kadı Naibi Molla Şemseddin & Köy Mahkeme Heyeti',
+        npcRole: 'Şer\'i ve Örfi Mahkeme Divanı',
+        icon: '⚖️',
+        text: `"Gazi Murad Bey! Silah arkadaşın Gazi Sungur Bey'in şüpheli vefatı üzerine hakkında ağır bir cinayet ithamı vardır. Şer'i şerif şüpheyle hüküm vermez, delil ve hüccet ister! Kendini aklayacak ne gibi bir bürhan sunarsın?"`,
+        choices: [
+          {
+            label: '📜 [DELİLLERİ SUN] "Hocam! İşte Sungur Bey\'in kesik eyer kolanı ve Dimitri\'nin Venedik altınları ile casusluk mektubu!"',
+            action: () => {
+              if (gameState.hasSufficientEvidence()) {
+                gameState.murderCase.trialStatus = 'acquitted';
+                gameState.murderCase.isAsayisLocked = false;
+                gameState.murderCase.banditRaidsActive = true;
+                gameState.modifyReayaTrust(40);
+                gameState.modifySancakReputation(40);
+                gameState.modifyFaction('ulema', 35);
+                questSystem.advanceObjective('quest_murder_trial', 1);
+                questSystem.completeQuest('quest_murder_trial');
+
+                try { soundManager.playVictoryJingle(); } catch (e) {}
+                gameState.addNotification('⚖️ BERAAT ETTİN! Dimitri tutuklandı, asayiş kilidi kalktı!', 'success');
+                gameState.addNotification('🚨 DİKKAT: Haramiler köye baskın yapmaya başladı! Asayişi yükselt!', 'alert');
+
+                return {
+                  text: `"Sübhanallah! Bu kolan Frenk çeliğiyle kasten çentilmiş, cebinden de Rodos şövalyelerinin casusluk fermanı çıktı! Ey cemaat! Murad Bey masumdur, Dimitri adındaki bu müfteri Frenk ajanı derhal zindana atıla! Murad Bey, fitne yüzünden köy asayişi sarsıldı ve haramiler sınırlara saldırmaya başladı; tez asayişi yeniden tesis eyle!"`,
+                  choices: [{ label: 'Adalet mülkün temelidir hocam! Derhal haramilerin üzerine yürüyorum!', action: null }]
+                };
+              }
+
+              return {
+                text: `"Evlat, getirdiğin emareler kâfi değildir! Somut bir kesik kolan ve casus mektubu olmaksızın ithamı düşüremem. Git, dünyayı iyice ara ve somut kanıtlarla gel!"`,
+                choices: [{ label: 'Aramaya devam edeceğim hocam.', action: null }]
+              };
+            }
+          },
+          {
+            label: '⚠️ "Hocam, elimde hiçbir delil yok, kaza olduğuna şerefim üzerine yemin ederim..."',
+            action: () => {
+              if (!gameState.hasSufficientEvidence()) {
+                gameState.triggerTrialExecution();
+                return {
+                  text: `"Yemin delil yerine geçmez! İthamı çürütecek delil sunamadın. Şer'i hüküm gereği tımarın azledildi ve idama mahkûm edildin!"`,
+                  choices: [{ label: '...', action: null }]
+                };
+              }
+              return null;
+            }
+          },
+          {
+            label: 'Henüz delil aramam sürüyor, mahkeme biraz beklesin.',
+            action: null
+          }
+        ]
+      },
+
+      // =======================================================================
+      // 15. SARAY FERMAN ULAĞI (SEFER HAVADİSLERİ & ANKARA SEFERİ)
+      // =======================================================================
+      messenger_talk: {
+        npcName: 'Saray Ferman Ulağı',
+        npcRole: 'Sultan Yıldırım Bayezid Han\'ın Süvari Habercisi',
+        icon: '🐎',
+        text: `"Müjdeler ve mühim havadisler var Gazi Sipahi! Sultanımız Yıldırım Bayezid Han, Konya ve Karaman beyliklerini itaat altına aldı, Sivas ve Malatya kalelerini fethetti! Lakin doğu ufuklarından büyük bir fırtına kopmaktadır!"`,
+        choices: [
+          {
+            label: '📜 "Doğudan gelen fırtına nedir ulak yoldaş, tez haber ver!"',
+            action: () => ({
+              text: `"Emir Timur Han yüz binlik ordusu, Çağatay süvarileri ve Hindistan\'dan getirdiği zırhlı SAVAŞ FİLLERİYLE Anadolu\'ya girdi! Sultanımız tüm tımarlı sipahileri Ankara Çubuk Ovası\'na orduya çağırıyor! Bu gazâ er meydanının en büyüğüdür!"`,
+              choices: [
+                {
+                  label: '🐘 "Sultanımızın fermanı baş üstüne! 1402 Ankara Meydanı\'na yürüyoruz!"',
+                  action: () => {
+                    const quest = questSystem.getQuestById('quest_timur_ankara');
+                    if (quest) {
+                      quest.status = 'active';
+                      questSystem.syncWithGameState();
+                    }
+                    return {
+                      text: `"Gazânız mübarek olsun! Çubuk Ovası\'nda saf tutmaya hazır olasın!"`,
+                      choices: [{ label: 'Bismillah diyerek sefere çıkalım!', action: null }]
+                    };
+                  }
+                }
+              ]
+            })
+          },
+          {
+            label: 'Hayırlı haberlerle gelesin ulak.',
+            action: null
+          }
+        ]
       }
     };
 
@@ -673,7 +788,11 @@ export class DialogueSystem {
     data.hanci_idris = data.hanci_talk;
     data.koca_dede = data.dede_talk;
     data.attar_mehmet = data.attar_talk;
+    data.dimitri_accuse = data.dimitri_talk;
+    data.court_trial = data.court_trial_talk;
+    data.ulak_talk = data.messenger_talk;
 
     return data[dialogueId] || null;
   }
 }
+

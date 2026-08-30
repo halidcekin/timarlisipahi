@@ -1222,19 +1222,34 @@ export class UIManager {
       document.body.appendChild(overlay);
     }
 
-    const isStoning = gameState.failState.reason === 'stoning_linch';
+    let icon = '🚩 ⚔️ 🚩';
+    let btnText = '🔄 YENİDEN BAŞLA';
+
+    if (gameState.failState.reason === 'stoning_linch') {
+      icon = '🪨 🪨 🪨';
+    } else if (gameState.failState.reason === 'trial_execution') {
+      icon = '⚖️ ⛓️ 📜';
+      btnText = '🔄 ADALETİ YENİDEN ARA (YENİDEN BAŞLA)';
+    } else if (gameState.failState.reason === 'elephant_martyrdom') {
+      icon = '🐘 🚩 ⚔️';
+      btnText = '🔄 DESTANI YENİDEN YAŞA (YENİDEN BAŞLA)';
+    } else if (gameState.failState.reason === 'battle_defeat') {
+      icon = '⚔️ 🛡️ 🚩';
+      btnText = '🔄 MUHAREBEYİ YENİDEN BAŞLAT';
+    }
+
     overlay.innerHTML = `
       <div style="font-size: 64px; margin-bottom: 20px;">
-        ${isStoning ? '🪨 🪨 🪨' : '🚩 ⚔️ 🚩'}
+        ${icon}
       </div>
       <h1 style="font-size: 36px; color: #ffcccc; margin-bottom: 16px; text-shadow: 0 4px 12px rgba(0,0,0,0.8);">
         ${gameState.failState.title}
       </h1>
-      <p style="font-size: 19px; max-width: 680px; line-height: 1.6; color: #e0d6c0; margin-bottom: 32px;">
+      <p style="font-size: 19px; max-width: 720px; line-height: 1.6; color: #e0d6c0; margin-bottom: 32px;">
         ${gameState.failState.desc}
       </p>
       <button id="btn-restart-game" style="padding: 16px 42px; font-size: 22px; font-weight: bold; background: #8b0000; color: #fff; border: 2px solid #ff9999; border-radius: 8px; cursor: pointer; box-shadow: 0 6px 20px rgba(0,0,0,0.6);">
-        🔄 YENİDEN BAŞLA
+        ${btnText}
       </button>
     `;
 

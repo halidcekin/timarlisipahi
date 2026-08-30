@@ -155,6 +155,44 @@ export class NPCManager {
       workType: 'guarding'
     });
 
+    // F) Yabancı Ajan Dimitri / Lucas (Köy Meydanında Kışkırtıcı)
+    const dimitri = this.createHumanNPC({
+      id: 'dimitri',
+      name: 'Yabancı Efendi Lucas (Dimitri)',
+      role: 'Frenk Taciri & Haçlı Gizli Ajanı',
+      position: new THREE.Vector3(4, 0, 8),
+      kaftanColor: 0x3d2040,
+      hairColor: 0x5a4a3a,
+      headwear: 'cap',
+      dialogueId: 'dimitri_talk'
+    });
+    this.attachVillagerAI(dimitri, {
+      homePos: new THREE.Vector3(-16, 0, 28),
+      workPos: new THREE.Vector3(4, 0, 8),
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(0, 0, 8),
+      workType: 'wandering'
+    });
+
+    // G) Saray Ferman Ulağı (Sefer Havadisleri)
+    const messenger = this.createHumanNPC({
+      id: 'messenger',
+      name: 'Saray Ferman Ulağı',
+      role: 'Sultan Yıldırım Bayezid\'in Süvari Habercisi',
+      position: new THREE.Vector3(2, 0, 6),
+      kaftanColor: 0x8b1a1a,
+      hairColor: 0x1a1510,
+      headwear: 'turban',
+      dialogueId: 'messenger_talk'
+    });
+    this.attachVillagerAI(messenger, {
+      homePos: new THREE.Vector3(2, 0, 6),
+      workPos: new THREE.Vector3(2, 0, 6),
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(0, 0, 8),
+      workType: 'guarding'
+    });
+
     // -------------------------------------------------------------------------
     // 2. ÇARŞI & HAN AHALİSİ (ESNAF, SAKA, AŞÇI, HANCI)
     // -------------------------------------------------------------------------

@@ -126,6 +126,23 @@ export class GameState {
       isDead: false
     };
 
+    // Gazi Sungur Bey Cinayet Soruşturması ve İftira Durumu
+    this.murderCase = {
+      isAccused: false,
+      hasSungurDied: false,
+      accuser: 'Yabancı Efendi Lucas (Haçlı Ajanı Dimitri)',
+      evidence: {
+        severedStrap: false, // Kesik Eğer Kolanı (Frenk çeliğiyle çentikli sabotaj)
+        spyLetter: false,    // Venedik Dükası & Haçlı Casus Mektubu
+        poisonNeedle: false  // Zehirli Eğer İğnesi
+      },
+      trialStatus: 'not_started', // 'not_started', 'investigating', 'in_court', 'acquitted', 'executed'
+      isAsayisLocked: false,
+      banditRaidsActive: false,
+      banditsRepelled: 0,
+      messengerNewsCount: 0
+    };
+
     // Aktif Ferman & Niğbolu Kampanyası
     this.activeCampaign = {
       id: 'nigbolu_1396',
@@ -163,6 +180,20 @@ export class GameState {
     };
 
     this.notifications = [];
+  }
+
+  modifyAsayis(amount) {
+    if (this.murderCase.isAsayisLocked) {
+      this.reputation.asayis = 40;
+      this.timar.order = 40;
+      return;
+    }
+    this.reputation.asayis = Math.max(0, Math.min(100, (this.reputation.asayis || 70) + amount));
+    this.timar.order = this.reputation.asayis;
+  }
+
+  hasSufficientEvidence() {
+    return this.murderCase.evidence.severedStrap && this.murderCase.evidence.spyLetter;
   }
 
   modifyReayaTrust(amount) {
@@ -252,6 +283,37 @@ export class GameState {
       desc: '1396 Niğbolu Meydan Muharebesi\'nde Haçlı ordusuna karşı gazâ ederken canını feda ettin. Şanın asırlarca yaşayacak.'
     };
     this.addNotification('🚩 Şehadet şerbetini içtin...', 'alert');
+  }
+
+  triggerTrialExecution() {
+    this.murderCase.trialStatus = 'executed';
+    this.failState = {
+      isGameOver: true,
+      reason: 'trial_execution',
+      title: '⚖️ İFTİRA VE HAKSIZ AZİL / İDAM FERMANI!',
+      desc: 'Şer\'i mahkemede Gazi Sungur Bey\'in atına kurulan tuzağı ve Frenk kumpasını ispatlayacak delil sunamadın. Ahali ve Kadı seni silah arkadaşını katletmekle suçlu buldu. Tımar beratın iptal edildi ve idama mahkûm edildin!'
+    };
+    this.addNotification('⚖️ Mahkeme aleyhine sonuçlandı! İdama mahkûm edildin!', 'alert');
+  }
+
+  triggerElephantMartyrdom() {
+    this.failState = {
+      isGameOver: true,
+      reason: 'elephant_martyrdom',
+      title: '🐘 1402 ANKARA SAVAŞI: TİMUR\'UN SAVAŞ FİLİ ALTINDA ŞEHADET!',
+      desc: '1402 Çubuk Ovası\'nda Emir Timur\'un zırhlı Hint savaş fillerine karşı cansiperane hücuma kalktın. Devasa savaş filinin ayağı altında kalarak şanlı bir şekilde şehadet şerbetini içtin. Sultan Bayezid esir düştü, Osmanlı Fetret Devri\'ne girdi. Adın gaziler defterine altın harflerle yazıldı!'
+    };
+    this.addNotification('🐘 Savaş filinin ayağı altında şehit düştün...', 'alert');
+  }
+
+  triggerBattleDefeat(battleName = 'Niğbolu') {
+    this.failState = {
+      isGameOver: true,
+      reason: 'battle_defeat',
+      title: `⚔️ ${battleName.toUpperCase()} MUHAREBESİNDE MAĞLUBİYET!`,
+      desc: `${battleName} meydanında düşman safları yarılamadı ve bölüğün dağıldı. Savaş hattında ağır yara aldın.`
+    };
+    this.addNotification(`⚠️ ${battleName} muharebesi kaybedildi!`, 'alert');
   }
 
   advanceSeason() {
