@@ -158,12 +158,12 @@ export class NPCManager {
     // -------------------------------------------------------------------------
     // 2. ÇARŞI & HAN AHALİSİ (ESNAF, SAKA, AŞÇI, HANCI)
     // -------------------------------------------------------------------------
-    // A) Hancı İdris
+    // A) Hancı İdris (Köy Hanı & Aşevi Açık Tezgâhı)
     const hanci = this.createHumanNPC({
       id: 'hanci_idris',
       name: 'Hancı İdris',
       role: 'Köy Hanı Sahibi & Aşçı',
-      position: new THREE.Vector3(-14, 0, 26),
+      position: new THREE.Vector3(-10, 0, 22.5),
       kaftanColor: 0x6e2c1a,
       hairColor: 0x241d16,
       headwear: 'turban',
@@ -171,9 +171,9 @@ export class NPCManager {
     });
     this.attachVillagerAI(hanci, {
       homePos: new THREE.Vector3(-16, 0, 28),
-      workPos: new THREE.Vector3(-14, 0, 26),
+      workPos: new THREE.Vector3(-10, 0, 22.5),
       eatPos: new THREE.Vector3(-10, 0, 24),
-      socialPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(-8, 0, 23),
       workType: 'innkeeping'
     });
 

@@ -446,10 +446,30 @@ export class TownGenerator {
     const inn = this.modelBuilder.createOttomanHouse(11, 9, 7.2, true);
     inn.position.set(-16, 0, 28);
     this.scene.add(inn);
-    this.addCollider(-16, 28, 12, 10);
+    // İçeri ve ön verandaya rahat giriş için duvarlar ayrı collider yapıldı
+    this.addCollider(-16, 31, 11, 4);  // Arka duvar
+    this.addCollider(-21, 27, 2, 8);   // Sol duvar
+    this.addCollider(-11, 27, 2, 8);   // Sağ duvar
+
+    // Hancı İdris'in Açık Tezgâhı & Aşevi Kazanı (x: -10, z: 21.5)
+    const counter = new THREE.Mesh(
+      new THREE.BoxGeometry(3.0, 0.95, 1.2),
+      this.modelBuilder.materials.wood
+    );
+    counter.position.set(-10, 0.47, 21.5);
+    counter.castShadow = true;
+
+    const potMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b, metalness: 0.8, roughness: 0.3 });
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.3, 0.5, 12), potMat);
+    pot.position.set(-10.6, 1.15, 21.5);
+    counter.add(pot);
+
+    const innLantern = new THREE.PointLight(0xffaa44, 2.0, 12);
+    innLantern.position.set(-10, 2.4, 21.5);
+    this.scene.add(counter, innLantern);
 
     // Han Önü Açık Hava Sedirleri ve Masalar
-    for (let mx of [-10, -6]) {
+    for (let mx of [-6, -2]) {
       const table = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 1.4), this.modelBuilder.materials.wood);
       table.position.set(mx, 0.4, 24);
       table.castShadow = true;

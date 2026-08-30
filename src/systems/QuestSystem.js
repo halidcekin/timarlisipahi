@@ -177,7 +177,7 @@ export class QuestSystem {
         targetType: 'npc',
         targetId: 'hanci_idris',
         targetName: 'Hancı İdris',
-        targetPos: new THREE.Vector3(-14, 0, 26),
+        targetPos: new THREE.Vector3(-10, 0, 22.5),
         icon: '🕵️',
         prerequisites: ['quest_inspect'],
         objectives: [
