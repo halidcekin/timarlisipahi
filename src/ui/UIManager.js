@@ -1161,30 +1161,54 @@ export class UIManager {
     // 6. Profil & Zaman
     this.dom.sipahiName.textContent = gameState.sipahi.name;
     this.dom.timarRegion.textContent = `${gameState.timar.name} Sahibi • ${gameState.timar.sancak}`;
-    this.dom.miladiDate.textContent = `H. ${gameState.time.hijriYear} / M. ${gameState.time.year}`;
-    this.dom.seasonName.textContent = gameState.time.season;
+    this.dom.miladiDate.textContent = `1 Nisan 1396 (H. 798)`;
+    this.dom.seasonName.textContent = gameState.time?.seasonName || '🌱 İlkbahar';
 
     const hour = Math.floor(gameState.time.dayTimeHours);
     const mins = Math.floor((gameState.time.dayTimeHours % 1) * 60);
     const pad = (n) => n < 10 ? '0' + n : n;
     this.dom.timeClock.textContent = `☀️ ${pad(hour)}:${pad(mins)}`;
 
-    // 7. Aktif Görev
+    // 7. Üç Katmanlı Aktif Hedef (V2 Standardı)
     const activeQuest = questSystem.getActiveQuest();
+    const hudTodayEl = document.getElementById('hud-quest-today');
+    const hudCampaignEl = document.getElementById('hud-quest-campaign');
+
     if (activeQuest) {
-      this.dom.hudQuestTitle.textContent = activeQuest.shortTitle || activeQuest.title;
       const nextObj = activeQuest.objectives.find(o => !o.completed) || activeQuest.objectives[0];
-      this.dom.hudQuestDesc.textContent = nextObj ? nextObj.text : activeQuest.desc;
+      this.dom.hudQuestTitle.textContent = nextObj ? `${activeQuest.shortTitle || activeQuest.title}: ${nextObj.text}` : activeQuest.desc;
+      if (hudTodayEl) hudTodayEl.textContent = `Bugün: Kalan Vazifeler (${questSystem.quests.filter(q => q.status === 'active' || q.status === 'available').length})`;
+      if (hudCampaignEl) hudCampaignEl.textContent = `Sefer: Cebelü Süvarisi (${gameState.military.cebeluCount}/${gameState.military.cebeluRequired})`;
     } else {
       this.dom.hudQuestTitle.textContent = 'Vazifeler Tamamlandı';
-      this.dom.hudQuestDesc.textContent = 'Sultanın yeni fermanı bekleniyor.';
+      if (hudTodayEl) hudTodayEl.textContent = 'Bugünkü tüm işler görüldü.';
+      if (hudCampaignEl) hudCampaignEl.textContent = 'Sultanın Niğbolu Seferi fermanı bekleniyor.';
     }
 
-    // 8. Bildirimler
+    // 8. Bildirimler (Dirty Flag / Monotonik ID - P0-3)
     this.renderNotifications();
 
     // 9. Fail-State & Yeniden Başlama Kontrolü (Taşlanma Linci / Şehitlik / Çiftbozan)
     this.checkFailState();
+  }
+
+  renderNotifications() {
+    if (!this.dom.notificationsContainer) return;
+    const now = Date.now();
+    const validNotifs = (gameState.notifications || []).filter(n => (now - n.time) < 5000);
+    const currentIds = validNotifs.map(n => n.id).join(',');
+
+    // Eğer bildirim listesi değişmediyse DOM'a dokunma (Animasyonların sıfırlanmasını önler)
+    if (this._lastNotifIds === currentIds) return;
+    this._lastNotifIds = currentIds;
+
+    this.dom.notificationsContainer.innerHTML = '';
+    validNotifs.forEach(n => {
+      const item = document.createElement('div');
+      item.className = `notification-item ${n.type}`;
+      item.textContent = n.text;
+      this.dom.notificationsContainer.appendChild(item);
+    });
   }
 
   checkFailState() {
@@ -1254,17 +1278,39 @@ export class UIManager {
     }
   }
 
-  renderNotifications() {
-    this.dom.notificationsContainer.innerHTML = '';
-    const now = Date.now();
-    gameState.notifications.forEach(n => {
-      if (now - n.time < 5000) {
-        const item = document.createElement('div');
-        item.className = `notification-item ${n.type}`;
-        item.textContent = n.text;
-        this.dom.notificationsContainer.appendChild(item);
-      }
-    });
+  openEveningAccountingModal() {
+    const modal = document.getElementById('evening-accounting-modal');
+    if (!modal) return;
+
+    const diffAkceEl = document.getElementById('evening-akce-diff');
+    const diffTrustEl = document.getElementById('evening-trust-diff');
+    const summaryTextEl = document.getElementById('evening-summary-text');
+
+    if (diffAkceEl) diffAkceEl.textContent = `${gameState.timar.akce} Akçe`;
+    if (diffTrustEl) diffTrustEl.textContent = `%${gameState.reputation.reayaTrust} Reaya Güveni`;
+    if (summaryTextEl) {
+      summaryTextEl.textContent = `Bugün Akçaoba tımarında teftiş yapıldı, kethüda ile istişare edildi ve köyün asayişi sağlandı.`;
+    }
+
+    modal.classList.remove('hidden');
+
+    const btnSaveExit = document.getElementById('btn-evening-save-exit');
+    const btnContinue = document.getElementById('btn-evening-continue');
+
+    if (btnSaveExit) {
+      btnSaveExit.onclick = async () => {
+        const { saveManager } = await import('../core/SaveManager.js');
+        await saveManager.saveGame('auto_a');
+        gameState.addNotification('💾 Gün sonu kaydı alındı.', 'success');
+        modal.classList.add('hidden');
+      };
+    }
+
+    if (btnContinue) {
+      btnContinue.onclick = () => {
+        modal.classList.add('hidden');
+      };
+    }
   }
 
   openBattleModal(battleType = 'nigbolu') {

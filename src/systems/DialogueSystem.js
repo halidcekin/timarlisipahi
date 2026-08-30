@@ -753,7 +753,74 @@ export class DialogueSystem {
       },
 
       // =======================================================================
-      // 15. SARAY FERMAN ULAĞI (SEFER HAVADİSLERİ & ANKARA SEFERİ)
+      // 16. KÖY SAKASI SAKA İBRAHİM (Su Kültürü, Kuyu & Dünyevî Karakter Diyaloğu)
+      // =======================================================================
+      saka_talk: {
+        npcName: 'Saka İbrahim',
+        npcRole: 'Akçaoba Köy Sakası (Kırk Yıllık Su Taşıyıcı)',
+        icon: '🪣',
+        text: `"Selamunaleyküm Gazi Beyim! Omuzumdaki kırba biraz ağır ama hamdolsun kuyumuzun suyu buz gibidir. Çarşıya, konağa, mescide her sabah iki sefer eylerim. Su gibi aziz olasın beyim, bir emrin var mıdır?"`,
+        choices: [
+          {
+            label: '💧 "Kuyunun durumu nasıldır İbrahim Ağa? Yaz sıcağında suyumuz yeter mi?"',
+            action: () => ({
+              text: `"Kuyunun kaynağı derindedir beyim; kış karı eridikçe bentten beslenir. Yalnız Değirmenci Musa ile üst tarladaki çiftçiler bendin başında yine münakaşa eyler. Onların arasına adaletle girersen köyümüzün suyu da bereketi de kesilmez."`,
+              choices: [
+                {
+                  label: '⚖️ "Meseleyi bizzat yerinde inceleyeceğim İbrahim Ağa, kolay gele."',
+                  action: null
+                }
+              ]
+            })
+          },
+          {
+            label: '🪣 "Kırbandan bir maşraba soğuk su ver hele, serinleyelim."',
+            action: () => {
+              gameState.modifySquadLoyalty(5);
+              gameState.addNotification('💧 Buz gibi kuyu suyu içildi. Stamina tazelendi.', 'info');
+              return {
+                text: `"Afiyet ve şifa olsun beyim! Yiğide su, toprağa tohum gerek."`,
+                choices: [{ label: 'Eksik olma İbrahim Ağa.', action: null }]
+              };
+            }
+          },
+          {
+            label: 'Kolay gelsin İbrahim Ağa, işine bak sen.',
+            action: null
+          }
+        ]
+      },
+
+      // =======================================================================
+      // 17. KALE NÖBETÇİSİ & MUHAFIZLAR (Sancak Yoklaması & Sınır Güvenliği)
+      // =======================================================================
+      guard_talk: {
+        npcName: 'Sancak Nöbetçisi',
+        npcRole: 'Kale Muhafızı & Sancakbeyi Askeri',
+        icon: '🛡️',
+        text: `"Emret Gazi Beyim! Sancak kalesinin burçlarında gözümüz ufukta bekleriz. Rumeli tarafından ulaklar sıklaşmıştır; Niğbolu boyunda Haçlı beylerinin toplandığı söylenir. Pusatlarımız kınında hazır bekler."`,
+        choices: [
+          {
+            label: '🏰 "Kalede askeri yoklama ve talimgâh hazırlığı ne durumdadır?"',
+            action: () => ({
+              text: `"Dizdar Bey talimgâhta okçuları ve cebelüleri teftiş eder. Sefere katılacak sipahilerin at ve kılıç noksanlarını tamamlamasını buyurmuştur."`,
+              choices: [
+                {
+                  label: '⚔️ "Bizim de cebelümüz ve pusatımız hazırdır yoldaş."',
+                  action: null
+                }
+              ]
+            })
+          },
+          {
+            label: 'Vazifende sebat eyle, Allah\'a emanet ol.',
+            action: null
+          }
+        ]
+      },
+
+      // =======================================================================
+      // 18. SARAY FERMAN ULAĞI (SEFER HAVADİSLERİ & ANKARA SEFERİ)
       // =======================================================================
       messenger_talk: {
         npcName: 'Saray Ferman Ulağı',
@@ -773,9 +840,6 @@ export class DialogueSystem {
                     if (quest) {
                       quest.status = 'active';
                       questSystem.syncWithGameState();
-                    }
-                    if (typeof window !== 'undefined' && window.gameInstance?.ui?.openBattleModal) {
-                      window.gameInstance.ui.openBattleModal('ankara');
                     }
                     return {
                       text: `"Gazânız mübarek olsun! Çubuk Ovası'nda saf tutuluyor!"`,
@@ -799,15 +863,26 @@ export class DialogueSystem {
     data.kadi_talk = data.imam_talk;
     data.seyis_talk = data.cebelu_talk;
     data.cirak_talk = data.cebelu_talk;
-    data.muhafiz_talk = data.dizdar_talk;
+    data.muhafiz_talk = data.guard_talk;
     data.hanci_idris = data.hanci_talk;
     data.koca_dede = data.dede_talk;
+    data.koca_dede_talk = data.dede_talk;
     data.attar_mehmet = data.attar_talk;
     data.dimitri_accuse = data.dimitri_talk;
     data.court_trial = data.court_trial_talk;
     data.ulak_talk = data.messenger_talk;
 
-    return data[dialogueId] || null;
+    // Fallback Diyaloğu (P1-11: Hiçbir NPC asla sessiz kalamaz)
+    const fallbackData = {
+      npcName: 'Köy Ahalisi',
+      npcRole: 'Akçaoba Reayası',
+      icon: '👤',
+      text: `"Beyim, işim başımdan aşkın, kusuruma bakmayasın. Buyurunuz bir emriniz var mıdır?"`,
+      choices: [{ label: 'Kolay gelsin.', action: null }]
+    };
+
+    return data[dialogueId] || fallbackData;
   }
 }
+
 

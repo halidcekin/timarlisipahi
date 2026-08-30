@@ -66,6 +66,7 @@ export class Game {
 
     // 10. Arayüz & Menüler
     this.ui = new UIManager();
+    this.questSystem = questSystem;
 
     // Hikaye Hatırlatma Zamanlayıcısı
     this.storyReminderTimer = 0;
@@ -207,6 +208,11 @@ export class Game {
     // M Tuşu: Sancak Haritası
     this.input.onToggleMap = () => {
       this.ui.toggleMapModal();
+    };
+
+    // K Tuşu: Akşam Hesabı & Gün Sonu
+    this.input.onToggleEvening = () => {
+      this.ui.openEveningAccountingModal();
     };
 
     // E Tuşu: Etkileşim

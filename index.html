@@ -92,7 +92,7 @@
         <div class="res-item" title="Tımar Asayiş & Güvenlik Düzeyi">
           <span class="icon">⚖️</span>
           <span class="label">Asayiş:</span>
-          <strong id="res-asayis">80%</strong>
+          <strong id="res-asayis">%80</strong>
         </div>
         <div class="res-item" title="Ambar Hububat Stoku (Kile)">
           <span class="icon">🌾</span>
@@ -102,21 +102,33 @@
       </div>
 
       <div class="date-row">
-        <span id="miladi-date">H. 805 / M. 1402</span>
-        <span id="season-name" class="season-pill">Yaz Hasadı</span>
-        <span id="time-clock">☀️ 12:00</span>
+        <span id="miladi-date">1 Nisan 1396</span>
+        <span id="season-name" class="season-pill">🌱 İlkbahar</span>
+        <span id="time-clock">☀️ 06:00</span>
       </div>
     </div>
 
-    <!-- Sol Orta / Alt: Aktif Görev Takip Kartı -->
+    <!-- Sol Orta / Alt: Üç Katmanlı Hedef & Görev Takip Kartı (V2 Standardı) -->
     <div id="active-quest-pill" class="hud-panel quest-hud-card">
       <div class="quest-hud-header">
         <span class="quest-icon">📜</span>
-        <span class="quest-tag">VAZİFE-İ SİPAHİ</span>
+        <span class="quest-tag">DİRLİK & HEDEF DEFTERİ</span>
       </div>
-      <h3 id="hud-quest-title">1. Tımar Arazisi Teftişi</h3>
-      <p id="hud-quest-desc">Köy kethüdası Koca Yakub ile görüş.</p>
-      <div class="quest-hint-key">Ayrıntılar için <strong>[J]</strong> Tuşuna Basın</div>
+      <div class="hud-objective-layers">
+        <div class="hud-layer-now">
+          <span class="layer-label">ŞİMDİ:</span>
+          <strong id="hud-quest-title">İncele: Koca Yakub ile Görüş</strong>
+        </div>
+        <div class="hud-layer-today">
+          <span class="layer-label">BUGÜN:</span>
+          <span id="hud-quest-today">Kalan Vazifeler: 2</span>
+        </div>
+        <div class="hud-layer-campaign">
+          <span class="layer-label">SEFER:</span>
+          <span id="hud-quest-campaign">Niğbolu Hazırlığı: Cebelü Hazır (1/1)</span>
+        </div>
+      </div>
+      <div class="quest-hint-key">Ayrıntılar: <strong>[J]</strong> • Akşam Hesabı: <strong>[K]</strong></div>
     </div>
 
     <!-- Sağ Alt: Mini Harita & Kısayol Tuş Rehberi -->
@@ -337,6 +349,44 @@
       <p id="battle-result-desc" class="battle-desc"></p>
       <div id="battle-loot-list" class="battle-loot-list"></div>
       <button id="btn-battle-ok" class="parchment-btn gold-btn">Gaza İle Zafer Kazandık</button>
+    </div>
+  </div>
+
+  <!-- AKŞAM HESABI & DİRLİK KAPANIŞ MODALI (V2 Standardı) -->
+  <div id="evening-accounting-modal" class="modal-backdrop hidden">
+    <div class="parchment-window" style="max-width: 550px;">
+      <div class="parchment-header">
+        <div class="parchment-tughra">﷽</div>
+        <h2>GÜN SONU AKŞAM HESABI</h2>
+      </div>
+      <div class="dialogue-body" style="padding: 16px;">
+        <div id="evening-day-title" style="font-weight: bold; color: #8b1e1e; margin-bottom: 8px; font-size: 16px;">
+          📅 1 Nisan 1396 • 1. Gün Kapanışı
+        </div>
+        <p id="evening-summary-text" style="font-size: 14px; line-height: 1.5; margin-bottom: 12px;">
+          Bugün tımar teftişi yapıldı, Koca Yakub ile defter müzakere edildi ve Su Değirmeni arkı ihtilafında adil bir karara varıldı.
+        </p>
+
+        <div style="background: rgba(0,0,0,0.04); border: 1px solid #c9b48c; border-radius: 4px; padding: 10px; margin-bottom: 15px; font-size: 13px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+            <span>💰 Hazine Değişimi:</span>
+            <strong id="evening-akce-diff">+250 Akçe</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+            <span>⚖️ Reaya Güveni:</span>
+            <strong id="evening-trust-diff" style="color: #1e6b2c;">+15 Güven</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span>📖 Öğrenilen Kavram:</span>
+            <strong>Tımar ve Öşür Hukuku</strong>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 10px;">
+          <button id="btn-evening-save-exit" class="parchment-btn" style="flex: 1;">💾 Kaydet & Çık</button>
+          <button id="btn-evening-continue" class="parchment-btn gold-btn" style="flex: 1;">🌙 Geceye Devam Et</button>
+        </div>
+      </div>
     </div>
   </div>
 

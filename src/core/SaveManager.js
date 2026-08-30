@@ -1,79 +1,147 @@
 import { gameState } from './GameState.js';
 import { questSystem } from '../systems/QuestSystem.js';
+import { saveRepository, SaveRepository } from './SaveRepository.js';
+import { SaveMigration } from './SaveMigration.js';
+import { randomService } from './RandomService.js';
+import { clockService } from './ClockService.js';
 
 /**
- * SaveManager - IndexedDB ve LocalStorage Tabanlı Kalıcı Kayıt/Yükleme Yöneticisi
- * - Slotlar: 'auto', 'slot_1', 'slot_2', 'slot_3'
- * - WebGL & Electron Masaüstü ortamlarıyla %100 uyumlu
+ * SaveManager - V1 Standartlarında Kalıcı Kayıt/Yükleme Yöneticisi
+ * - Slotlar: 'auto_a', 'auto_b', 'chapter', 'manual' (eski slot_1/auto alias'ları desteklenir)
+ * - SaveRepository üzerinden Web (IndexedDB) ve Masaüstü (Electron IPC) ile %100 uyumlu
  */
 export class SaveManager {
   constructor() {
-    this.dbName = 'MulkIOsmaniDB';
-    this.storeName = 'saveSlots';
-    this.dbVersion = 1;
-    this.isIndexedDBSupported = typeof indexedDB !== 'undefined';
+    this.repo = saveRepository;
+    this.repo.init();
+    this.currentAutoSlot = 'auto_a';
+  }
+
+  _mapSlot(slot) {
+    if (slot === 'auto') return this.currentAutoSlot;
+    if (slot === 'slot_1') return 'manual';
+    if (slot === 'slot_2') return 'chapter';
+    if (slot === 'slot_3') return 'auto_b';
+    if (SaveRepository.VALID_SLOTS.includes(slot)) return slot;
+    return 'manual';
   }
 
   /**
-   * IndexedDB Veritabanını Başlatır
+   * Mevcut Oyun Durumunu V1 Zarfına Serileştirir
    */
-  async getDB() {
-    if (!this.isIndexedDBSupported) return null;
-
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.dbVersion);
-
-      request.onupgradeneeded = (e) => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains(this.storeName)) {
-          db.createObjectStore(this.storeName, { keyPath: 'slot' });
-        }
-      };
-
-      request.onsuccess = (e) => resolve(e.target.result);
-      request.onerror = (e) => reject(e.target.error);
-    });
-  }
-
-  /**
-   * Mevcut Oyun Durumunu JSON Nesnesine Dönüştürür
-   */
-  serializeState() {
-    return {
-      version: '1.2.0',
-      timestamp: Date.now(),
-      dateString: new Date().toLocaleString('tr-TR'),
-      sipahi: { ...gameState.sipahi },
-      reputation: { ...gameState.reputation },
-      factions: { ...gameState.factions },
-      failState: { ...gameState.failState },
-      timar: { ...gameState.timar },
-      military: { ...gameState.military },
-      time: { ...gameState.time },
-      relations: { ...gameState.relations },
-      daysPassed: gameState.daysPassed,
-      quests: questSystem ? questSystem.serializeQuests() : []
+  serializeState(slot = 'manual') {
+    const canonicalSlot = this._mapSlot(slot);
+    const timeState = {
+      dayCount: gameState.time?.dayCount || gameState.daysPassed || 1,
+      seasonIndex: gameState.time?.seasonIndex || 0,
+      seasonName: gameState.time?.seasonName || 'İlkbahar',
+      year: gameState.time?.year || 1396,
+      hicriYear: gameState.time?.hicriYear || 798,
+      dayTimeHours: gameState.time?.dayTimeHours || clockService.dayTimeHours || 6.0,
+      totalMinutes: clockService.totalMinutes || 360
     };
+
+    const rawEnvelope = {
+      meta: {
+        saveSchemaVersion: 1,
+        gameVersion: '1.0.0',
+        slot: canonicalSlot,
+        revision: Date.now(),
+        createdAtUtc: new Date().toISOString(),
+        updatedAtUtc: new Date().toISOString(),
+        simulationSeed: randomService.masterSeed || 'nigbolu_1396',
+        checksum: ''
+      },
+      state: {
+        game: {
+          sipahi: { ...gameState.sipahi },
+          reputation: { ...gameState.reputation },
+          factions: { ...gameState.factions },
+          failState: { ...gameState.failState },
+          timar: { ...gameState.timar },
+          military: { ...gameState.military },
+          time: timeState,
+          aliStatus: { ...(gameState.aliStatus || { legSevered: false, treated: false, daysLeft: 3 }) },
+          murderCase: gameState.murderCase || null,
+          flags: { ...(gameState.flags || {}) }
+        },
+        player: {
+          position: { x: 0, y: 1.8, z: 0 },
+          yaw: 0,
+          cameraMode: 'thirdPerson',
+          isRiding: !!gameState.sipahi?.isRiding
+        },
+        quests: {
+          byId: questSystem ? questSystem.serializeQuests() : []
+        },
+        systems: {
+          petition: {
+            activeConstructions: gameState.constructions || [],
+            lastPetitionId: gameState.currentPetition?.id || null,
+            hasPendingMessenger: !!gameState.hasPendingMessenger
+          },
+          campaign: {
+            type: gameState.activeCampaign?.type || null,
+            phase: gameState.activeCampaign?.phase || null,
+            score: gameState.activeCampaign?.score || 0,
+            losses: gameState.activeCampaign?.losses || 0,
+            isActive: !!gameState.activeCampaign?.isActive
+          },
+          codex: {},
+          news: {},
+          prayer: {},
+          humor: {}
+        },
+        world: {
+          defeatedEnemyIds: [],
+          discoveredIds: [],
+          constructionIds: []
+        },
+        rng: randomService.getState(),
+        appliedEffectIds: [],
+        expansions: {
+          post1396: {}
+        }
+      }
+    };
+
+    rawEnvelope.meta.checksum = SaveMigration.computeChecksum(rawEnvelope.state);
+    return rawEnvelope;
   }
 
   /**
    * Serileştirilmiş Durumu Oyun Motoruna Yükler
    */
-  deserializeState(data) {
-    if (!data) return false;
+  deserializeState(envelope) {
+    if (!envelope) return false;
 
-    if (data.sipahi) Object.assign(gameState.sipahi, data.sipahi);
-    if (data.reputation) Object.assign(gameState.reputation, data.reputation);
-    if (data.factions) Object.assign(gameState.factions, data.factions);
-    if (data.failState) Object.assign(gameState.failState, data.failState);
-    if (data.timar) Object.assign(gameState.timar, data.timar);
-    if (data.military) Object.assign(gameState.military, data.military);
-    if (data.time) Object.assign(gameState.time, data.time);
-    if (data.relations) Object.assign(gameState.relations, data.relations);
-    if (data.daysPassed !== undefined) gameState.daysPassed = data.daysPassed;
+    const validated = SaveMigration.migrate(envelope);
+    const s = validated.state;
 
-    if (questSystem && data.quests) {
-      questSystem.deserializeQuests(data.quests);
+    if (s.game) {
+      if (s.game.sipahi) Object.assign(gameState.sipahi, s.game.sipahi);
+      if (s.game.reputation) Object.assign(gameState.reputation, s.game.reputation);
+      if (s.game.factions) Object.assign(gameState.factions, s.game.factions);
+      if (s.game.failState) Object.assign(gameState.failState, s.game.failState);
+      if (s.game.timar) Object.assign(gameState.timar, s.game.timar);
+      if (s.game.military) Object.assign(gameState.military, s.game.military);
+      if (s.game.time) {
+        Object.assign(gameState.time, s.game.time);
+        gameState.daysPassed = s.game.time.dayCount || 1;
+        if (s.game.time.totalMinutes !== undefined) {
+          clockService.setState({ totalMinutes: s.game.time.totalMinutes });
+        }
+      }
+      if (s.game.aliStatus) gameState.aliStatus = { ...s.game.aliStatus };
+      if (s.game.flags) gameState.flags = { ...s.game.flags };
+    }
+
+    if (s.rng) {
+      randomService.setState(s.rng);
+    }
+
+    if (questSystem && s.quests?.byId) {
+      questSystem.deserializeQuests(s.quests.byId);
     }
 
     gameState.addNotification('💾 Oyun Başarıyla Yüklendi!', 'success');
@@ -83,37 +151,21 @@ export class SaveManager {
   /**
    * Oyunu Belirtilen Slota Kaydeder
    */
-  async saveGame(slot = 'auto') {
-    const saveData = {
-      slot,
-      data: this.serializeState()
-    };
-
+  async saveGame(slot = 'auto_a') {
     try {
-      if (this.isIndexedDBSupported) {
-        const db = await this.getDB();
-        if (db) {
-          await new Promise((resolve, reject) => {
-            const tx = db.transaction(this.storeName, 'readwrite');
-            const store = tx.objectStore(this.storeName);
-            const req = store.put(saveData);
-            req.onsuccess = () => resolve(true);
-            req.onerror = (e) => reject(e.target.error);
-          });
-        }
+      const canonicalSlot = this._mapSlot(slot);
+      const envelope = this.serializeState(canonicalSlot);
+      await this.repo.saveSlot(canonicalSlot, envelope);
+
+      // Otomatik kayıt slotunu sırayla değiştir (auto_a <-> auto_b)
+      if (slot === 'auto' || slot === 'auto_a' || slot === 'auto_b') {
+        this.currentAutoSlot = this.currentAutoSlot === 'auto_a' ? 'auto_b' : 'auto_a';
       }
-      // Yedek olarak localStorage'a da yaz
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(`mos_save_${slot}`, JSON.stringify(saveData));
-      }
-      gameState.addNotification(`💾 Kayıt Alındı: ${slot === 'auto' ? 'Otomatik Kayıt' : slot}`, 'info');
+
+      gameState.addNotification(`💾 Kayıt Alındı: ${canonicalSlot}`, 'info');
       return true;
     } catch (e) {
-      console.warn('IndexedDB kayıt başarısız, LocalStorage deneniyor:', e);
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem(`mos_save_${slot}`, JSON.stringify(saveData));
-        return true;
-      }
+      console.error('[SaveManager] Kayıt başarısız:', e);
       return false;
     }
   }
@@ -121,88 +173,43 @@ export class SaveManager {
   /**
    * Belirtilen Slottaki Oyunu Yükler
    */
-  async loadGame(slot = 'auto') {
+  async loadGame(slot = 'auto_a') {
     try {
-      let saveData = null;
-
-      if (this.isIndexedDBSupported) {
-        const db = await this.getDB();
-        if (db) {
-          saveData = await new Promise((resolve, reject) => {
-            const tx = db.transaction(this.storeName, 'readonly');
-            const store = tx.objectStore(this.storeName);
-            const req = store.get(slot);
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = (e) => reject(e.target.error);
-          });
-        }
-      }
-
-      if (!saveData && typeof localStorage !== 'undefined') {
-        const raw = localStorage.getItem(`mos_save_${slot}`);
-        if (raw) saveData = JSON.parse(raw);
-      }
-
-      if (saveData && saveData.data) {
-        return this.deserializeState(saveData.data);
+      const canonicalSlot = this._mapSlot(slot);
+      const envelope = await this.repo.loadSlot(canonicalSlot);
+      if (envelope) {
+        return this.deserializeState(envelope);
       }
       return false;
     } catch (e) {
-      console.error('Kayıt yükleme hatası:', e);
+      console.error('[SaveManager] Kayıt yükleme hatası:', e);
       return false;
     }
   }
 
   /**
-   * Tüm Kayıt Slotlarının Başlık ve Tarihlerini Listeler
+   * Tüm Kayıt Slotlarının Özetini Listeler
    */
   async listSaves() {
-    const slots = ['auto', 'slot_1', 'slot_2', 'slot_3'];
-    const results = [];
-
-    for (const slot of slots) {
-      let meta = null;
-      try {
-        if (this.isIndexedDBSupported) {
-          const db = await this.getDB();
-          if (db) {
-            const row = await new Promise((res) => {
-              const tx = db.transaction(this.storeName, 'readonly');
-              const req = tx.objectStore(this.storeName).get(slot);
-              req.onsuccess = () => res(req.result);
-              req.onerror = () => res(null);
-            });
-            if (row && row.data) {
-              meta = {
-                slot,
-                dateString: row.data.dateString,
-                sipahiName: row.data.sipahi?.name,
-                timarName: row.data.timar?.name,
-                year: row.data.time?.year
-              };
-            }
-          }
-        }
-        if (!meta && typeof localStorage !== 'undefined') {
-          const raw = localStorage.getItem(`mos_save_${slot}`);
-          if (raw) {
-            const parsed = JSON.parse(raw);
-            meta = {
-              slot,
-              dateString: parsed.data?.dateString,
-              sipahiName: parsed.data?.sipahi?.name,
-              timarName: parsed.data?.timar?.name,
-              year: parsed.data?.time?.year
-            };
-          }
-        }
-      } catch (e) {}
-
-      results.push({ slot, exists: !!meta, meta });
+    const list = await this.repo.listSlots();
+    const result = [];
+    for (const slot of SaveRepository.VALID_SLOTS) {
+      const info = list[slot];
+      result.push({
+        slot,
+        exists: !!info,
+        meta: info ? {
+          slot,
+          dateString: info.updatedAtUtc ? new Date(info.updatedAtUtc).toLocaleString('tr-TR') : '',
+          sipahiName: info.sipahiName,
+          dayCount: info.dayCount,
+          akce: info.akce
+        } : null
+      });
     }
-
-    return results;
+    return result;
   }
 }
 
 export const saveManager = new SaveManager();
+

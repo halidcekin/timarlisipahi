@@ -1,7 +1,5 @@
-/**
- * Mülk-i Osmanî - Oyun Durumu ve Veri Yönetimi
- * Yıldırım Bayezid dönemi tımarlı sipahi verileri ve prosedürel durumları yönetir.
- */
+import { randomService } from './RandomService.js';
+import { clockService } from './ClockService.js';
 
 export class GameState {
   constructor() {
@@ -29,8 +27,8 @@ export class GameState {
       { name: 'Söğütcük Tımarı', sancak: 'Sancak-ı Sultanönü (Eskişehir)', terrain: 'Bozkır & Yaylak' }
     ];
 
-    const randomSipahi = sipahiNames[Math.floor(Math.random() * sipahiNames.length)];
-    const randomTimar = timarNames[Math.floor(Math.random() * timarNames.length)];
+    const randomSipahi = randomService.simulation.choice(sipahiNames) || sipahiNames[0];
+    const randomTimar = randomService.simulation.choice(timarNames) || timarNames[0];
 
     // Temel Sipahi Profili
     this.sipahi = {
@@ -229,8 +227,9 @@ export class GameState {
   }
 
   addNotification(text, type = 'info') {
+    if (!this._nextNotificationId) this._nextNotificationId = 1;
     this.notifications.push({
-      id: Date.now() + Math.random(),
+      id: this._nextNotificationId++,
       text,
       type,
       time: Date.now()
@@ -275,14 +274,20 @@ export class GameState {
     this.addNotification('💀 Sadık Cebelü Ali vefat etti! Ahali konağı bastı!', 'alert');
   }
 
-  triggerMartyrdom() {
+  triggerBattleDeath() {
     this.failState = {
       isGameOver: true,
-      reason: 'martyrdom',
+      reason: 'battle_death',
       title: '🚩 TUNA BOYUNDA ŞEHİT DÜŞTÜN!',
       desc: '1396 Niğbolu Meydan Muharebesi\'nde Haçlı ordusuna karşı gazâ ederken canını feda ettin. Şanın asırlarca yaşayacak.'
     };
-    this.addNotification('🚩 Şehadet şerbetini içtin...', 'alert');
+    this.addNotification('🚩 Tuna boyunda muharebe vefatı vuku buldu...', 'alert');
+  }
+
+  triggerMartyrdom() {
+    // V2-09 Geriye dönük uyumluluk alias'ı
+    this.triggerBattleDeath();
+    this.failState.reason = 'martyrdom'; // Legacy test uyumluluğu için
   }
 
   triggerTrialExecution() {

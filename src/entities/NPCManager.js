@@ -268,18 +268,35 @@ export class NPCManager {
       role: 'Köyün Asırlık Gazisi & Bilgesi',
       position: new THREE.Vector3(-6, 0, 5),
       kaftanColor: 0x42464a,
-      hairColor: 0xdedede,
-      turbanColor: 0xffffff,
+      hairColor: 0x6e6e6e,
       headwear: 'turban',
-      hasBeard: true,
-      dialogueId: 'dede_talk'
+      dialogueId: 'koca_dede_talk'
     });
     this.attachVillagerAI(kocaDede, {
-      homePos: new THREE.Vector3(-20, 0, -15),
+      homePos: new THREE.Vector3(-6, 0, 5),
       workPos: new THREE.Vector3(-6, 0, 5),
-      eatPos: new THREE.Vector3(-6, 0, 24),
-      socialPos: new THREE.Vector3(-6, 0, 5),
-      workType: 'innkeeping'
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(0, 0, 8),
+      workType: 'wandering'
+    });
+
+    // E) Değirmenci Musa (Su Değirmeni Arkı İhtilafı - G1 Dikey Kesit)
+    const degirmenci = this.createHumanNPC({
+      id: 'degirmenci_musa',
+      name: 'Değirmenci Musa',
+      role: 'Köy Değirmeni İşleticisi',
+      position: new THREE.Vector3(-45, 0, 22),
+      kaftanColor: 0x5a4230,
+      hairColor: 0x332211,
+      headwear: 'cap',
+      dialogueId: 'water_dispute_talk'
+    });
+    this.attachVillagerAI(degirmenci, {
+      homePos: new THREE.Vector3(-45, 0, 22),
+      workPos: new THREE.Vector3(-45, 0, 22),
+      eatPos: new THREE.Vector3(-10, 0, 24),
+      socialPos: new THREE.Vector3(-45, 0, 22),
+      workType: 'farming'
     });
 
     // -------------------------------------------------------------------------

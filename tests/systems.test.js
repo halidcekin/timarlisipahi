@@ -245,18 +245,18 @@ const spearFoot = CombatSystem.calculateDamage(50, 'piercing', 'plate', false);
 assert(spearMounted > spearFoot, `Mızrak atlı hücumda %60 daha fazla hasar verdi (${spearMounted} > ${spearFoot})`);
 
 // -------------------------------------------------------------
-// TEST 11: SaveManager Serileştirme & Deserialization
+// TEST 11: SaveManager Serileştirme & Deserialization (Async/Await)
 // -------------------------------------------------------------
 gameState.timar.akce = 4321;
 gameState.sipahi.name = 'Test Gazi Murad';
-saveManager.saveGame('slot_1');
+await saveManager.saveGame('slot_1');
 
 // Durumu değiştir
 gameState.timar.akce = 100;
 gameState.sipahi.name = 'Başka Biri';
 
 // Kayıttan geri yükle
-saveManager.loadGame('slot_1');
+await saveManager.loadGame('slot_1');
 assert(gameState.timar.akce === 4321, 'SaveManager akçe miktarını başarıyla geri yükledi (4321)');
 assert(gameState.sipahi.name === 'Test Gazi Murad', 'SaveManager sipahi ismini başarıyla geri yükledi');
 
@@ -602,6 +602,109 @@ townGen.generateTown();
 assert(townGen.sungurHorseEntity !== null, 'Gazi Sungur Bey\'in Kır Atı 3D modeli başarıyla oluşturuldu');
 assert(townGen.sungurHorseEntity.position.x === 14 && townGen.sungurHorseEntity.position.z === -38, 'Sungur Bey\'in Atı tam kanıt koordinatına (14, 0, -38) yerleştirildi');
 
+// -------------------------------------------------------------
+// TEST 31: V2 Deterministik Servisler (Clock, Calendar, Random)
+// -------------------------------------------------------------
+import { ClockService } from '../src/core/ClockService.js';
+import { CalendarService } from '../src/core/CalendarService.js';
+import { RandomService } from '../src/core/RandomService.js';
+
+const testClock = new ClockService({ initialMinutes: 360 });
+assert(testClock.dayTimeHours === 6.0, 'ClockService başlangıç saati 06:00 (6.0)');
+assert(testClock.dayCount === 1, 'ClockService başlangıç günü 1');
+
+testClock.advanceMinutes(120); // 2 saat ilerlet -> 08:00
+assert(testClock.dayTimeHours === 8.0, 'ClockService 120 dakika ilerletilince saat 08:00 oldu');
+
+testClock.pause('modal');
+assert(testClock.isPaused === true, 'ClockService modal sebebiyle duraklatıldı');
+testClock.update(60); // Duraklatılmışken ilerlememeli
+assert(testClock.dayTimeHours === 8.0, 'ClockService duraklatılmışken zaman akmadı');
+testClock.resume('modal');
+assert(testClock.isPaused === false, 'ClockService devam ettirildi');
+
+const testCalendar = new CalendarService(testClock);
+const miladi = testCalendar.getMiladiDate(1);
+assert(miladi.day === 1 && miladi.month === 4 && miladi.year === 1396, 'CalendarService gün 1 = 1 Nisan 1396');
+const hicri = testCalendar.getHicriDate(1);
+assert(hicri.day === 21 && hicri.monthName === 'Receb' && hicri.year === 798, 'CalendarService gün 1 = 21 Receb 798');
+
+const rngA = new RandomService('seed_test_123');
+const rngB = new RandomService('seed_test_123');
+const valA1 = rngA.simulation.range(0, 100);
+const valB1 = rngB.simulation.range(0, 100);
+assert(valA1 === valB1, 'RandomService aynı seed ile aynı rastgele sayıyı üretti (Determinizm)');
+
+// -------------------------------------------------------------
+// TEST 32: SaveMigration & V1 Zarf Doğrulaması
+// -------------------------------------------------------------
+import { SaveMigration } from '../src/core/SaveMigration.js';
+
+const legacyData = {
+  version: '1.2.0',
+  sipahi: { name: 'Gazi Murad', akce: 1500 },
+  daysPassed: 42
+};
+const migratedV1 = SaveMigration.migrate(legacyData);
+assert(migratedV1.meta.saveSchemaVersion === 1, 'SaveMigration legacy veriyi v1 şemasına dönüştürdü');
+assert(migratedV1.state.game.sipahi.name === 'Gazi Murad', 'SaveMigration sipahi ismini korudu');
+assert(migratedV1.state.game.time.dayCount === 42, 'SaveMigration gün sayacını dayCount olarak aktardı');
+assert(typeof migratedV1.meta.checksum === 'string', 'SaveMigration kayıt için checksum üretti');
+
+// -------------------------------------------------------------
+// TEST 33: SaveRepository ve SaveManager Async Slot Testleri
+// -------------------------------------------------------------
+import { saveRepository } from '../src/core/SaveRepository.js';
+
+async function runSaveTests() {
+  await saveRepository.init();
+  await saveRepository.saveSlot('manual', migratedV1);
+  const loaded = await saveRepository.loadSlot('manual');
+  assert(loaded !== null, 'SaveRepository manual slotundan kaydı başarıyla okudu');
+  assert(loaded.state.game.sipahi.name === 'Gazi Murad', 'Yüklenen kayıt verisi eksiksiz eşleşti');
+
+  const saveList = await saveRepository.listSlots();
+  assert(saveList.manual !== undefined, 'SaveRepository kayıt slotlarını doğru listeledi');
+}
+
+// -------------------------------------------------------------
+// TEST 34: EffectRunner Atomik İşlem & Preflight & Exactly-Once Testi
+// -------------------------------------------------------------
+import { effectRunner } from '../src/core/EffectRunner.js';
+
+const startAkce = gameState.timar.akce;
+const testTxResult = effectRunner.runTransaction('tx_water_resolution_001', [
+  { type: 'modifyStat', stat: 'akce', value: 150 },
+  { type: 'modifyStat', stat: 'reayaTrust', value: 10 }
+]);
+assert(testTxResult.ok === true, 'EffectRunner geçerli işlemi başarıyla yürüttü');
+assert(gameState.timar.akce === startAkce + 150, 'EffectRunner akçe artışını uyguladı');
+
+// Aynı transactionId ikinci kez çağrıldığında çalışmamalı (Exactly-Once)
+const duplicateResult = effectRunner.runTransaction('tx_water_resolution_001', [
+  { type: 'modifyStat', stat: 'akce', value: 150 }
+]);
+assert(duplicateResult.skipped === true, 'EffectRunner aynı transactionId ile tekrar ödül vermedi (Idempotent)');
+assert(gameState.timar.akce === startAkce + 150, 'Tekrarlanan işlemde akçe ikinci kez artmadı');
+
+// Preflight Yetersiz Kaynak Testi (State hiç değişmemeli)
+const failedTxResult = effectRunner.runTransaction('tx_expensive_purchase', [
+  { type: 'modifyStat', stat: 'akce', value: -9999999 }
+]);
+assert(failedTxResult.ok === false, 'EffectRunner yetersiz bakiye işleminde başarısız oldu (Preflight koruması)');
+
+// -------------------------------------------------------------
+// TEST 35: Saka İbrahim ve Değirmenci Musa NPC & Diyalog Testi
+// -------------------------------------------------------------
+const sakaData = DialogueSystem.getDialogueData('saka_talk');
+assert(sakaData !== null && sakaData.npcName.includes('Saka İbrahim'), 'Saka İbrahim diyaloğu başarıyla yüklendi (P1-11)');
+
+const waterDisputeData = DialogueSystem.getDialogueData('water_dispute_talk');
+assert(waterDisputeData !== null && waterDisputeData.npcName.includes('Değirmenci'), 'Değirmenci Musa ve Su İhtilafı diyaloğu mevcut (P0-1)');
+
+const fallbackDialogue = DialogueSystem.getDialogueData('non_existent_dialogue_id');
+assert(fallbackDialogue !== null && fallbackDialogue.text.includes('Beyim, işim başımdan aşkın'), 'Bilinmeyen NPC için güvenli fallback diyaloğu döndü');
+
 console.log('\n🧪 ==========================================');
 console.log(`🧪 TEST SONUCU: ${passedTests}/${totalTests} TEST BAŞARIYLA TAMAMLANDI!`);
 console.log('🧪 ==========================================');
@@ -609,3 +712,5 @@ console.log('🧪 ==========================================');
 if (passedTests !== totalTests) {
   process.exit(1);
 }
+
+

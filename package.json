@@ -8,8 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "desktop": "electron electron-main.cjs",
+    "validate:content": "node scripts/validate-content.mjs",
     "test": "node tests/systems.test.js",
-    "build:steam": "vite build"
+    "check": "npm run validate:content && npm run test && npm run build"
   },
   "dependencies": {
     "three": "^0.160.0"

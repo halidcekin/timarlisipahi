@@ -1,34 +1,70 @@
-﻿/**
+/**
  * Mülk-i Osmanî - Electron Preload Script
- * Steamworks SDK Güvenli Köprüsü
+ * V2 Devir Sözleşmesi Güvenlik Köprüsü (G0-08):
+ * - desktopRuntime.save (slot tabanlı güvenli okuma/yazma)
+ * - desktopRuntime.steam (güvenli no-op / steamworks desteği)
+ * - desktopRuntime.window (tam ekran kontrolü)
  */
-const { contextBridge } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 let steamClient = null;
 try {
   const steamworks = require('steamworks.js');
-  steamClient = steamworks.init(480); // 480: Spacewar Test AppID
-  console.log('Steamworks Preload: SDK başlatıldı!');
+  steamClient = steamworks.init(480);
+  console.log('[Steamworks Preload] SDK başarıyla bağlandı.');
 } catch (e) {
-  // Çevrimdışı / Steam kapalıyken sessizce geç
+  // Steam kapalıyken veya çevrimdışıyken güvenle geç
 }
 
-contextBridge.exposeInMainWorld('steamworks', steamClient ? {
-  appId: 480,
-  achievement: {
-    activate: (name) => steamClient.achievement.activate(name),
-    isActivated: (name) => steamClient.achievement.isActivated(name),
-    clear: (name) => steamClient.achievement.clear(name)
+// Masaüstü Entegrasyon Köprüsü
+contextBridge.exposeInMainWorld('desktopRuntime', {
+  getInfo: () => ({
+    platform: process.platform,
+    isDesktop: true,
+    hasSteam: !!steamClient
+  }),
+
+  // Slot Tabanlı Kayıt IPC Köprüsü
+  save: {
+    write: (slot, data) => ipcRenderer.invoke('save:write', { slot, data }),
+    read: (slot) => ipcRenderer.invoke('save:read', slot),
+    list: () => ipcRenderer.invoke('save:list')
   },
-  richPresence: {
-    set: (key, val) => steamClient.richPresence.set(key, val)
+
+  // Steamworks Köprüsü
+  steam: {
+    getStatus: () => ({ isConnected: !!steamClient }),
+    unlockAchievement: (id) => {
+      if (steamClient?.achievement?.activate) {
+        steamClient.achievement.activate(id);
+      }
+    },
+    setRichPresence: (key, val) => {
+      if (steamClient?.richPresence?.set) {
+        steamClient.richPresence.set(key, val);
+      }
+    }
   },
-  cloud: {
-    write: (name, data) => steamClient.cloud.write(name, data),
-    read: (name) => steamClient.cloud.read(name),
-    has: (name) => steamClient.cloud.has(name)
-  },
-  overlay: {
-    activate: (dialog) => steamClient.overlay.activate(dialog)
+
+  // Pencere & Ekran Kontrolü
+  window: {
+    setFullscreen: (enabled) => {
+      // IPC ile genişletilebilir
+    }
   }
-} : null);
+});
+
+// Geriye dönük uyumluluk için eski window.steamworks referansı
+if (steamClient) {
+  contextBridge.exposeInMainWorld('steamworks', {
+    appId: 480,
+    achievement: {
+      activate: (name) => steamClient.achievement.activate(name),
+      isActivated: (name) => steamClient.achievement.isActivated(name),
+      clear: (name) => steamClient.achievement.clear(name)
+    },
+    richPresence: {
+      set: (key, val) => steamClient.richPresence.set(key, val)
+    }
+  });
+}
