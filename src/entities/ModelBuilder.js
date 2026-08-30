@@ -1191,6 +1191,50 @@ export class ModelBuilder {
     return horse;
   }
 
+  // 9b. GAZİ SUNGUR BEY'İN KIR ATI VE KESİK KOLANLI EYERİ
+  createSungurHorseWithSeveredSaddle() {
+    const horse = this.createHorse(0xd8d8d8); // Asil Kır At
+    const redVelvetMat = new THREE.MeshStandardMaterial({ color: 0x8b0000, roughness: 0.7 });
+    const leatherMat = this.materials.leather;
+    const cutMat = new THREE.MeshStandardMaterial({ color: 0x5a1805, roughness: 0.9 });
+
+    // Kırmızı Çul / Eyer Örtüsü
+    const blanket = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.08, 1.2), redVelvetMat);
+    blanket.position.set(0, 2.12, -0.05);
+    horse.add(blanket);
+
+    // Kesik Kolan (Severed Girth Strap) - Eyerin altından sarkan kesilmiş deri parça
+    const strapTop = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.05), leatherMat);
+    strapTop.position.set(-0.54, 1.6, -0.05);
+    strapTop.rotation.z = 0.15;
+    horse.add(strapTop);
+
+    const strapCut = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.4, 0.05), cutMat);
+    strapCut.position.set(-0.50, 1.15, -0.05);
+    strapCut.rotation.z = -0.25;
+    horse.add(strapCut);
+
+    // Çentik / Sabotaj İzi
+    const cutMark = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.08), new THREE.MeshStandardMaterial({ color: 0x330000 }));
+    cutMark.position.set(-0.52, 1.35, -0.05);
+    horse.add(cutMark);
+
+    // Ahşap Bağlama Direği
+    const hitchPost = new THREE.Group();
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.6, 8), this.materials.wood);
+    post.position.set(0, 0.8, 0);
+    hitchPost.add(post);
+
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.12, 0.12), this.materials.wood);
+    rail.position.set(0, 1.2, 0);
+    hitchPost.add(rail);
+
+    hitchPost.position.set(0, 0, 1.6);
+    horse.add(hitchPost);
+
+    return horse;
+  }
+
   // 10. SANCAK KALESİ
   createOttomanCastle() {
     return this.createCastleQuarter();

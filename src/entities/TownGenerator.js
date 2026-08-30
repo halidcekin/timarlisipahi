@@ -242,6 +242,45 @@ export class TownGenerator {
     this.scene.add(horse);
     this.horseEntity = horse;
 
+    // Gazi Sungur Bey'in Kır Atı & Kesik Kolanlı Eğeri (x: 14, z: -38)
+    const sungurHorse = this.modelBuilder.createSungurHorseWithSeveredSaddle();
+    sungurHorse.position.set(14, 0, -38);
+    sungurHorse.rotation.y = -Math.PI / 3;
+    this.scene.add(sungurHorse);
+    this.sungurHorseEntity = sungurHorse;
+
+    // Kanıt 2: Frenk Casus Mektubu ve Altın Kesesi (x: -21, z: 32 - Köy Hanı Arkası)
+    const spyEvidenceGroup = new THREE.Group();
+    const crate = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), this.modelBuilder.materials.wood);
+    crate.position.y = 0.35;
+    spyEvidenceGroup.add(crate);
+
+    const scroll = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.4, 8), new THREE.MeshStandardMaterial({ color: 0xeed9a0 }));
+    scroll.position.set(0, 0.74, 0);
+    scroll.rotation.z = Math.PI / 2;
+    spyEvidenceGroup.add(scroll);
+
+    const pouch = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshStandardMaterial({ color: 0xd4af37, metalness: 0.7, roughness: 0.3 }));
+    pouch.position.set(0.15, 0.75, 0.15);
+    spyEvidenceGroup.add(pouch);
+
+    spyEvidenceGroup.position.set(-21, 0, 32);
+    this.scene.add(spyEvidenceGroup);
+
+    // Kanıt 3: Zehirli İğne & İlaç Şişesi (x: -12, z: 12 - Pazar Yeri Arkası)
+    const needleEvidenceGroup = new THREE.Group();
+    const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.5, 8), this.modelBuilder.materials.wood);
+    stool.position.y = 0.25;
+    needleEvidenceGroup.add(stool);
+
+    const needle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.3, 6), new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.1 }));
+    needle.position.set(0, 0.52, 0);
+    needle.rotation.x = Math.PI / 2;
+    needleEvidenceGroup.add(needle);
+
+    needleEvidenceGroup.position.set(-12, 0, 12);
+    this.scene.add(needleEvidenceGroup);
+
     // Sipahi Talimgâhı (Okçuluk Hedefleri & Kılıç Kuklaları: x: 14, z: -28)
     for (let i = 0; i < 3; i++) {
       // Hedef Tahtası

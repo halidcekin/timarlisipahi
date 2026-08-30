@@ -594,6 +594,14 @@ battlefieldCinematics.teleportBackToVillage();
 assert(battlefieldCinematics.isInBattle === false, 'Savaş sonrası köye dönüldü');
 assert(mockPlayer.position.x === 0 && mockPlayer.position.z === 12, 'Oyuncu başarıyla köydeki önceki konumuna geri ışınlandı');
 
+// -------------------------------------------------------------
+// TEST 30: Gazi Sungur Bey'in Kır Atı ve 3D Delil Modelleri Testi
+// -------------------------------------------------------------
+const townGen = new TownGenerator(mockScene);
+townGen.generateTown();
+assert(townGen.sungurHorseEntity !== null, 'Gazi Sungur Bey\'in Kır Atı 3D modeli başarıyla oluşturuldu');
+assert(townGen.sungurHorseEntity.position.x === 14 && townGen.sungurHorseEntity.position.z === -38, 'Sungur Bey\'in Atı tam kanıt koordinatına (14, 0, -38) yerleştirildi');
+
 console.log('\n🧪 ==========================================');
 console.log(`🧪 TEST SONUCU: ${passedTests}/${totalTests} TEST BAŞARIYLA TAMAMLANDI!`);
 console.log('🧪 ==========================================');
