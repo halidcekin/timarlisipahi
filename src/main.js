@@ -203,6 +203,17 @@ export class Game {
         return;
       }
 
+      // Su Değirmeni / Kırık Su Bendi İnceleme (x: -45, z: 22)
+      const waterMillPos = new THREE.Vector3(-45, 0, 22);
+      const distToMill = this.player.position.distanceTo(waterMillPos);
+      if (distToMill < 6.5) {
+        this.questSystem.advanceObjective('quest_water_dispute', 0);
+        soundManager.playVictoryJingle();
+        gameState.addNotification('🔍 Kırık su bendi tetkik edildi: Üst bent taşlarla tıkanmış, suyun değirmene akışı kesilmiş!', 'success');
+        this.ui.openDialogue('water_dispute_talk');
+        return;
+      }
+
       if (this.town.horseEntity) {
         const dist = this.player.position.distanceTo(this.town.horseEntity.position);
         if (dist < 4.0) {
@@ -331,6 +342,14 @@ export class Game {
         }
       }
       this.ui.showInteractionPrompt(`[E] ${nearbyNPC.name}${stateDesc} ile Görüş`);
+      return;
+    }
+
+    // Su Değirmeni / Kırık Su Bendi İnceleme Noktası (x: -45, z: 22)
+    const waterMillPos = new THREE.Vector3(-45, 0, 22);
+    const distToMill = this.player.position.distanceTo(waterMillPos);
+    if (distToMill < 6.5) {
+      this.ui.showInteractionPrompt('[E] Kırık Su Bendini İncele (Su İhtilafı Kanıtı 💧)');
       return;
     }
 

@@ -53,6 +53,9 @@ export class TownGenerator {
     // 4. Batı Quarter: Nehir, Kemerli Taş Köprü & Demirci Atölyesi
     this.buildBlacksmithAndBridge();
 
+    // 4B. Su Değirmeni & Kırık Su Bendi (Nehir Arkı - x: -45, z: 22)
+    this.buildWaterMillAndDam();
+
     // 5. Güney Quarter: Köy Çarşısı, Han, Su Kuyusu & Giriş Kapısı
     this.buildMarketAndVillageGate();
 
@@ -308,6 +311,102 @@ export class TownGenerator {
     const anvil = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.8, 1.2), anvilMat);
     anvil.position.set(-58, 0.4, 6);
     this.scene.add(anvil);
+  }
+
+  // ---------------------------------------------------------------------------
+  // 4B. SU DEĞİRMENİ & KIRIK SU BENDİ (x: -45, z: 22)
+  // ---------------------------------------------------------------------------
+  buildWaterMillAndDam() {
+    const millGroup = new THREE.Group();
+
+    // 1. Taş & Ahşap Değirmen Binası
+    const millBase = new THREE.Mesh(
+      new THREE.BoxGeometry(7, 5, 8),
+      this.modelBuilder.materials.stone
+    );
+    millBase.position.set(-51, 2.5, 22);
+    millBase.castShadow = true;
+    millBase.receiveShadow = true;
+
+    // Ahşap Üst Kat & Kiremit Çatı
+    const millRoof = new THREE.Mesh(
+      new THREE.ConeGeometry(5.5, 3.5, 4),
+      this.modelBuilder.materials.roof
+    );
+    millRoof.position.set(-51, 6.75, 22);
+    millRoof.rotation.y = Math.PI / 4;
+
+    // 2. Büyük Dönen Su Çarkı (Nehir Yatağında)
+    const wheelGroup = new THREE.Group();
+    const wheelCenter = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.5, 0.5, 1.2, 12),
+      this.modelBuilder.materials.wood
+    );
+    wheelCenter.rotation.x = Math.PI / 2;
+    wheelGroup.add(wheelCenter);
+
+    const rimGeo = new THREE.TorusGeometry(2.4, 0.15, 8, 24);
+    const rim = new THREE.Mesh(rimGeo, this.modelBuilder.materials.wood);
+    wheelGroup.add(rim);
+
+    // Su Çarkı Kanatları
+    for (let i = 0; i < 8; i++) {
+      const angle = (i * Math.PI) / 4;
+      const paddle = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 2.2, 0.8),
+        this.modelBuilder.materials.wood
+      );
+      paddle.position.set(Math.cos(angle) * 1.2, Math.sin(angle) * 1.2, 0);
+      paddle.rotation.z = angle;
+      wheelGroup.add(paddle);
+    }
+    wheelGroup.position.set(-46.5, 1.6, 22);
+    wheelGroup.name = 'waterMillWheel';
+    millGroup.add(millBase, millRoof, wheelGroup);
+
+    // 3. Kırık Taş Su Bendi (Broken Weir / Dam)
+    const damGroup = new THREE.Group();
+    for (let i = 0; i < 6; i++) {
+      const stone = new THREE.Mesh(
+        new THREE.BoxGeometry(1.2 + Math.random() * 0.6, 1.1 + Math.random() * 0.5, 1.4),
+        this.modelBuilder.materials.stone
+      );
+      stone.position.set(-45 + (i - 2.5) * 1.4, 0.5, 25.5 + (Math.random() - 0.5) * 0.8);
+      stone.rotation.set(Math.random() * 0.2, Math.random() * 0.4, Math.random() * 0.3);
+      stone.castShadow = true;
+      damGroup.add(stone);
+    }
+
+    // İnceleme & İşaret Direği (Kanıt Noktası)
+    const inspectPost = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.12, 2.4),
+      this.modelBuilder.materials.wood
+    );
+    inspectPost.position.set(-44.2, 1.2, 22);
+    const postBoard = new THREE.Mesh(
+      new THREE.BoxGeometry(0.9, 0.6, 0.1),
+      this.modelBuilder.materials.wood
+    );
+    postBoard.position.set(-44.2, 2.1, 22);
+    inspectPost.add(postBoard);
+    damGroup.add(inspectPost);
+
+    millGroup.add(damGroup);
+    this.scene.add(millGroup);
+
+    this.waterMillWheel = wheelGroup;
+    this.animatedObjects.push({
+      userData: {
+        customUpdate: (delta) => {
+          if (wheelGroup) {
+            wheelGroup.rotation.z += delta * 1.2;
+          }
+        }
+      }
+    });
+
+    this.addCollider(-51, 22, 7.5, 8.5);
+    this.addCollider(-45, 25.5, 8.0, 2.0);
   }
 
   // ---------------------------------------------------------------------------
@@ -885,10 +984,13 @@ export class TownGenerator {
   }
 
   update(delta) {
-    // Yeldeğirmeni kanatlarını sürekli döndür
+    // Yeldeğirmeni ve su çarkı kanatlarını sürekli döndür
     this.animatedObjects.forEach(obj => {
       if (obj.userData && obj.userData.blades) {
         obj.userData.blades.rotation.z += delta * 0.75;
+      }
+      if (obj.userData && obj.userData.customUpdate) {
+        obj.userData.customUpdate(delta);
       }
     });
   }

@@ -161,6 +161,20 @@ export class DialogueSystem {
             }
           },
           {
+            label: '💧 "Hocam, su değirmeni arkındaki kırık bendi tetkik ettim. Değirmenci ve tarla sahibi arasındaki su ihtilafına şer\'i çözümün nedir?"',
+            action: () => {
+              questSystem.advanceObjective('quest_water_dispute', 0);
+              questSystem.advanceObjective('quest_water_dispute', 1);
+              gameState.modifyReayaTrust(20);
+              gameState.modifyFaction('ulema', 20);
+              soundManager.playVictoryJingle();
+              return {
+                text: `"Maaşallah Gazi Murad Bey! Şer'i ve örfi hüküm şudur: Su sırayla salınsın; gündüz ekinler sulansın, gece bend açılarak değirmen çarkı döndürülsün. Bu nizam hem reayanın ekmeğini hem değirmenin hakkını korur. Adaletiniz dirlik getirsin!"`,
+                choices: [{ label: 'Allah razı olsun hocam, bu fermanı ahaliye tebliğ ederim.', action: null }]
+              };
+            }
+          },
+          {
             label: '⚖️ "Köydeki ihtilafların şer\'i ve örfi halli hususunda görüşün nedir?"',
             action: () => ({
               text: `"Reayanın su ve sınır davalarında asla taraf tutmayasın. Müslim olsun zimmî olsun, hak kimin ise ona teslim edilsin. Bir haksızlık görürsen bana haber et, mahkeme defterine kaydedelim."`,
