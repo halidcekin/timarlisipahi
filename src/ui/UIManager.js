@@ -125,7 +125,12 @@ export class UIManager {
       // Harita Modal & Hızlı Seyahat
       mapModal: document.getElementById('map-modal'),
       mapCloseBtn: document.getElementById('map-close-btn'),
+      tabCampaign: document.getElementById('tab-campaign'),
+      tabVillage: document.getElementById('tab-village'),
+      campaignMapView: document.getElementById('campaign-map-view'),
+      villageMapView: document.getElementById('village-map-view'),
       campaignMapCanvas: document.getElementById('campaign-map-canvas'),
+      villageMapCanvas: document.getElementById('village-map-canvas'),
       campaignTitle: document.getElementById('campaign-title'),
       campaignDesc: document.getElementById('campaign-desc'),
       campaignReqCebelu: document.getElementById('campaign-req-cebelu'),
@@ -133,6 +138,15 @@ export class UIManager {
       btnTravelVillage: document.getElementById('btn-travel-village'),
       btnTravelCastle: document.getElementById('btn-travel-castle'),
       btnTravelForest: document.getElementById('btn-travel-forest'),
+      villageBuildingTitle: document.getElementById('village-building-title'),
+      villageBuildingDesc: document.getElementById('village-building-desc'),
+      villageBuildingType: document.getElementById('village-building-type'),
+      villageBuildingMeta: document.getElementById('village-building-meta'),
+      btnSetWaypoint: document.getElementById('btn-set-waypoint'),
+      waypointNavigator: document.getElementById('waypoint-navigator'),
+      waypointName: document.getElementById('waypoint-name'),
+      waypointDist: document.getElementById('waypoint-dist'),
+      waypointArrow: document.getElementById('waypoint-arrow'),
 
       // Savaş Sonuç Modal
       battleResultModal: document.getElementById('battle-result-modal'),
