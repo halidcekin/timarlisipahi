@@ -58,7 +58,7 @@ export class Game {
     this.combat = new CombatSystem(this.player, this.npcManager, this.town);
 
     // 8. Ok Talimi & Okçuluk Sistemi
-    this.archery = new ArcherySystem(this.engine.scene, this.engine.camera, this.player, this.town);
+    this.archery = new ArcherySystem(this.engine.scene, this.engine.camera, this.player, this.town, this.npcManager);
 
     // 9. 3D Harp Meydanı & Sinematik Animasyon Motoru
     this.battlefieldScene = new BattlefieldScene(this.engine.scene);

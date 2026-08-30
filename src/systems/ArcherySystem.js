@@ -9,11 +9,12 @@ import { soundManager } from '../core/AudioManager.js';
  * - 1. Şahıs Yay Rigi & Nişangah
  */
 export class ArcherySystem {
-  constructor(scene, camera, player, townGenerator) {
+  constructor(scene, camera, player, townGenerator, npcManager) {
     this.scene = scene;
     this.camera = camera;
     this.player = player;
     this.town = townGenerator;
+    this.npcManager = npcManager;
 
     this.isBowMode = false;
     this.isDrawing = false;
@@ -112,11 +113,21 @@ export class ArcherySystem {
     const baseSpeed = 22 + power * 35; // 22 m/s - 57 m/s arası
     const velocity = shootDir.clone().multiplyScalar(baseSpeed);
 
+    // Ok izi (Trail) oluştur
+    const trailGeo = new THREE.BufferGeometry();
+    const trailPoints = [arrow.position.clone(), arrow.position.clone()];
+    trailGeo.setFromPoints(trailPoints);
+    const trailMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+    const trail = new THREE.Line(trailGeo, trailMat);
+    this.scene.add(trail);
+
     this.activeArrows.push({
       mesh: arrow,
       velocity: velocity,
       life: 5.0,
-      power: power
+      power: power,
+      trail: trail,
+      trailPoints: trailPoints
     });
 
     try { soundManager.playSwordSwing(); } catch (e) {}
@@ -201,6 +212,13 @@ export class ArcherySystem {
       arr.mesh.lookAt(nextPos);
       arr.mesh.position.copy(nextPos);
 
+      // Ok izini güncelle (Trail)
+      if (arr.trailPoints && arr.trail) {
+        arr.trailPoints.push(arr.mesh.position.clone());
+        if (arr.trailPoints.length > 20) arr.trailPoints.shift();
+        arr.trail.geometry.setFromPoints(arr.trailPoints);
+      }
+
       let isHit = false;
 
       // 1. Kale Talim Hedef Tahtasına İsabet Kontrolü
@@ -242,20 +260,68 @@ export class ArcherySystem {
         });
       }
 
+      // 1.5 NPC / Hayvan / Obje Çarpışma Kontrolü
+      if (!isHit && this.npcManager) {
+        const allTargets = [
+          ...(this.npcManager.npcs || []),
+          ...(this.npcManager.enemies || [])
+        ];
+        
+        if (this.town && this.town.damageables) {
+          allTargets.push(...this.town.damageables);
+        }
+
+        for (const target of allTargets) {
+          if (isHit || target.isDead) continue;
+          
+          const pos = target.position || (target.mesh && target.mesh.position);
+          if (!pos) continue;
+
+          // İsabet yarıçapı
+          const dist = arr.mesh.position.distanceTo(pos);
+          if (dist < 1.8) {
+             isHit = true;
+             target.health = (target.health || 20) - (35 + arr.power * 25);
+             
+             try { soundManager.playSwordClash(); } catch (e) {}
+             
+             const targetName = target.name || 'Hedef';
+             if (targetName.includes('Tavuk') || targetName.includes('Koyun') || targetName.includes('At')) {
+               gameState.addNotification(`Okla ${targetName} vurdun!`, 'alert');
+             } else if (!targetName.includes('Hedef')) {
+               gameState.addNotification(`🎯 Tam isabet! ${targetName} okla vuruldu!`, 'success');
+               if (target.type !== 'enemy' && target.type !== 'animal' && target.type !== 'barrel') {
+                  gameState.modifyReayaTrust(-5);
+               }
+             }
+
+             if (target.health <= 0) {
+               target.isDead = true;
+               if (target.mesh) {
+                 target.mesh.rotation.x = Math.PI / 2;
+                 target.mesh.position.y = 0.2;
+               }
+             }
+          }
+        }
+      }
+
       // 2. Yere veya Duvara Çarpma Kontrolü
       if (arr.mesh.position.y <= 0.05 || isHit) {
         // Ok saplandı
         arr.mesh.position.y = Math.max(0.05, arr.mesh.position.y);
         this.stuckArrows.push(arr.mesh);
+        if (arr.trail) this.scene.remove(arr.trail);
         this.activeArrows.splice(i, 1);
 
         // Fazla ok birikirse eskilerini temizle
         if (this.stuckArrows.length > 25) {
-          const old = this.stuckArrows.shift();
-          this.scene.remove(old);
+           const old = this.stuckArrows.shift();
+           this.scene.remove(old);
         }
       } else if (arr.life <= 0) {
         this.scene.remove(arr.mesh);
+        if (arr.trail) this.scene.remove(arr.trail);
         this.activeArrows.splice(i, 1);
       }
     }
