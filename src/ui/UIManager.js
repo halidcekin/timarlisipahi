@@ -1281,19 +1281,25 @@ export class UIManager {
       modal.style.left = '0';
       modal.style.width = '100vw';
       modal.style.height = '100vh';
-      modal.style.background = 'radial-gradient(circle, rgba(30, 8, 4, 0.97) 0%, rgba(10, 3, 2, 0.99) 100%)';
+      modal.style.background = 'linear-gradient(to top, rgba(15, 6, 4, 0.94) 0%, rgba(15, 6, 4, 0.72) 48%, rgba(0, 0, 0, 0.15) 100%)';
       modal.style.zIndex = '9999';
       modal.style.display = 'flex';
       modal.style.flexDirection = 'column';
       modal.style.alignItems = 'center';
-      modal.style.justifyContent = 'center';
+      modal.style.justifyContent = 'flex-end';
       modal.style.color = '#fff';
       modal.style.fontFamily = 'Cinzel, Georgia, serif';
       modal.style.padding = '24px';
       modal.style.boxSizing = 'border-box';
+      modal.style.pointerEvents = 'auto';
       document.body.appendChild(modal);
     }
     modal.style.display = 'flex';
+
+    // 3D Harp Meydanına Işınlanma
+    if (typeof window !== 'undefined' && window.battlefieldCinematics) {
+      window.battlefieldCinematics.teleportToBattlefield(battleType);
+    }
 
     if (battleType === 'ankara') {
       campaignBattleSystem.startAnkaraBattle();
@@ -1311,24 +1317,24 @@ export class UIManager {
     if (!phaseData) return;
 
     modal.innerHTML = `
-      <div style="max-width: 820px; width: 100%; background: rgba(20, 10, 8, 0.85); border: 2px solid #e6c66e; border-radius: 12px; padding: 28px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); text-align: center;">
-        <div style="font-size: 14px; letter-spacing: 3px; color: #e6c66e; margin-bottom: 8px;">
-          ${isAnkara ? '🐘 1402 ÇUBUK OVASI HARP MEYDANI' : '🚩 1396 TUNA BOYU NİĞBOLU MEYDAN MUHAREBESİ'}
+      <div style="max-width: 860px; width: 100%; background: rgba(18, 8, 6, 0.88); border: 2px solid #e6c66e; border-radius: 12px; padding: 22px 28px; box-shadow: 0 10px 40px rgba(0,0,0,0.85); text-align: center; backdrop-filter: blur(4px); margin-bottom: 20px;">
+        <div style="font-size: 13px; letter-spacing: 3px; color: #e6c66e; margin-bottom: 6px;">
+          ${isAnkara ? '🐘 1402 ÇUBUK OVASI HARP MEYDANI (CANLI 3D ÇARPIŞMA)' : '🚩 1396 TUNA BOYU NİĞBOLU MEYDAN MUHAREBESİ (CANLI 3D ÇARPIŞMA)'}
         </div>
-        <h2 style="font-size: 26px; color: #ffeb99; margin: 0 0 16px 0; border-bottom: 1px solid rgba(230,198,110,0.3); padding-bottom: 10px;">
+        <h2 style="font-size: 24px; color: #ffeb99; margin: 0 0 12px 0; border-bottom: 1px solid rgba(230,198,110,0.3); padding-bottom: 8px;">
           ${phaseData.name}
         </h2>
-        <div style="display: flex; justify-content: space-around; margin-bottom: 18px; font-size: 15px; color: #ffd885; background: rgba(0,0,0,0.4); padding: 8px 12px; border-radius: 6px;">
+        <div style="display: flex; justify-content: space-around; margin-bottom: 14px; font-size: 14px; color: #ffd885; background: rgba(0,0,0,0.5); padding: 6px 12px; border-radius: 6px;">
           <span>⚔️ <strong>Düşman:</strong> ${phaseData.enemy}</span>
           <span>🏆 <strong>Zafer Puanı:</strong> ${campaignBattleSystem.battleScore}</span>
           <span>🩸 <strong>Kayıplar:</strong> ${campaignBattleSystem.playerLosses}</span>
         </div>
-        <p style="font-size: 17px; line-height: 1.6; color: #f0e6d2; margin-bottom: 24px; text-align: left; background: rgba(30,15,10,0.6); padding: 16px; border-left: 4px solid #e6c66e; border-radius: 4px;">
+        <p style="font-size: 16px; line-height: 1.5; color: #f0e6d2; margin-bottom: 18px; text-align: left; background: rgba(30,15,10,0.65); padding: 12px 16px; border-left: 4px solid #e6c66e; border-radius: 4px;">
           ${phaseData.desc}
         </p>
-        <div style="display: flex; flex-direction: column; gap: 12px;" id="battle-options-container">
+        <div style="display: flex; flex-direction: column; gap: 10px;" id="battle-options-container">
           ${phaseData.options.map(opt => `
-            <button class="battle-opt-btn" data-opt-id="${opt.id}" style="padding: 14px 20px; font-size: 16px; font-weight: bold; background: linear-gradient(135deg, #4a1515 0%, #2a0b0b 100%); color: #ffeb99; border: 1px solid #e6c66e; border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.2s;">
+            <button class="battle-opt-btn" data-opt-id="${opt.id}" style="padding: 12px 18px; font-size: 15px; font-weight: bold; background: linear-gradient(135deg, #4a1515 0%, #2a0b0b 100%); color: #ffeb99; border: 1px solid #e6c66e; border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.2s;">
               ${opt.text}
             </button>
           `).join('')}
@@ -1336,6 +1342,7 @@ export class UIManager {
       </div>
     `;
 
+    const container = modal.querySelector('#battle-options-container');
     const optButtons = modal.querySelectorAll('.battle-opt-btn');
     optButtons.forEach(btn => {
       btn.addEventListener('mouseenter', () => {
@@ -1350,18 +1357,36 @@ export class UIManager {
       });
       btn.addEventListener('click', () => {
         const optId = btn.getAttribute('data-opt-id');
-        const res = campaignBattleSystem.executePhaseAction(optId);
 
-        if (res && res.isElephantMartyrdom) {
-          modal.style.display = 'none';
-          this.checkFailState();
-          return;
+        // Taktik Manevra Animasyon İstemcisi
+        if (container) {
+          container.innerHTML = `
+            <div style="font-size: 18px; color: #ffeb99; padding: 16px; font-weight: bold; text-shadow: 0 2px 8px rgba(0,0,0,0.9); background: rgba(0,0,0,0.6); border-radius: 8px;">
+              ⚔️ 3D Harp Meydanında Taktik Manevra İcra Ediliyor... (Animasyon Canlandırılıyor)
+            </div>
+          `;
         }
 
-        if (campaignBattleSystem.isBattleActive) {
-          this.renderBattlePhase(modal);
+        const executeStep = () => {
+          const res = campaignBattleSystem.executePhaseAction(optId);
+
+          if (res && res.isElephantMartyrdom) {
+            modal.style.display = 'none';
+            this.checkFailState();
+            return;
+          }
+
+          if (campaignBattleSystem.isBattleActive) {
+            this.renderBattlePhase(modal);
+          } else {
+            this.renderBattleConclusion(modal, res);
+          }
+        };
+
+        if (typeof window !== 'undefined' && window.battlefieldCinematics) {
+          window.battlefieldCinematics.playTacticalAnimation(optId, executeStep);
         } else {
-          this.renderBattleConclusion(modal, res);
+          executeStep();
         }
       });
     });
@@ -1374,20 +1399,20 @@ export class UIManager {
     }
 
     modal.innerHTML = `
-      <div style="max-width: 820px; width: 100%; background: rgba(20, 10, 8, 0.9); border: 2px solid #e6c66e; border-radius: 12px; padding: 28px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); text-align: center;">
-        <div style="font-size: 48px; margin-bottom: 12px;">🏆 ⚔️ 🚩</div>
-        <h2 style="font-size: 28px; color: #ffeb99; margin: 0 0 16px 0;">
+      <div style="max-width: 860px; width: 100%; background: rgba(20, 10, 8, 0.92); border: 2px solid #e6c66e; border-radius: 12px; padding: 26px; box-shadow: 0 10px 40px rgba(0,0,0,0.9); text-align: center; margin-bottom: 20px;">
+        <div style="font-size: 48px; margin-bottom: 10px;">🏆 ⚔️ 🚩</div>
+        <h2 style="font-size: 26px; color: #ffeb99; margin: 0 0 14px 0;">
           ${outcome.title}
         </h2>
-        <p style="font-size: 18px; line-height: 1.6; color: #f0e6d2; margin-bottom: 24px; text-align: left; background: rgba(30,15,10,0.7); padding: 18px; border-left: 4px solid #e6c66e; border-radius: 4px;">
+        <p style="font-size: 17px; line-height: 1.6; color: #f0e6d2; margin-bottom: 20px; text-align: left; background: rgba(30,15,10,0.75); padding: 16px; border-left: 4px solid #e6c66e; border-radius: 4px;">
           ${outcome.desc}
         </p>
-        <div style="display: flex; justify-content: center; gap: 24px; margin-bottom: 24px; font-size: 16px; color: #ffd885;">
+        <div style="display: flex; justify-content: center; gap: 24px; margin-bottom: 20px; font-size: 15px; color: #ffd885;">
           <span>💰 <strong>Ganimet:</strong> +${outcome.lootAkce} Akçe</span>
           <span>⚜️ <strong>İtibar:</strong> +${outcome.repGain}</span>
           <span>🏆 <strong>Meydan Skoru:</strong> ${outcome.score}</span>
         </div>
-        <button id="btn-close-battle-modal" style="padding: 14px 36px; font-size: 18px; font-weight: bold; background: linear-gradient(135deg, #1b4332 0%, #081c15 100%); color: #fff; border: 2px solid #40916c; border-radius: 8px; cursor: pointer;">
+        <button id="btn-close-battle-modal" style="padding: 14px 36px; font-size: 17px; font-weight: bold; background: linear-gradient(135deg, #1b4332 0%, #081c15 100%); color: #fff; border: 2px solid #40916c; border-radius: 8px; cursor: pointer;">
           🏡 Akçaoba Tımarına Dön
         </button>
       </div>
@@ -1397,6 +1422,9 @@ export class UIManager {
     if (closeBtn) {
       closeBtn.addEventListener('click', () => {
         modal.style.display = 'none';
+        if (typeof window !== 'undefined' && window.battlefieldCinematics) {
+          window.battlefieldCinematics.teleportBackToVillage();
+        }
         this.updateHUD();
       });
     }

@@ -58,6 +58,8 @@ import { trainingSystem } from '../src/systems/TrainingSystem.js';
 import { supplySystem } from '../src/systems/SupplySystem.js';
 import { campaignBattleSystem } from '../src/systems/CampaignBattleSystem.js';
 import { evidenceSystem } from '../src/systems/EvidenceSystem.js';
+import { BattlefieldScene } from '../src/entities/BattlefieldScene.js';
+import { BattlefieldCinematics } from '../src/systems/BattlefieldCinematics.js';
 
 console.log('🧪 ==========================================');
 console.log('🧪 MÜLK-İ OSMANÎ: SİSTEMİK TEST SÜİTİ');
@@ -559,6 +561,38 @@ assert(gameState.failState.title.includes('SAVAŞ FİLİ'), 'Fil şehadeti başl
 campaignBattleSystem.handleBattleDefeat();
 assert(gameState.failState.isGameOver === true, 'Muharebe mağlubiyeti Game Over tetiklendi');
 assert(gameState.failState.reason === 'battle_defeat', 'Fail-state sebebi battle_defeat olarak kaydedildi');
+
+// -------------------------------------------------------------
+// TEST 29: 3D Harp Meydanı, Savaş Modelleri ve Işınlanma Sinematikleri Testi
+// -------------------------------------------------------------
+const mockScene = new THREE.Scene();
+const battlefieldScene = new BattlefieldScene(mockScene);
+assert(battlefieldScene !== null, '3D Harp Meydanı sahnesi oluşturuldu');
+assert(battlefieldScene.stakes.length > 0, 'Kazık hattı savunma barikatları inşa edildi');
+assert(battlefieldScene.ottomanUnits.length > 0, 'Osmanlı sipahi süvari birlikleri hazırlandı');
+assert(battlefieldScene.crusaderUnits.length > 0, 'Haçlı ağır plaka şövalye birlikleri hazırlandı');
+assert(battlefieldScene.warElephant !== null, 'Emir Timur\'un 3D Zırhlı Savaş Fili inşa edildi');
+
+// Niğbolu ve Ankara mod geçiş testi
+battlefieldScene.setMode('ankara');
+assert(battlefieldScene.warElephant.parent.visible === true, 'Ankara modunda Savaş Fili ve Timur ordusu görünür oldu');
+assert(battlefieldScene.crusaderGroup.visible === false, 'Ankara modunda Haçlı ordusu gizlendi');
+
+battlefieldScene.setMode('nigbolu');
+assert(battlefieldScene.crusaderGroup.visible === true, 'Niğbolu modunda Haçlı ordusu görünür oldu');
+
+// Işınlanma sinematiği testi
+const mockCamera = new THREE.PerspectiveCamera();
+const mockPlayer = new Player(mockCamera, mockScene, []);
+const battlefieldCinematics = new BattlefieldCinematics(mockScene, mockCamera, mockPlayer, battlefieldScene, null);
+
+battlefieldCinematics.teleportToBattlefield('nigbolu');
+assert(battlefieldCinematics.isInBattle === true, '3D Harp Meydanına geçiş yapıldı');
+assert(mockPlayer.position.x === 400 && mockPlayer.position.z === 375, 'Oyuncu savaş meydanındaki Osmanlı sancağının önüne ışınlandı');
+
+battlefieldCinematics.teleportBackToVillage();
+assert(battlefieldCinematics.isInBattle === false, 'Savaş sonrası köye dönüldü');
+assert(mockPlayer.position.x === 0 && mockPlayer.position.z === 12, 'Oyuncu başarıyla köydeki önceki konumuna geri ışınlandı');
 
 console.log('\n🧪 ==========================================');
 console.log(`🧪 TEST SONUCU: ${passedTests}/${totalTests} TEST BAŞARIYLA TAMAMLANDI!`);

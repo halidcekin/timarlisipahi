@@ -13,6 +13,8 @@ import { gameState } from './core/GameState.js';
 import { questSystem } from './systems/QuestSystem.js';
 import { petitionSystem } from './systems/PetitionSystem.js';
 import { evidenceSystem } from './systems/EvidenceSystem.js';
+import { BattlefieldScene } from './entities/BattlefieldScene.js';
+import { BattlefieldCinematics } from './systems/BattlefieldCinematics.js';
 import { soundManager } from './core/AudioManager.js';
 import { steamManager } from './core/SteamManager.js';
 
@@ -48,10 +50,21 @@ export class Game {
     // 6. Dövüş ve Vuruş Sistemi (Evrensel Hasar ve Kırılabilir Objeler Dahil)
     this.combat = new CombatSystem(this.player, this.npcManager, this.town);
 
-    // 7. Ok Talimi & Okçuluk Sistemi
+    // 8. Ok Talimi & Okçuluk Sistemi
     this.archery = new ArcherySystem(this.engine.scene, this.engine.camera, this.player, this.town);
 
-    // 8. Arayüz & Menüler
+    // 9. 3D Harp Meydanı & Sinematik Animasyon Motoru
+    this.battlefieldScene = new BattlefieldScene(this.engine.scene);
+    this.battlefieldCinematics = new BattlefieldCinematics(
+      this.engine.scene,
+      this.engine.camera,
+      this.player,
+      this.battlefieldScene,
+      this.engine
+    );
+    window.battlefieldCinematics = this.battlefieldCinematics;
+
+    // 10. Arayüz & Menüler
     this.ui = new UIManager();
 
     // Hikaye Hatırlatma Zamanlayıcısı
@@ -319,12 +332,20 @@ export class Game {
           this.archery.update(delta, this.input);
         }
 
-        // 9. HUD, Pusula ve Saat Güncellemesi
+        // 9. 3D Harp Meydanı ve Savaş Animasyonları
+        if (this.battlefieldScene) {
+          this.battlefieldScene.update(delta);
+        }
+        if (this.battlefieldCinematics) {
+          this.battlefieldCinematics.update(delta);
+        }
+
+        // 10. HUD, Pusula ve Saat Güncellemesi
         if (this.ui && this.player && this.engine && this.npcManager) {
           this.ui.update(this.player.position, this.engine.camera, this.player.yaw, this.npcManager.npcs, this.npcManager.enemies);
         }
 
-        // 10. Hikaye Hatırlatma ve Yönlendirme Kontrolü
+        // 11. Hikaye Hatırlatma ve Yönlendirme Kontrolü
         this.updateStoryGuidance(delta);
 
         // 11. Etkileşim İpucu Kontrolü
