@@ -1,6 +1,6 @@
 # Yol Haritası Çalışması — Durum ve Devir Dosyası
 
-Son güncelleme: 30 Ağustos 2026, 11:10
+Son güncelleme: 30 Ağustos 2026, 11:35
 
 ## Görev
 Oyun için devredilebilir, çok detaylı geliştirme yol haritası üretmek. İşveren hedefleri:
@@ -16,16 +16,14 @@ Dokümanları başka bir geliştirici uygulayacak; sonra bağımsız denetim yap
 3. ✅ **5 tasarım dokümanı** (bu klasördeki 01–05 taslakları): akış/tutundurma, mizah/diyalog (~150 hazır replik), tarih eğitimi (40 kodeks maddesi), İslami içerik (Ehl-i Sünnet ilkeleri + hassasiyet protokolü), teknik plan (P0/P1/P2 bug backlog).
 4. ✅ **Sentez/faz planı** (06 taslağı): 6 faz, 340–453 saat, Ç1–Ç15 çelişki kararları (NİHAİ — diğer dokümanlarla çelişirse 06 kazanır), Definition of Done, denetçi kabul prosedürü.
 
-## Devam Eden (kesintiye uğrarsa yeniden çalıştırılabilir)
-- 🔄 **Eleştiri → Revizyon → Denetim workflow'u** (`sipahi-elestiri-revizyon-denetim-wf_dca97777-5d7.js`):
-  - 3 eleştirmen (sadelik/fizibilite, dinî-tarihî hassasiyet, deneyim-bütünlük)
-  - 6 revizyon editörü: taslakları düzeltmeleri uygulayarak `docs/yol-haritasi/` altına kopyalar
-  - 1 son bütünlük denetçisi (kritik/yüksek bugların faz planına eşlendiğini doğrular)
+## Devam Eden — GÜNCEL DURUM (11:35 itibarıyla)
+5. ✅ **3 eleştirmen tamamlandı** (sadelik/fizibilite, dinî-tarihî hassasiyet, deneyim-bütünlük). Üçü de "düzeltmeyle-onay" verdi. TÜM BULGULAR: `elestiri-bulgulari.json` (bu klasörde) — 18 engelleyici sorun + 30 iyileştirme. Öne çıkan engelleyiciler: P1-05 Gemini Kadı akışı hiçbir faza atanmamış; F2-02/F4-09 havadis-perde takvimi kilitlenmesi (g124-128); Ramazan Bayramı g98-100 atlama penceresine düşüyor ama F4-16 sahne istiyor; H6 hutbe dayanağı yanlış tahriçli (Müslim değil Taberânî/Hâkim); Jean de Nevers "Korkusuz" lakabı anakronik (lakap Niğbolu SONRASI); F0-01 "git init" varsayımı yanlış (repo zaten git); köprü collider bug'ı geç faza atılmış; ölçüm altyapısı (bot koşusu) bütçelenmemiş.
+6. ✅ **Revizyonlar tamamlandı** (30 Ağustos, ~12:30): 01-05 dokümanlarının düzeltmeleri revizyon ajanlarınca uygulandı (hepsi büyüdü). 06'nın revizyon ajanı iki kez sessizce takıldığı için 06'nın 14 engelleyici düzeltmesi ana oturumda ELLE uygulandı: Ç16 (ferman gün-eşiği) + Ç17 (Ramazan Bayramı atlama kartı) eklendi, Ç5 grep listesi netleştirildi, F0-01 git varsayımı düzeltildi, F0-06'ya P1-13, F0-14 (köprü/nehir) ve F0-13'e 1ea86b2 notu eklendi, F2-14 (kadı akışı) + F2-15 (telemetri) eklendi, F2-05 taxPolicy tanımlandı, historicalEvents.js iptal, bot-koşusu kriterleri deterministikleştirildi, F3-07 reayaTrust formülü, efor 368-484 saat / ~17 hafta. Dip nota revizyon notu eklendi.
+7. ✅ **00-GENEL-BAKIS.md yazıldı** (okuma kılavuzu + analiz-sonrası 2 commit uyarısı).
+8. ✅ **Bağımsız son denetim tamamlandı** (30 Ağustos): 18 engelleyici bulgunun 16'sı tam / 2'si kısmen uygulanmış bulundu; analizdeki 27 kritik/yüksek bug'ın TAMAMI faz planına eşlenmiş; içerik kaybı yok; geçici yol kalıntısı yok. Denetçinin 4 tutarlılık düzeltmesi işlendi: (1) 05-teknik'ten historicalEvents.js kalıntısı silindi + P1-04 "kaldırma" kararına çevrildi, (2) 06 F5-04'ten köprü/nehir çifte kaydı düşüldü (F0-14 esas), (3) Bölüm 2 / §11.1 efor bantları eşitlendi (368-484 saat), (4) 01'deki yasaklı "zemzem" replik kalıntısı Ç4 kararıyla değiştirildi. Ek: F5-09 yayın kapısına git-geçmişi temizliği maddesi, F0 kabulüne Koca Yakub nesnel kontrolü eklendi.
 
-## Kalanlar
-1. Workflow bitince: eleştiri/denetim sonuçlarını gözden geçir, kalan sorunları düzelt.
-2. `docs/yol-haritasi/00-GENEL-BAKIS.md` yaz (giriş/okuma kılavuzu: vizyon, doküman haritası, geliştiricinin okuma sırası, denetim süreci).
-3. Son teslim raporu + (istenirse) commit/push.
+## SONUÇ: TESLİMAT TAMAMLANDI ✅
+`docs/yol-haritasi/` altında 7 doküman (00-06) nihai hâlinde; geliştirici 00-GENEL-BAKIS.md'den başlayarak uygulayabilir. Denetim, planı "GEÇTİ" seviyesinde onayladı. Sonraki adım (ayrı iş): geliştirme bittikçe fazların bu dokümanlara göre bağımsız kabul denetimi.
 
 ## Sıfırdan Devam Talimatı (yeni makine/oturum için)
 1. Repo'yu klonla, `npm install`.

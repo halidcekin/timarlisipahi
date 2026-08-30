@@ -1,0 +1,233 @@
+[
+ {
+  "verdict": "düzeltmeyle-onay",
+  "blockingIssues": [
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "issue": "F4-09 havadis remap'i ile F2-02 perde takvimi kilitleniyor: H-8 'quest_castle' kapılı (g124), H-9 (ferman = quest_campaign açılışı, g125) sırayla H-8'i bekliyor; ama perde tablosunda quest_castle (B9) g128'de, yani fermandan SONRA. Sıra kuralı ('sıra asla bozulmaz') + kapı birlikte uygulanırsa ferman g128'den önce gelemez — B8 (Tuğ Çağrısı, g125-127) perde kurgusu tersine döner veya deadlock oluşur. Mevcut kod zincirinde de quest_castle → quest_campaign sırası var; 01-akış'ın 'ferman hasat ortasında gelir, yoklama sonra' kurgusuyla bu sıra hiçbir yerde karara bağlanmamış.",
+    "fix": "Bölüm 1'e yeni karar satırı (Ç16) ekle: ferman/quest_campaign aktivasyonu yalnız dayCount eşiğiyle (g125) tetiklenir; H-8'in kapısı quest_castle'dan kaldırılır (yalnız minDay g124); quest_castle (yoklama) fermanın değil, sefere fiilen KATILMANIN önkoşulu yapılır (F0-06 buton kapısı 'quest_campaign aktif VE quest_castle tamam' olur). F4-09 tablosu buna göre güncellenir."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "issue": "F2-02(c) 'checkHistoricalEvents sıralaması düzeltilir (P1-04) ve yıl-olayları src/data/historicalEvents.js tablosuna taşınır' diyor; ama aynı F2-02'nin takvimi kampanyayı tek yıl (1 Nisan-27 Eylül 1396) içine sıkıştırıyor — year++ kampanya boyunca hiç gerçekleşmez, dolayısıyla yıl-dönümü tabanlı olay sistemi ASLA tetiklenmez. Geliştirici hiç çalışmayacak bir veri dosyası + düzeltme yapar; üstelik gün-bazlı HistoricalNews (F4-09) ile ikinci bir olay boru hattı doğar — planın kendisinin eleştirdiği 'iki ayrı zaman gerçeği' anti-pattern'inin olay-sistemi versiyonu.",
+    "fix": "historicalEvents.js kalemini tamamen sil. F2-02'de checkHistoricalEvents yalnız devre dışı bırakılır/kaldırılır (P1-04 'düzeltme' değil 'nötrleştirme' olur); kampanya/ferman aktivasyonu gün-eşiği kontrolüyle (g125, gün-dönümü kancasında 5 satır) yapılır; F4-09 HistoricalNews aynı eşiği H-9 olarak devralır. Tek olay mekanizması kalır, saat tasarrufu sağlanır."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "issue": "Ç1 takvim kaydırmasının yakalanmamış yan etkisi: 1 Nisan 1396 = Cumartesi çıpasıyla ilk cuma g7'dir; ama F2-02 perde tablosu g6'dan g45'e atlar — ilk cuma OYNANMAYAN pencerede kalır. Oynanabilir ilk cuma g49 (Perde II). Cuma-zaman-kapılı quest_imam (F3-08, Perde I görevi) böylece tüm Perde I boyunca 'beklemede' kalır; mevcut görev zinciri lineer olduğundan sonraki görevleri de bloklama riski var. Ayrıca F2 kabul kriteri 'g7'de Cuma rozeti görünür' normal oynanışta gözlemlenemez.",
+    "fix": "Ya B3 bölümünü g6-7 yap (Atlama #1 g7 cuma sahnesinden SONRA başlar — tek satır takvim değişikliği), ya da quest_imam'ı açıkça Perde II'ye (g49 cuması) taşı. Her iki durumda F3-08'e 'quest_imam beklemedeyken görev zincirini BLOKLAMAZ (sonraki görevler ondan bağımsız açılır)' cümlesi eklenmeli. 'g7 Cuma rozeti' kabul kriterine 'dev zaman-atlatma ile doğrulanır' notu düşülmeli."
+   },
+   {
+    "doc": "GENEL",
+    "issue": "Kabul kriterlerinin önemli bir bölümü hiçbir iş kaleminde bütçelenmemiş ölçüm altyapısına dayanıyor: '3 saatlik bot koşusu' (01-akış K2/K11/K15, 06 F2 kabulü), 'objective.type telemetrisi' (K1/K4), 'frame log Δ=0 kare' (K7), 'düşük/yüksek hazırlıklı iki otomatik koşu' (K12), '10 dk ekran kaydı denetimi' (K16). Projede telemetri sistemi yok, ana görev yolunu 3 saat oynayan bir 3D bot başlı başına 1-2 haftalık ayrı bir mühendislik işidir ve hiçbir fazda saati yok. Geliştirici ya kabul edilemez işler teslim eder ya plansız bir bot yazmaya girişir — solo geliştirici için orantısız (over-engineering).",
+    "fix": "Kriterleri deterministik testlere çevir: (a) ekonomi eğrisi → gün-dönümü kancasını betikli gelir/giderle N gün çağıran headless simülasyon unit testi ('≥2 net-negatif 7-günlük pencere' tanımıyla); (b) K12 → savaş metin-taktik olduğundan CampaignBattleSystem'i düşük/yüksek SupplySystem durumuyla çağıran iki unit test; (c) K7 → hasar+ses+sarsıntı+parçacığın TEK çağrı noktasından tetiklendiğini gösteren kod-düzeyi assert + manuel his kontrolü; (d) K1/K4 telemetrisi → basit bir sayaç objesi (yeni iş kalemi, ~2 saat) veya manuel gözlem çizelgesi. 'Bot koşusu' ibareleri tüm kabul listelerinden çıkarılmalı."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "issue": "F3-07'deki 'sefer sepeti maliyeti hane memnuniyetine göre −%40'a kadar düşer; hane memnuniyeti Perde I kararlarından türetilir' (kaynak: 01-akış §7.3) hiçbir dokümanda veri modeli/karar-eşleme tablosuyla tanımlanmamış. Soru soramayan geliştirici hane-bazlı yeni bir memnuniyet takip sistemi icat etmek zorunda kalır — tek kullanımlık, spekülatif bir alt sistem (YAGNI ihlali) ve kabulü ölçülemez.",
+    "fix": "F3-07 tarifine somut formül yaz ve mevcut duruma bağla: indirim yalnız mevcut reayaTrust'tan türetilir (ör. trust ≥70 → −%40, 50-69 → −%20, <50 → 0; sabitler balance.js'te). 'Hane memnuniyeti' terimi metinden çıkarılır; Perde I kararları zaten reayaTrust'a yazdığı için tasarım niyeti korunur, yeni sistem doğmaz. Kabul kriteri '01-akış §7 sefer sepeti indirim testi' bu formüle göre güncellenir."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "issue": "Dört kritik kalemde sistematik düşük efor tahmini: F2-02 (tam takvim reworku + hicri türetme + 6 noktalı tam-ekran atlama kartı UI'sı + ekonomi entegrasyonu = 12h), F2-11 (Akşam Hesabı + Kaldığın Yer + filtreli/sekmeli Vakayiname = 3 yeni UI ekranı = 9h), F3-08 (4 yeni hedef tipi mekaniği — fiziksel taşıma, iz sürme zinciri, mühür mini-ekranı — + 7 görev varyantı = 14h), F3-09 (atlı eskort görevi + belge karşılaştırma UI + yoklama mini-ekranı + tazmin görevi = 10h). Bunlar gerçekçi olarak 1,5-2,5×'tir; kritik yol üstünde oldukları için sapma tüm takvimi kaydırır ve geliştiriciyi faz ortasında plansız/keyfî kapsam kesmeye zorlar — 'sessiz kapsam düşürme yasak' kuralı (§12.4) fiilen ihlal edilir.",
+    "fix": "(a) Bu dört kalemi ~1,5-2× revize et (toplam bandı ~400-540 saate çek) VEYA (b) basitleştirmeleri ŞİMDİ karara bağla ve §11.2 kesinti listesine ekle: 'carry' = envanter bayrağı (yürüyüş yavaşlatma/kılıç kilidi olmadan), 'seal' = diyalog onay ekranı (yeni mini-ekran yok), quest_neighbor eskortu = pusu mekaniği OLMADAN düz atlı yolculuk + metin olayı, Vakayiname v1 = filtresiz düz liste (çipler Faz 5 opsiyonu). Fiil çeşitliliği hedefi (≥9 görev konuşma-dışı hedefli) inspect+track+al/taşı ile hâlâ tutar."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "issue": "P1-05 (arzuhal Reddet → gerekçe → kadı hükmü akışı; 05-teknik'in kendi ifadesiyle 'oyunun en özgün mekaniği') hiçbir faza atanmamış: F4-17 'Faz 2-3 arası bağlandıysa', F5-03 'bağlanmadıysa BURADA tamamlanır' diyor — yani en özgün mekanik cila fazına sarkabilir veya iki fazın arasında sahipsiz kalır. 05-teknik §7.5 duman testi adım 7 (arzuhal+kadı) faz kapanış kapısı olduğundan Faz 2/3 kabulü belirsizleşir.",
+    "fix": "P1-05'i açıkça Faz 2'ye ata (F2-09'un yanına yeni satır F2-14, ~5 saat; F2 toplamına eklenir): Reddet handler'ı openRejectionModal'a yönlendirilir, çevrimdışı evaluateHeuristic varsayılan olur, Gemini opsiyonel kalır. F5-03'teki koşullu cümle 'doğrulanır' ifadesine indirgenir."
+   }
+  ],
+  "improvements": [
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "F4-01 (registry+EffectRunner, 20h) tüm Faz 4'ün kapısı yapılmış ama 4A (humor.js), 4B'nin verileri (CodexData, HistoricalNews) ve islamicContent SALT VERİ modülleridir — hiçbiri EffectRunner'a ihtiyaç duymaz (Ç5 zaten humor için 02'nin kendi şemasını seçti; 03 kodeks unlock'ları 'tek satır çağrı' olarak tanımladı). F4-03..07 ve F4-08/09'un bağımlılığından F4-01'i çıkar: en görünür içerik kazancı (4A mizah) ~20 saat erkene çekilir, EffectRunner yalnız diyalog göçü + F4-02 + 4C diyalog ekleri için gereken zamanda yapılır. Kritik yol kısalır, F4-01'in yüksek regresyon riski (kendi risk notu) içerik teslimlerini rehin almaz."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "F5-08'deki durum-bazlı Rich Presence kesilmeli (YAGNI): 05-teknik §3.4 steamworks.js'i bilinçli olarak EKLEMEDİ — SteamManager salt simülasyon modunda, yani Rich Presence dizgileri hiçbir kullanıcıya hiçbir yerde görünmez. Steam kararı verilirse açılacak ayrı fazın (05 §3.4) kalemi olarak ertelensin; F5-08'de yalnız P2-06/33/34 kalsın."
+   },
+   {
+    "doc": "01-akis-ve-tutundurma.md",
+    "suggestion": "§5.1 chapter slotu 'geri dönüp farklı karar denemek için kalıcı' vaadi tek slotla tutmaz: 6 atlama noktası tek chapter slotunu her perdede ezer — oyuncu yalnız SON perde başına dönebilir. Ya vaadi 'son perde başına dönüş' olarak daralt (kod değişikliği sıfır), ya Ç7 kararını 'chapter×2 dönüşümlü' yap. Mevcut hâliyle denetçi 'farklı karar deneme' kabulünü test ederse iş reddedilir."
+   },
+   {
+    "doc": "01-akis-ve-tutundurma.md",
+    "suggestion": "Ölçülemez/muğlak kabul kriterleri netleştirilmeli: K16 'sıfır uyaran penceresi' için 'uyaran' tanımı yok (bildirim mi, ses mi, NPC hareketi mi sayılır?) — sayılabilir uyaran listesi + tek 10 dk kayıt protokolü yazılmalı; K18 'oturumlar doğal olarak Akşam Hesabında biter' öznel — playtest anketine 'oturumu hangi ekranda kapattın?' sorusu olarak operasyonelleştirilmeli; 06 F1 kabulündeki 'sahne görsel olarak değişmedi' için yöntem (önce/sonra ekran görüntüsü karşılaştırması) belirtilmeli; 02-mizah §7.2 'göz kontrolü' karakter-sınır maddesi basit script'e bağlanmalı."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "Efor tabloları kendi içinde tutarsız: §2 tablosu toplam 340-451 ve Faz 5 = 42-56 derken §11.1 toplam 340-453 ve Faz 5 = 42-58 diyor; F5 kalemlerinin gerçek toplamı 58 saat. Denetçi hangi bandı esas alacak? Tek sayı setine çekilmeli (F5 kalem toplamına göre 42-58 / 340-453 doğru görünüyor)."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "Ç10 zekât tetiğini değiştirdi ama 04-islam'ın Z1 kabul kriteri hâlâ 'Güz'e geçişte zekât hatırlatması' diyor; §12.2 'içerik dilimlerinde ilgili dokümanın KENDİ kabul bölümü uygulanır' dediği için denetçi 04'ü uygularken çelişkiye düşer. Bölüm 1 Ç10 satırına '04 §2.3.5 Z1 kriterinin tetik cümlesi bu kararla değişmiştir; hesap/nisâb kısımları geçerli kalır' notu eklenmeli."
+   },
+   {
+    "doc": "05-teknik-plan.md",
+    "suggestion": "§4.3'teki kodeks `review: {history:false, islamic:false}` çift onay bayrağı + 'ikisi true değilse taslak rozetiyle gizle' filtresi solo geliştirici için süreç yükü (iki ayrı onay akışı yönetimi): tek `reviewed:true` bayrağına indirilmeli; hangi denetimden geçtiği zaten docs/ISLAMIC_CONTENT_AUDIT.md ve kaynak yorum satırlarında kayıtlı. Gizleme filtresi de basitleşir."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "F1-16(e) tımar kusurlarını Faz 1'de koda gömülü sokup F4-05'te humor.js'ten okumaya geçirmek planlı çifte iştir. Ya Faz 1'de humor.js dosyası yalnız timarFlaws havuzuyla erken açılsın (D5 kuralıyla da uyumlu), ya Faz 1 teslimi 3 kusurluk minimal sabit dizide kalsın ve tam havuz F4-05'te gelsin."
+   },
+   {
+    "doc": "01-akis-ve-tutundurma.md",
+    "suggestion": "§8.2 'her sürüm kapısında soğuk başlangıç testi (n=3, oyunu hiç görmemiş kişi)' + 06'nın Faz 1 kabulündeki n≥3 playtest, her faz kapısında 3 YENİ oyuncu bulmayı gerektirir (5-6 kapı × 3 kişi) — solo geliştirici için pratik değil ve saati bütçelenmemiş. Tam soğuk-başlangıç turu yalnız Faz 1 (ilk 15 dk) ve Faz 5 (KPI) kapılarında zorunlu olsun; ara fazlarda geliştirici öz-checklist + tek tekrar-oyuncu yeterli sayılsın."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "Ç2'deki 'gerekirse telemetri için playedDayCount ikincil sayaç, kayda girer' spekülatif — hiçbir kabul kriteri tüketmiyor. Çıkarılmalı; ihtiyaç doğduğunda D9 kuralı (serialize+migrasyon aynı PR'da) zaten güvenli eklemeyi sağlıyor."
+   }
+  ]
+ },
+ {
+  "verdict": "düzeltmeyle-onay",
+  "blockingIssues": [
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "issue": "Analizdeki KRİTİK bug'lardan biri açıkta: Gemini AI Kadı akışı (openRejectionModal ölü, 05-teknik P1-05) hiçbir fazın iş listesinde yer almıyor. F5-03 'bağlanmadıysa BURADA tamamlanır', F4-17 'Faz 2-3 arası bağlandıysa orada, değilse burada' diyor — yani iki doküman da işi başkasının yaptığını varsayıyor, ama Faz 1-4 iş listelerinde P1-05 kimliği yok. Soru soramayan geliştirici bu işi hiçbir fazda yapmaz; oyunun en özgün mekaniği (analiz: 'kritik') fiilen Faz 5'e düşer ve duman testi adım 7 ancak son fazda geçer.",
+    "fix": "Faz 2 veya Faz 3'e açık iş kalemi ekle (ör. F2-14: 'Kadı ret-gerekçesi akışını bağla — 05-teknik P1-05 tarifi birebir: btn-reject → openRejectionModal, çevrimdışı heuristic varsayılan, x-goog-api-key, opsiyonel anahtar alanı; R12 guardrail F4-17'de'). İlgili faz kabul listesine 'arzuhal reddet → gerekçe modalı → kadı hükmü çevrimdışı çalışıyor' maddesini ve evaluateHeuristic assert'ini ekle; F5-03/F4-17'deki koşullu cümleleri bu kaleme referansla değiştir."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "issue": "F2-02 perde takvimi ile F4-09 havadis kapıları ve mevcut görev önkoşul zinciri g124-128 aralığında kilitleniyor: H-8 (kuşatma haberi) afterQuest=quest_castle + minDay g124; H-9 (ferman = quest_campaign açılışı) g125; ama perde takvimi quest_castle'ı (B9 Sancak Yoklaması) g128'e koyuyor ve quest_campaign'in önkoşulu quest_castle (QuestSystem verisi, analiz görev envanteri #12). Sonuç: 'sıra asla bozulmaz' kuralıyla H-8 g128'den önce gelemez → H-9/ferman gelmez → B8 'Tuğ Çağrısı' (g125-127) tetikleyicisiz kalır; oyuncu 3 Ağustos'ta boş bekler. Hiçbir F-kalemi görev önkoşul sırasını değiştirmiyor (F3-08/09 yalnız içerik varyantı yapıyor).",
+    "fix": "Ç-tablosuna yeni karar satırı (Ç16) ekle ve birini seç: (a) B9 yoklamayı B8'in önüne al (g125 yoklama, g126-128 ferman) ve H-8'i minDay g124 + afterQuest=quest_castle olarak koru; VEYA (b) tarihsel anlatıya uygun olarak quest_campaign'in önkoşulunu quest_neighbor'a çevir, quest_castle'ı ferman SONRASI göreve dönüştür (F3-09 kapsamına 'prerequisites reworku' tarifi ekle) ve H-8'i afterQuest=null yap. Seçilen kararla F2-02 perde tablosu ile F4-09 remap tablosunu aynı PR'da senkronla."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "issue": "F2-05 (vergi yalnız hasat penceresi g123-140, yılda 1) ile oyunun açılış anı çelişiyor: kethüda diyaloğundaki öşür kararı (oyunun 'en iyi anı', 01 §3.1 dk 1:30-4:00'te korunuyor) DialogueSystem.js:33/47/63 üzerinden doğrudan collectAnnualTax çağırıyor. F2-05 yalnız Tımar Defteri BUTONUNU pasifleştiriyor; diyalog yolu tariflenmemiş. İki kötü sonuçtan biri kaçınılmaz: (a) diyalog g1-2'de ~3000 akçe basar → taxCollectedThisYear=true kalır, hasat sıçraması (+2400-3200) ve sefer sepeti ekonomisi ölür, K11 kabulü (Perde I sonu kasa 600-900, monoton olmayan eğri) matematiksel olarak imkânsızlaşır; (b) diyalog sessizce no-op olur → açılış kararı hissiz kalır ve quest_inspect kafa karıştırır. Geliştirici hangisini yapacağını bilemez.",
+    "fix": "F2-05 tarifine ek madde: 'Kethüda diyaloğundaki collectAnnualTax çağrıları kaldırılır; öşür kararı bir POLİTİKA bayrağı yazar (yetimleri affet / tam tahsil — gameState.timar.taxPolicy), tahsilat yalnız hasat penceresinde bu politikayla yapılır ve politika morale/güven etkileri karar anında uygulanır (mevcut +güven/+itibar değerleri korunur).' F3-08 quest_inspect varyantındaki 'tahsil et' seçeneğinin de aynı bayrağa yazdığı belirtilsin; Faz 2 kabul listesine 'g1-2 öşür kararı akçe BASMAZ, hasat tahsilatı politikayı uygular' maddesi ve testi eklensin."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "issue": "Köprü/nehir geçilebilirliği (05-teknik P1-17: köprünün tamamı collider — geçilemiyor; nehirde collider yok — su üstünde yürünüyor) F5-04'e (Faz 5 dünya cilası) atılmış. Oysa playerTrace dk 8-10'da bunu ilk-saat kırıcısı olarak işaretliyor; 01 §3.1 (dk 7:00-8:30) 'köprüden geçilir (collider düzeltmesi teknik planda)' diye ilk-15-dakika akışını buna dayandırıyor; F0-02 tam da bu bölgeye (değirmen arkı, -45,22) Değirmenci Musa'yı koyup pusulayı oraya yönlendiriyor ve F1-16 kabulü yeni-oyuncu playtesti (K4) istiyor. Faz 0-4 boyunca oyuncular ana görev rotasında görünmez duvara çarpıp su üstünde yürüyecek — Faz 0'ın 'bozuk oyun hissini öldür' amacı deliniyor, K4 playtesti kirleniyor.",
+    "fix": "P1-17'yi Faz 5'ten çıkarıp Faz 0'a (F0-02 ile aynı pakete, ör. F0-14) veya en geç Faz 1'e al: köprü sırtı yürünebilir + yalnız korkuluklara dar AABB + nehir şeridine yasak-bölge collider'ı (05-teknik P1-17 tarifi aynen). Faz 0/1 kabul listesine 'köprüden karşıya geçilebiliyor; nehre girilemiyor' maddesini ekle; F5-04'ten bu kalemi düş."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "issue": "F0-06 'sefer mühürlü' kabulü, bilinen YÜKSEK bug P1-13 (advanceObjective kilitli görevi önkoşulsuz aktive ediyor; TimarSystem.trainCebelu tek tıkla quest_campaign'i açıyor) Faz 3'e (F3-02) bırakıldığı için deliniyor: Faz 0-2 sürümlerinde oyuncu dk 1'de 800 akçeyle cebelü donatarak quest_campaign'i 'aktif' yapar, F0-06'nın kapısı (quest_campaign aktif mi?) açılır ve tek-tık Niğbolu (simulateNigboluCampaign, F3-01'e dek canlı) yine oynanır. Denetçi F0 kabulünü ('quest_campaign aktifleşmeden tıklama hiçbir şey yapmıyor') işaretlerken K5 hedefi gerçekte sağlanmamış olur — yanlış kabul üretir.",
+    "fix": "P1-13'ün tek satırlık düzeltmesini (advanceObjective'de locked→active geçişini kaldır; aktifleştirme yalnız syncAvailableQuests'te) Faz 0'a çek (F0-06'nın parçası yap, süre +1s) ve F0 test gereksinimlerine 'quest_cebelu/quest_campaign locked iken trainCebelu() hedef ilerletmez ve görevi aktive etmez' assert'ini ekle. F3-02(b) satırından bu işi düş (yalnız Ali gating kalır)."
+   }
+  ],
+  "improvements": [
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "Ç1'deki '01-akış §2.2 tablosundaki TÜM miladi tarihler +1 ay kaydırılarak uygulanır' cümlesi yanlış genelleme: kaydırma yalnız Perde I-II başı için geçerli; Perde III-IV tarihleri (3 Ağustos ferman, 25 Eylül Niğbolu) F2-02 tablosunda kaymadan duruyor, Ramazan segmenti de +1 ay değil (8-10 Haziran → g68-70 ≈ 7-9 Haziran). Cümleyi 'tam eşleme yalnız F2-02 tablosudur; Ç1 metni ile tablo çelişirse tablo geçerlidir' olarak netleştir — aksi hâlde Ç1'i tek başına okuyan geliştirici Perde III-IV'ü Ekim'e kaydırır."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "01-akış §1.1'in 'Net hedef' ayağının yarısı plansız: 3 katmanlı hedef HUD'unun 'Sefer' katmanı F3-07'de (Hazırlık Defteri) var, ama 'Bugün' katmanı (sabah divanında verilen 2-3 işin HUD listesi) ve g1 sonrası HER GÜN tekrarlanan sabah divanı sahnesi için hiçbir F-kalemi yok (F1-16 yalnız 1. gün açılışını, F2-09 yalnız arzuhal sunumunu kapsıyor). Döngü B'nin 1. adımı sahipsiz — Faz 2'ye küçük bir iş kalemi (şafakta kethüda günün işlerini sayar + HUD 'Bugün' satırı) eklenmesi Hedef-1'in 'boşta kalmama' formülünü tamamlar."
+   },
+   {
+    "doc": "GENEL",
+    "suggestion": "Analizin engagement bulgusu 'at üstünde savaş yok — oyunun adını verdiği fantezi kapalı' (Player.js:115 isRiding→false; piercing×1.6 çarpanı ölü dal) hiçbir dokümanda ele alınmamış. Ayrıca F3-06'nın 'atlı geçiş' talim aşaması bu bloğa çarpabilir: TrainingSystem'in atlı drilli saldırı girdisi istiyorsa geliştirici çıkmaza girer. F3-06 tarifine açık not ekleyin ('atlı drill isRiding+hız ile ölçülür, saldırı girdisi istemez') ve atlı kılıç savurmayı en azından Faz 5/sonrası için bilinçli kapsam-dışı kararı olarak Bölüm 11.3'e yazın — sessiz boşluk bırakmayın."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "F2-09'un 'cevapsız arzuhalde ertesi şafak hasPendingMessenger gerçek köylü NPC'sini oyuncuya koşturur' vaadi (01 §2.5'in 'vaat edilen sahne gerçekten oynanır' maddesi) için Faz 2 kabul listesinde ve test gereksinimlerinde hiçbir madde yok — yalnız reset bayrağı test ediliyor. Kabul maddesi ekleyin: 'arzuhal 1 gün cevapsız bırakılınca ertesi şafak bir köylü oyuncuya koşup yaklaşıyor ve etkileşimde arzuhali hatırlatıyor'."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "Pusula görev iğnesi (updateCompassWaypoint) statik targetPos kullanmaya devam ediyor; F0-05 yalnız NPC üstü [GÖREV] rozetini canlı konuma bağlıyor. Öğle/namaz saatlerinde NPC işyerinden ayrıldığında pusula yine boş noktayı gösterecek (playerTrace dk 25-33 kafası kısmen çözülmüş olur). F0-03 veya F1 paketine küçük ek: 'talk' tipli hedeflerde getActiveTargetInfo targetPos yerine hedef NPC'nin anlık pozisyonunu döndürsün."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "Faz 1 kabul listesinde F1-08 (pusula şeridi harfleri), F1-13 (getNearbyNPC en-yakın) ve F1-15 (mikro-metin) için açık madde yok; yalnız evrensel D2'ye bırakılmış. Denetçinin tek listeden işaretleyebilmesi için üç kısa kabul maddesi eklenmesi (şeritte yön harfleri akıyor; iki NPC yan yanayken E hep yakındakini açıyor; 'İrfan eden ameleler' grep=0) tutarlılığı artırır."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "Duman testi adım 5 ('Su İhtilafı: Değirmenci ile iki hedef diyalogdan tamamlanıyor') F3-08'in yeniden tasarımından (ark incele ×2 + sınır taşı iz sür + 3 çözüm yolu) sonra eskiyecek — Faz 3 kapanışından itibaren adım 5'in güncellenmiş hâli 06'ya yazılmalı, yoksa denetçi Faz 3+ duman testinde eski davranışı arar."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "F0-02 Değirmenci Musa (-45,22) nehir kıyısına yerleşiyor; getTerrainHeight orada -0.4 çukur bildirirken zemin düz olduğundan (analiz: 'üç sistem üç farklı zemin') NPC 0.4m gömülü durabilir — kısa vadeli düzeltme (P2-16: getTerrainHeight'ı 0'a sabitle, 30 dk) F5-04'te. Bu tek satırlık işi F0-02 ile birlikte öne almak, kurtarılan amiral-gemisi görevin ilk izlenimini korur."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "Analiz engagement bulgusu 'haramiler kovalamayı bırakınca kampa dönmüyor, devriye atmıyor — kamp keşfedilene dek pasif içerik' hiçbir faza girmemiş. F3-08'in 'önce iz sür' varyantı kampı hedefliyorsa küçük bir kamp-dönüş/devriye davranışı (NPCManager düşman güncellemesine 2 durum) iz sürme görevini görsel olarak destekler; en azından bilinçli kapsam-dışı olarak kaydedilmeli."
+   }
+  ]
+ },
+ {
+  "verdict": "düzeltmeyle-onay",
+  "blockingIssues": [
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "issue": "Ç5(b) din-kelime grep listesi 'dua' kelimesini içeriyor, ancak 02-mizah'ın humor.js'e BİREBİR girecek havuzlarında en az 4 satır 'dua' geçiyor: 3-f/1 ('buğday zaten duayla bitiyor' — taxReactions.high), 3-i/8 ('Talimi zor, gerisi dua.' — plazaPairs), 3-m/1 ('duan olur mu') ve 3-m/3 ('duanı eksik etme') — fallbackVillagerLines. 06 nihai olduğu için geliştirici ya şema testini kıracak ya da 'içerik birebir kopyalanır' kuralını ihlal edecek; ayrıca F4-07, Ç5'ten farklı (dua'sız) grep listesi veriyor — aynı fazda iki farklı kabul ölçütü.",
+    "fix": "Bölüm 1 Ç5'e netleştirme ekle: grep listesi 02 §7.2 listesiyle (dua'sız: imam|molla|namaz|ezan|ayet|hadis|mescid|zemzem|günah|melek) TEKLEŞTİRİLİR ve F4-07 ile aynı liste kullanılır; 'dua' kelimesi saygılı halk kalıbı olarak mizah havuzlarında serbesttir (manuel okuma denetimine tabidir). Alternatif tercih edilirse: 4 satır dua'sız yeniden yazılıp 02'ye işlenir — iki çözümden biri açıkça karara bağlanmalı."
+   },
+   {
+    "doc": "03-tarih-egitimi.md",
+    "issue": "§5.2 Anı 1 (1361 Edirne) 'Genç akıncıydım, sakalım yeni terlemişti' cümlesi, §4.6'daki yaş revizyonuyla (\"Seksenime merdiven dayadım\" → doğum ~1316-17 → Edirne fethinde ~45 yaş) matematiksel olarak çelişiyor. §4.6 kabul kriteri denetçiye 'yılları toplayarak kontrol et' dediği için bu satır kabulde otomatik kalır; 'sakalı yeni terlemek' 15-18 yaş demektir, 45 değil.",
+    "fix": "Anı 1 açılışı yaş tablosuyla uyumlu hâle getirilsin, ör.: 'Gördüm ya... Kırkımı süren dinç bir akıncıydım o vakit.' — geri kalan metin (Sazlıdere, Lala Şahin, aman ile fetih) aynen kalır. §4.6 tablosuna Edirne satırı için beklenen yaş (~45) açıkça yazılsın."
+   },
+   {
+    "doc": "03-tarih-egitimi.md",
+    "issue": "Anakronizm: H-3 havadisi (Nisan 1396) ve §5.3 İmam V2 metni Jean de Nevers'i savaştan AYLAR ÖNCE 'Korkusuz (Sans Peur)' lakabıyla anıyor; lakap Niğbolu'daki tutumuyla/sonrasında verilmiştir. A-etiketli havadis kanalında yanlış öğretim — dokümanın kendi 6.1/3 anakronizm kuralını ihlal ediyor.",
+    "fix": "H-3'te 'Korkusuz diyorlarmış' ibaresi kaldırılsın ('Burgonya dükünün oğlu Jean' yeterli); V2'de aynı düzeltme. İstenirse K-38 kodeks maddesine tek cümle eklensin: 'Jean, Niğbolu'daki cüretinden ötürü sonradan Korkusuz (Sans Peur) diye anılacaktır (B).' — böylece bilgi kaybolmaz, kronoloji doğru öğretilir."
+   },
+   {
+    "doc": "04-islami-icerik.md",
+    "issue": "§2.2.3 hutbe tablosu H6 dayanağı yanlış tahriçli: 'komşusu açken tok yatan' rivayeti Sahîh-i Müslim'de (Îmân) DEĞİLDİR; Taberânî/Hâkim ve Buhârî'nin el-Edebü'l-Müfred'inde geçer ve Kütüb-i Sitte sahihi şartını (dokümanın kendi 1.1/2 kuralı) karşılamaz. P1 protokolü uygulandığında bu hutbe RED yer; geliştirici çözümsüz kalır.",
+    "fix": "H6 dayanağı Kütüb-i Sitte'deki sahih komşuluk hadisiyle değiştirilsin: 'Allah'a ve ahiret gününe iman eden komşusuna ikram etsin' (Buhârî, Edeb; Müslim, Îmân). 'Komşusu açken tok yatan' teması kullanılacaksa hutbe metninde hadis diye değil 'ulema öğüdü' olarak, kaynak alanı buna göre (Edebü'l-Müfred, hasen notu) yazılsın."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "issue": "Ramazan Bayramı (g98-100) F2-02 perde takviminde Atlama#3 penceresine (g70→g125) düşüyor, yani bu günler asla oynanmıyor. Buna rağmen F4-16, 04 §2.4.3'ün oynanır-gün varsayan içeriğine (3 gün çizelge değişimi, NPC bayramlaşma diyalogları) atıf yapıyor ve 04'ün kabul kriterleri R1 ('98. günde Şevval 1 + bayram rozeti HUD'da') ile R3 ('bayram günlerinde WORKING regular NPC yok') normal oyunda doğrulanamaz — denetçi 12/2 kuralı gereği 04'ün kendi kabul serisini de uygulayacağından kabul kilitlenir; geliştirici ulaşılmaz içerik üretir.",
+    "fix": "Bölüm 1'e Ç16 eklensin: 'Ramazan Bayramı yalnız Atlama#3 kartında bayramlaşma vinyeti + kodeks K19 açılışı olarak uygulanır; 04 §2.4.3'ün köy-sahnesi çizelge değişimi ve NPC bayram selam varyantları oynanır bayram günü olan Kurban Bayramı'na (g167 ordugâh bağlamı hariç, serbest-oyun moduna) devredilir; 04 R1/R3 kabulü debug gün-atlama komutuyla doğrulanır' — veya perde takvimi bayramın ilk gününü (g98) oynanır gün yapacak şekilde revize edilsin (Atlama#3 g70→g98, Atlama#3b g100→g125)."
+   },
+   {
+    "doc": "05-teknik-plan.md",
+    "issue": "Hukuk paketinde kritik boşluk: P2-50 ve 06 F0-01 'depo git deposu değil, git init yapılacak' varsayımına dayanıyor; oysa depo HÂLİHAZIRDA git deposu ve commit geçmişinde Stan Lee modeli fiilen var ('stanlee3d.zip modeli Koca Yakub karakterine giydirildi', 'Flying.fbx ... entegre edildi' commit'leri mevcut). §3.1'in 'dosyaları sil + grep 0' planı çalışma kopyasını temizler ama 29MB stanlee3d.obj, Flying.fbx (Mixamo, lisans belgesiz) ve kopya OBJ'ler git geçmişinde kalır; depo herhangi bir yere push/yayın edilirse kişilik hakkı/lisans riski aynen sürer.",
+    "fix": "P2-50/F0-01 'mevcut depo doğrulanır ve baseline etiketlenir' olarak güncellensin. §3.1'e ve F0-09'a zorunlu adım eklensin: dağıtım/push öncesi git history temizliği (git filter-repo veya BFG ile stanlee3d.*, stanlee_extracted/, Flying.fbx ve lisanssız kalan OBJ'lerin geçmişten çıkarılması) VEYA temiz yeni depo ile yeniden başlatma; kabul kriteri: 'git log --all -S \"stanlee\" → 0 sonuç' + geçmişte silinen büyük varlıkların pack boyutu doğrulaması."
+   }
+  ],
+  "improvements": [
+   {
+    "doc": "02-mizah-ve-diyalog.md",
+    "suggestion": "§3-b guard_talk 1. açılış repliği 'Dur! Kim var?.. Tamam- tanıdım beyim' — 'tamam' burada tam da §1.2'nin yasakladığı onay ünlemi (7.2 grep'i 'tamam!' kalıbı olduğu için yakalamaz ama kural metni ihlal edilir; denetçi manuel okumada takılır). 'Ha— tanıdım beyim' veya 'Dur! Kim va—.. tanıdım beyim' yapılsın."
+   },
+   {
+    "doc": "02-mizah-ve-diyalog.md",
+    "suggestion": "§3-a saka_talk 'sakalık' dalında 'Temizlik imanın yarısıdır' hadisini içeren düğümün hemen altındaki oyuncu seçeneği mizahi ('Öyleyse ücretine zam gerek 🙂'). Espri ücrete yöneliyor, hadise değil; yine de 04 §5.1 P4 süzgecinin ruhu gereği hadis cümlesi ayrı, yalnız ciddi cevaplı bir alt dala taşınırsa ilahiyat dış denetiminde tartışma sıfırlanır."
+   },
+   {
+    "doc": "04-islami-icerik.md",
+    "suggestion": "K2 Abdest maddesindeki \"'mü'minin silahı ve nurudur' denilmiştir\" ifadesi zayıf/uydurma dolaşımlı bir söze ('el-vudûu silâhu'l-mü'min') yaslanıyor; 'denilmiştir' hedge'i A-etiketli maddede yeterli koruma değil. Sahih çerçeveyle değiştirilsin: 'Temizlik imanın yarısıdır' (Müslim) ve abdest uzuvlarının kıyamette nurlu olacağı (Buhârî/Müslim) rivayetleri."
+   },
+   {
+    "doc": "03-tarih-egitimi.md",
+    "suggestion": "Takvim sistemi tutarlılığı: K-33 Kosova '28 Haziran 1389' (Gregoryen karşılık/Vidovdan) verirken Niğbolu '25 Eylül 1396' (Jülyen) veriliyor. Türkçe literatürde iki kullanım da yaygın ama aynı kodeks içinde karışık; K-33'e '(Jülyen takvimle 15 Haziran)' notu eklenmesi veya tüm tarihlerde tek sistem beyanı önerilir."
+   },
+   {
+    "doc": "03-tarih-egitimi.md",
+    "suggestion": "§4.13'ün index.html:359 ikame metni ('Erken Osmanlı Tımar Simülasyonu — 1396') ile 05 §3.3 / 06 F0-09 metni ('1396 Niğbolu Dönemi Osmanlı Tımar Simülasyonu') farklı. F0-09 esas alınarak §4.13 güncellenmeli; aksi hâlde iki dokümanın grep-kabulü birbirini tutmaz."
+   },
+   {
+    "doc": "05-teknik-plan.md",
+    "suggestion": "P1-05 Gemini düzeltmesine iki ek denetim maddesi: (a) repo çalışma kopyası VE commit geçmişinde API anahtarı taraması (git log -p üzerinde 'AIza' kalıbı vb.), (b) anahtarın kayıt dosyasına (SaveManager serialize) ve konsol loglarına asla yazılmaması kuralı + test."
+   },
+   {
+    "doc": "04-islami-icerik.md",
+    "suggestion": "Diyanet meali birebir aktarım telif notu: Diyanet Kur'an meali telifli bir eserdir; ticari oyunda 15+ kısa meal iktibası FSEK iktibas sınırında savunulabilir olsa da, ASSETS.md/ISLAMIC_CONTENT_AUDIT.md'ye 'meal iktibasları kaynak gösterimiyle sınırlı tutuldu; yayın öncesi kapsam hukuk kontrolünden geçirilecek' satırı eklensin (Faz 5 yayın kapısına bağlanabilir)."
+   },
+   {
+    "doc": "05-teknik-plan.md",
+    "suggestion": "P1-19'daki `reason==='stoning_linch'` referansı, F0-12'nin taşlanma kurgusunu kadı-azil ile değiştirmesinden sonra bayat kalıyor; yeni reason kodu (ör. 'kadi_azil') tek yerde tanımlanıp P1-19 ve F0-12 metinleri hizalanmalı."
+   },
+   {
+    "doc": "04-islami-icerik.md",
+    "suggestion": "§4.2/3'te Ali'nin aktardığı 'gazinin eksiği, kıyamette şahididir' sözü hoca ağzından bir teselli kalıbı; hadis zannedilmemesi için islamicContent kaydında confidence 'C' (dönem üslubu/teselli sözü) olarak etiketlenmeli ve AUDIT dosyasında bu şekilde işaretlenmeli."
+   },
+   {
+    "doc": "01-akis-ve-tutundurma.md",
+    "suggestion": "§2.3 tablosundaki 'ordugâhta bayram namazı + kurban sahnesi' ifadesi, 04 R11 (kurban kesim mekaniği yasak) ve F4-16 (yalnız vinyet) ile okunduğunda kafa karıştırabilir; satıra '(vinyet — kesim mekaniği yok, bkz. 04 §2.4.3)' notu düşülsün."
+   },
+   {
+    "doc": "06-fazlar-ve-kabul.md",
+    "suggestion": "Yaş kitlesi dengesi genel olarak iyi kurulmuş (şehitlik K15 çerçevesi, infazların ihtilaf kaydıyla ve gösterisiz verilmesi, linç kurgusunun kadı süreciyle değişmesi). Yine de Rahova katliamı ve esir infazı temaları nedeniyle F5-09 yayın kapısına bir 'içerik derecelendirme değerlendirmesi' (PEGI/ESRB karşılığı yaş bandı beyanı) maddesi eklenmesi önerilir."
+   }
+  ]
+ }
+]
