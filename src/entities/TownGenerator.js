@@ -20,6 +20,7 @@ export class TownGenerator {
     this.interactables = [];
     this.damageables = [];
     this.archeryTargets = [];
+    this.villageBuildings = [];
     this.horseEntity = null;
   }
 
@@ -92,6 +93,7 @@ export class TownGenerator {
       interactables: this.interactables,
       damageables: this.damageables,
       archeryTargets: this.archeryTargets,
+      villageBuildings: this.villageBuildings,
       horse: this.horseEntity
     };
   }
@@ -178,12 +180,14 @@ export class TownGenerator {
     mosque.position.set(12, 0, -4);
     this.scene.add(mosque);
     this.addCollider(12, -4, 14, 14);
+    this.villageBuildings.push({ id: 'mescid', name: 'Ulu Mescid', type: 'İbadethane', desc: 'Cuma ve vakit namazlarının kılındığı kutsal mekân.', x: 12, z: -4, radius: 15, color: '#38bdf8' });
 
     // Mermer Şadırvan & Su Havuzu (x: -8, z: 4)
     const fountain = this.modelBuilder.createVillageFountain();
     fountain.position.set(-8, 0, 4);
     this.scene.add(fountain);
     this.addCollider(-8, 4, 3.5, 3.5);
+    this.villageBuildings.push({ id: 'sadirvan', name: 'Köy Şadırvanı', type: 'Meydan', desc: 'Ahalinin abdest aldığı mermer çeşme.', x: -8, z: 4, radius: 8, color: '#38bdf8' });
 
     // Mescid Yanı Hazire (Tarihi Servi Ağaçlı Osmanlı Mezarlığı: x: 25, z: -6)
     const hazireGroup = new THREE.Group();
@@ -219,6 +223,7 @@ export class TownGenerator {
     mansion.position.set(0, 0, -32);
     this.scene.add(mansion);
     this.addCollider(0, -32, 16, 14);
+    this.villageBuildings.push({ id: 'konak', name: 'Sipahi Konağı', type: 'İdare', desc: 'Köy Beyinin ikametgâhı ve divan yeri.', x: 0, z: -32, radius: 15, color: '#e6c66e' });
 
     // At Tavlası & Samanlık (Konağın Sol Yanı: x: -14, z: -30)
     const stable = new THREE.Group();
@@ -432,6 +437,8 @@ export class TownGenerator {
     wheelGroup.name = 'waterMillWheel';
     millGroup.add(millBase, millRoof, wheelGroup);
 
+    this.villageBuildings.push({ id: 'degirmen', name: 'Su Değirmeni', type: 'Ziraat', desc: 'Buğdayların un edildiği nehir değirmeni.', x: -48, z: 22, radius: 10, color: '#a3e635' });
+
     // 3. Kırık Taş Su Bendi (Broken Weir / Dam)
     const damGroup = new THREE.Group();
     for (let i = 0; i < 6; i++) {
@@ -489,6 +496,7 @@ export class TownGenerator {
     this.addCollider(-16, 31, 11, 4);  // Arka duvar
     this.addCollider(-21, 27, 2, 8);   // Sol duvar
     this.addCollider(-11, 27, 2, 8);   // Sağ duvar
+    this.villageBuildings.push({ id: 'han', name: 'Köy Hanı', type: 'Ticaret', desc: 'Yolcuların konakladığı ve Hancı İdris\'in çalıştığı yer.', x: -16, z: 28, radius: 12, color: '#f59e0b' });
 
     // Hancı İdris'in Açık Tezgâhı & Aşevi Kazanı (x: -10, z: 21.5)
     const counter = new THREE.Mesh(
@@ -579,6 +587,7 @@ export class TownGenerator {
     this.scene.add(windmill);
     this.addCollider(48, -38, 9, 9);
     this.animatedObjects.push(windmill);
+    this.villageBuildings.push({ id: 'yeldegirmeni', name: 'Yel Değirmeni', type: 'Ziraat', desc: 'Rüzgar gücüyle çalışan köy değirmeni.', x: 48, z: -38, radius: 10, color: '#a3e635' });
 
     // Çitlerle Çevrili Geniş Buğday Tarlaları (x: 55, z: 35 to 85)
     const farmCenter = { x: 55, z: 50 };
@@ -731,6 +740,8 @@ export class TownGenerator {
     this.addCollider(hamamX, hamamZ - 7, 16, 1.5); // Kuzey
     this.addCollider(hamamX - 5, hamamZ + 7, 6, 1.5); // Güney Sol
     this.addCollider(hamamX + 5, hamamZ + 7, 6, 1.5); // Güney Sağ
+    
+    this.villageBuildings.push({ id: 'hamam', name: 'Osmanlı Hamamı', type: 'Sıhhat', desc: 'Kubbesi ve kurnalarıyla ahaliye şifa dağıtan umumi hamam.', x: hamamX, z: hamamZ, radius: 15, color: '#38bdf8' });
   }
 
   // ---------------------------------------------------------------------------
@@ -827,6 +838,8 @@ export class TownGenerator {
     this.addCollider(castleX - 30, castleZ - 17, 2, 26); // W1
     this.addCollider(castleX - 30, castleZ + 17, 2, 26); // W2
     this.addCollider(castleX + 10, castleZ, 20, 20); // Keep
+    
+    this.villageBuildings.push({ id: 'kale', name: 'Sancak Kalesi', type: 'Askeri', desc: 'Dizdar Hamza Bey\'in savunduğu sınır kalesi.', x: castleX, z: castleZ, radius: 25, color: '#f59e0b' });
   }
 
   /**

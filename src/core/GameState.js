@@ -9,6 +9,7 @@ export class GameState {
   reset() {
     this.daysPassed = 1;
     this.currentPetition = null; // Aktif onay bekleyen arzuhal
+    this.customWaypoint = null; // Haritada işaretlenen özel hedef
 
     // Prosedürel İsim & Tımar Havuzu
     const sipahiNames = [
@@ -116,6 +117,9 @@ export class GameState {
     };
 
     // Gazi Cebelü Ali - Kopan Bacak & Hayatta Tutma Durumu
+    this.dailyTasks = [];
+    this.historicalNews = [];
+    this.hasPendingMessenger = false;
     this.aliStatus = {
       isWounded: false,
       legSevered: false,
@@ -178,6 +182,11 @@ export class GameState {
     };
 
     this.notifications = [];
+  }
+
+  setCustomWaypoint(targetInfo) {
+    // targetInfo: { x, z, name } veya null
+    this.customWaypoint = targetInfo;
   }
 
   modifyAsayis(amount) {

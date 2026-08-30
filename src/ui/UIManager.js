@@ -227,6 +227,36 @@ export class UIManager {
       });
     }
 
+    // Map Tabs & Village Map Interaction
+    if (this.dom.tabCampaign && this.dom.tabVillage) {
+      this.dom.tabCampaign.addEventListener('click', () => {
+        this.dom.campaignMapView.classList.remove('hidden');
+        this.dom.villageMapView.classList.add('hidden');
+        this.dom.tabCampaign.classList.add('gold-btn');
+        this.dom.tabVillage.classList.remove('gold-btn');
+      });
+      this.dom.tabVillage.addEventListener('click', () => {
+        this.dom.villageMapView.classList.remove('hidden');
+        this.dom.campaignMapView.classList.add('hidden');
+        this.dom.tabVillage.classList.add('gold-btn');
+        this.dom.tabCampaign.classList.remove('gold-btn');
+        this.renderVillageMap();
+      });
+    }
+    if (this.dom.villageMapCanvas) {
+      this.dom.villageMapCanvas.addEventListener('click', (e) => this.handleVillageMapClick(e));
+    }
+    if (this.dom.btnSetWaypoint) {
+      this.dom.btnSetWaypoint.addEventListener('click', () => {
+        if (this.selectedVillageBuilding) {
+          gameState.setCustomWaypoint(this.selectedVillageBuilding);
+          gameState.addNotification(`${this.selectedVillageBuilding.name} hedeflendi. Pusulayı takip et.`, 'info');
+          this.toggleMapModal(false);
+          this.updateHUD();
+        }
+      });
+    }
+
     // Menâkıbnâme Kategori Sekmeleri
     const codexTabs = document.querySelectorAll('.codex-tab');
     codexTabs.forEach(tab => {
@@ -995,6 +1025,140 @@ export class UIManager {
     });
   }
 
+  renderVillageMap() {
+    if (!this.dom.villageMapCanvas) return;
+    const canvas = this.dom.villageMapCanvas;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Arka Plan
+    ctx.fillStyle = '#dfd2be'; // Parşömen sarısı/bej
+    ctx.fillRect(0, 0, w, h);
+    
+    // Köy sınırlarını çizelim
+    ctx.strokeStyle = 'rgba(139, 30, 30, 0.2)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(w/2, h/2, 220, 0, Math.PI*2);
+    ctx.stroke();
+
+    // Referans Çizgiler
+    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+    ctx.beginPath();
+    ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h);
+    ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
+    ctx.stroke();
+
+    // Binaları çiz (window.townGenerator üzerinden)
+    if (window.townGenerator && window.townGenerator.villageBuildings) {
+      const buildings = window.townGenerator.villageBuildings;
+      const mapScale = 2.5; // 3D dünyadaki X/Z birimini piksellere çevirir
+
+      // Hedeflenen binayı belirginleştir
+      const targetWaypoint = gameState.customWaypoint;
+
+      buildings.forEach(b => {
+        const cx = w/2 + (b.x * mapScale);
+        const cz = h/2 + (b.z * mapScale); // 3D'de Z derinliktir, burada Y olarak kullanıyoruz
+        const r = (b.radius || 8) * mapScale * 0.8; // Görsel boyutlandırma
+
+        ctx.beginPath();
+        if (b.type === 'Sıhhat') ctx.arc(cx, cz, r, 0, Math.PI*2);
+        else ctx.rect(cx - r, cz - r, r*2, r*2);
+        
+        ctx.fillStyle = b.color || '#5c4e3a';
+        ctx.fill();
+
+        ctx.strokeStyle = '#2b2112';
+        ctx.lineWidth = 2;
+        if (this.selectedVillageBuilding && this.selectedVillageBuilding.id === b.id) {
+          ctx.strokeStyle = '#ffffff'; // Seçili yapı
+          ctx.lineWidth = 4;
+        } else if (targetWaypoint && targetWaypoint.id === b.id) {
+          ctx.strokeStyle = '#e6c66e'; // Hedef işaretli yapı
+          ctx.lineWidth = 3;
+          ctx.setLineDash([5, 3]);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Çatıyı belirten çapraz çizgiler (dikdörtgen yapılarda)
+        if (b.type !== 'Sıhhat') {
+           ctx.beginPath();
+           ctx.moveTo(cx - r, cz - r); ctx.lineTo(cx + r, cz + r);
+           ctx.moveTo(cx + r, cz - r); ctx.lineTo(cx - r, cz + r);
+           ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+           ctx.lineWidth = 1;
+           ctx.stroke();
+        }
+
+        // İsim Etiketi
+        ctx.font = 'bold 11px Arial';
+        ctx.fillStyle = '#111';
+        ctx.textAlign = 'center';
+        ctx.fillText(b.name, cx, cz - r - 6);
+      });
+      
+      // Player konumunu (Kırmızı Ok) çizelim
+      if (window.player) {
+         const px = w/2 + (window.player.position.x * mapScale);
+         const pz = h/2 + (window.player.position.z * mapScale);
+         
+         ctx.fillStyle = '#e6c66e'; // Altın rengi
+         ctx.beginPath();
+         ctx.arc(px, pz, 6, 0, Math.PI*2);
+         ctx.fill();
+         ctx.strokeStyle = '#8b1e1e';
+         ctx.lineWidth = 2;
+         ctx.stroke();
+         
+         ctx.font = 'bold 10px Cinzel';
+         ctx.fillStyle = '#8b1e1e';
+         ctx.fillText('SEN', px, pz + 16);
+      }
+    }
+  }
+
+  handleVillageMapClick(e) {
+    if (!window.townGenerator || !window.townGenerator.villageBuildings) return;
+    const canvas = this.dom.villageMapCanvas;
+    const rect = canvas.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+    const w = canvas.width;
+    const h = canvas.height;
+    const mapScale = 2.5;
+
+    let found = null;
+    window.townGenerator.villageBuildings.forEach(b => {
+      const cx = w/2 + (b.x * mapScale);
+      const cz = h/2 + (b.z * mapScale);
+      const r = (b.radius || 8) * mapScale * 0.8;
+      
+      // Basit bounding box / circle çarpışma tespiti
+      if (Math.abs(clickX - cx) <= r && Math.abs(clickY - cz) <= r) {
+        found = b;
+      }
+    });
+
+    if (found) {
+      this.selectedVillageBuilding = found;
+      this.dom.villageBuildingTitle.textContent = found.name;
+      this.dom.villageBuildingDesc.textContent = found.desc;
+      this.dom.villageBuildingType.textContent = found.type;
+      this.dom.villageBuildingMeta.classList.remove('hidden');
+      this.dom.btnSetWaypoint.classList.remove('hidden');
+    } else {
+      this.selectedVillageBuilding = null;
+      this.dom.villageBuildingTitle.textContent = 'Köy Krokisi';
+      this.dom.villageBuildingDesc.textContent = 'Haritadan bir yapı seçerek detaylarını görebilir ve oraya gitmek için işaret koyabilirsin.';
+      this.dom.villageBuildingMeta.classList.add('hidden');
+      this.dom.btnSetWaypoint.classList.add('hidden');
+    }
+    this.renderVillageMap();
+  }
+
   showBattleResult(result) {
     this.dom.battleResultTitle.textContent = result.title;
     this.dom.battleResultSubtitle.textContent = result.subtitle;
@@ -1064,6 +1228,48 @@ export class UIManager {
       this.dom.compassWaypointMarker.style.left = `calc(50% + ${side}px)`;
       this.dom.compassWaypointText.textContent = `${arrow} ${targetInfo.distance}m`;
     }
+  }
+
+  updateCustomWaypointNavigator(playerPos, playerYaw) {
+    if (!this.dom.waypointNavigator) return;
+
+    if (!gameState.customWaypoint) {
+      this.dom.waypointNavigator.classList.add('hidden');
+      return;
+    }
+
+    const cw = gameState.customWaypoint;
+    const dx = cw.x - playerPos.x;
+    const dz = cw.z - playerPos.z;
+    const dist = Math.hypot(dx, dz);
+    
+    // Eğer hedefe varılmışsa (5m mesafe)
+    if (dist < 5) {
+      this.dom.waypointNavigator.classList.add('hidden');
+      gameState.setCustomWaypoint(null);
+      gameState.addNotification(`${cw.name} hedefine ulaştın.`, 'success');
+      try { soundManager.playNotification(); } catch (e) {}
+      return;
+    }
+
+    this.dom.waypointNavigator.classList.remove('hidden');
+    this.dom.waypointName.textContent = cw.name;
+    this.dom.waypointDist.textContent = `${Math.floor(dist)}m`;
+
+    const angleToTarget = Math.atan2(dx, dz);
+    let angleDiff = angleToTarget - playerYaw;
+
+    // Normalize -PI to PI
+    while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+    while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+
+    // Arrow pointing rotation (angleDiff to degrees)
+    // -angleDiff because in CSS, positive rotation is clockwise.
+    // the arrow is '➤', which points right (0 degrees normally, but here let's rotate it so 0 is up or we just rotate accordingly)
+    // ➤ is normally pointing right. So if it needs to point forward (up), we rotate -90.
+    // Here we can just use transform rotate.
+    const deg = (angleDiff * 180) / Math.PI;
+    this.dom.waypointArrow.style.transform = `rotate(${-deg - 90}deg)`;
   }
 
   updateMinimap(playerPos, playerYaw, npcs = [], enemies = []) {
@@ -1311,6 +1517,7 @@ export class UIManager {
     this.updateCompass(playerYaw);
     if (playerPos) {
       this.updateCompassWaypoint(playerPos, playerYaw);
+      this.updateCustomWaypointNavigator(playerPos, playerYaw);
     }
 
     // 2. Taktik Mini-Harita (Radar)

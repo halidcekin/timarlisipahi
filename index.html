@@ -134,6 +134,14 @@
 
     <!-- Sağ Alt: Mini Harita & Kısayol Tuş Rehberi -->
     <div class="bottom-right-container">
+      <div id="waypoint-navigator" class="hidden" style="background: rgba(20, 15, 10, 0.9); border: 2px solid #e6c66e; border-radius: 6px; padding: 8px 12px; margin-bottom: 10px; color: white; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">
+        <div id="waypoint-arrow" style="font-size: 24px; transform-origin: center; transition: transform 0.1s linear; color: #e6c66e; text-shadow: 0 0 5px #000;">➤</div>
+        <div style="display: flex; flex-direction: column;">
+          <span id="waypoint-name" style="font-family: 'Cinzel', serif; font-weight: bold; font-size: 14px;">Hedef</span>
+          <span id="waypoint-dist" style="font-size: 12px; opacity: 0.9;">0m</span>
+        </div>
+      </div>
+
       <div class="minimap-wrapper">
         <div class="minimap-header">
           <span class="radar-icon">🧭</span> TAKTİK RADAR
@@ -256,7 +264,12 @@
         <button id="map-close-btn" class="close-btn">✕</button>
       </div>
 
-      <div class="map-body-grid">
+      <div class="map-tabs" style="display: flex; gap: 10px; padding: 10px 20px; border-bottom: 2px solid #c9b48c; background: rgba(0,0,0,0.2);">
+        <button id="tab-campaign" class="parchment-btn gold-btn" style="flex: 1; margin:0;">🗺️ Sancak (Makro)</button>
+        <button id="tab-village" class="parchment-btn" style="flex: 1; margin:0;">🏡 Köy Krokisi (Mikro)</button>
+      </div>
+
+      <div id="campaign-map-view" class="map-body-grid">
         <div class="map-canvas-container">
           <canvas id="campaign-map-canvas" width="800" height="500"></canvas>
         </div>
@@ -277,6 +290,22 @@
             <button id="btn-travel-castle" class="travel-btn">🏰 Sancak Kalesi</button>
             <button id="btn-travel-forest" class="travel-btn">🌲 Orman Harami Sığınağı</button>
           </div>
+        </div>
+      </div>
+
+      <div id="village-map-view" class="map-body-grid hidden">
+        <div class="map-canvas-container" style="background:#dfd2be; border-radius:4px; overflow:hidden; position: relative;">
+          <canvas id="village-map-canvas" width="800" height="500" style="cursor: crosshair;"></canvas>
+        </div>
+        
+        <div class="campaign-sidebar">
+          <h3 id="village-building-title" style="color:#8b1e1e;">Köy Krokisi</h3>
+          <p id="village-building-desc">Haritadan bir yapı seçerek detaylarını görebilir ve oraya gitmek için işaret koyabilirsin.</p>
+          <div class="campaign-req-box hidden" id="village-building-meta" style="margin-top:15px; padding:10px; background:rgba(0,0,0,0.05); border:1px dashed #8b1e1e;">
+            <span>Sınıfı:</span>
+            <strong id="village-building-type" style="color:#1d4e70;">-</strong>
+          </div>
+          <button id="btn-set-waypoint" class="parchment-btn gold-btn full-btn hidden" style="margin-top:20px;">📍 BURAYA GİT</button>
         </div>
       </div>
     </div>
