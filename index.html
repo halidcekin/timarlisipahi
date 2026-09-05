@@ -212,6 +212,7 @@
           <div class="data-row"><span>Beyin Teçhizatı:</span><strong id="tb-equipment">Şam Çeliği Kılıç & Zırh</strong></div>
           <div class="data-row"><span>Savaş Atı Cinsi:</span><strong id="tb-horse-type">Karayağız Türkmen Atı</strong></div>
           <div class="data-row highlight"><span>Köy Asayişi / Moral:</span><strong id="tb-morale">85% / 80%</strong></div>
+          <div class="data-row highlight"><span>Niğbolu Sefer Hazırlığı:</span><strong id="tb-expedition-prep" style="color: #8b1e1e;">%90 (Cebelü & Erzak Tam)</strong></div>
         </div>
       </div>
 
@@ -415,12 +416,55 @@
     </div>
   </div>
 
+  <!-- TALİM GÖSTERGESİ (TRAINING HUD PANEL) -->
+  <div id="training-hud-panel" class="hud-panel hidden" style="position: absolute; top: 75px; left: 50%; transform: translateX(-50%); min-width: 320px; background: rgba(20, 15, 10, 0.92); border: 2px solid #e6c66e; border-radius: 8px; padding: 10px 16px; color: #fff; z-index: 95; text-align: center; box-shadow: 0 4px 15px rgba(0,0,0,0.6);">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 6px;">
+      <span id="training-hud-icon" style="font-size: 20px;">🥋</span>
+      <strong id="training-hud-title" style="font-family: 'Cinzel', serif; font-size: 15px; color: #e6c66e;">Talim Sahası</strong>
+      <button id="btn-cancel-training" style="background: none; border: none; color: #aaa; font-size: 16px; cursor: pointer; margin-left: auto;" title="Talimi Sonlandır">✕</button>
+    </div>
+    <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 8px; overflow: hidden; margin-bottom: 8px; border: 1px solid rgba(230,198,110,0.3);">
+      <div id="training-hud-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #b8860b, #ffd700); transition: width 0.2s ease;"></div>
+    </div>
+    <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; margin-bottom: 4px;">
+      <span id="training-hud-count" style="color: #ffd700;">İlerleme: 0 / 5</span>
+      <span id="training-hud-score" style="color: #6ed481;">Puan: 0</span>
+    </div>
+    <div id="training-hud-hint" style="font-size: 12px; color: #ddd; font-style: italic;">Talimat bekleniyor...</div>
+  </div>
+
+  <!-- BERATIN MÜHRÜ / SULTAN TUĞRALI TIMAR BERATI MODALI (Perde I / Bölüm 0) -->
+  <div id="imperial-decree-modal" class="modal-backdrop hidden">
+    <div class="parchment-window" style="max-width: 640px; text-align: center;">
+      <div class="parchment-header" style="justify-content: center; position: relative;">
+        <div class="parchment-tughra" style="font-size: 32px;">﷽</div>
+        <h2>SULTAN I. BAYEZİD HAN'IN BERAT-I HÜMAYUNU</h2>
+        <button id="decree-close-btn" class="close-btn" style="position: absolute; right: 15px;">✕</button>
+      </div>
+      <div class="dialogue-body" style="padding: 20px; font-family: 'Amiri', serif; font-size: 16px; line-height: 1.8;">
+        <p style="font-size: 18px; color: #8b1e1e; font-weight: bold; margin-bottom: 12px;">
+          Gazi Murad Bey'e Fermandır:
+        </p>
+        <p style="text-align: justify; text-indent: 20px; margin-bottom: 14px;">
+          "Ma'lum ola ki; Akçaoba karyesi ve tevabi'i, hidmet-i cihad ve gazâ mukabelesinde sana dirlik olarak tevcih kılınmıştır. Toprak senin mülkün değil, Beytülmâl'in ve reayanın emanetidir. Adaletle hükmeyleyesin, zayıfı ezdirmeyesin, öşür ve rüsumu kanun üzere tahsil edip cebelünü vaktinde donatasın. Rumeli Tuna boylarında küffar tuğ çekmektedir; ferman geldiğinde sancağın altında hazır bulunasın!"
+        </p>
+        <div style="background: rgba(139, 30, 30, 0.08); border: 1px dashed #8b1e1e; border-radius: 4px; padding: 10px; font-family: 'Outfit', sans-serif; font-size: 13px; margin-bottom: 15px; text-align: left;">
+          <strong>📜 İlk Vazife:</strong> Köy meydanına var, Kethüda Koca Yakub ile görüşüp defteri teftiş eyle.
+        </div>
+        <button id="btn-accept-decree" class="parchment-btn gold-btn" style="width: 100%; font-family: 'Cinzel', serif; font-size: 15px; padding: 12px;">
+          ⚖️ BERATI MÜHÜRLE & DİRLİĞE ADIM AT
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- AKŞAM HESABI & DİRLİK KAPANIŞ MODALI (V2 Standardı) -->
   <div id="evening-accounting-modal" class="modal-backdrop hidden">
-    <div class="parchment-window" style="max-width: 550px;">
+    <div class="parchment-window" style="max-width: 580px;">
       <div class="parchment-header">
         <div class="parchment-tughra">﷽</div>
         <h2>GÜN SONU AKŞAM HESABI</h2>
+        <button id="evening-close-btn" class="close-btn">✕</button>
       </div>
       <div class="dialogue-body" style="padding: 16px;">
         <div id="evening-day-title" style="font-weight: bold; color: #8b1e1e; margin-bottom: 8px; font-size: 16px;">
@@ -432,22 +476,27 @@
 
         <div style="background: rgba(0,0,0,0.04); border: 1px solid #c9b48c; border-radius: 4px; padding: 10px; margin-bottom: 15px; font-size: 13px;">
           <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
-            <span>💰 Hazine Değişimi:</span>
+            <span>💰 Hazine Durumu:</span>
             <strong id="evening-akce-diff">+250 Akçe</strong>
           </div>
           <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
             <span>⚖️ Reaya Güveni:</span>
             <strong id="evening-trust-diff" style="color: #1e6b2c;">+15 Güven</strong>
           </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+            <span>🛡️ Sefer Hazırlık Derecesi:</span>
+            <strong id="evening-readiness-val">85 / 100</strong>
+          </div>
           <div style="display: flex; justify-content: space-between;">
-            <span>📖 Öğrenilen Kavram:</span>
-            <strong>Tımar ve Öşür Hukuku</strong>
+            <span>📖 Günün Vakayinamesi:</span>
+            <strong id="evening-chronicle-val">Tımar ve Öşür Teftişi</strong>
           </div>
         </div>
 
         <div style="display: flex; gap: 10px;">
-          <button id="btn-evening-save-exit" class="parchment-btn" style="flex: 1;">💾 Kaydet & Çık</button>
-          <button id="btn-evening-continue" class="parchment-btn gold-btn" style="flex: 1;">🌙 Geceye Devam Et</button>
+          <button id="btn-evening-save-exit" class="parchment-btn" style="flex: 1;">💾 Kaydet</button>
+          <button id="btn-evening-sleep" class="parchment-btn gold-btn" style="flex: 2;">🌙 İstirahate Çekil (Yeni Güne Başla)</button>
+          <button id="btn-evening-continue" class="parchment-btn" style="flex: 1;">Kapat</button>
         </div>
       </div>
     </div>

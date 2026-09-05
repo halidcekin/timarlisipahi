@@ -20,6 +20,7 @@ import { supplySystem } from './systems/SupplySystem.js';
 import { constructionSystem } from './systems/ConstructionSystem.js';
 import { seasonalEvents } from './systems/SeasonalEvents.js';
 import { campaignSystem } from './systems/CampaignSystem.js';
+import { trainingSystem } from './systems/TrainingSystem.js';
 import { BattlefieldScene } from './entities/BattlefieldScene.js';
 import { BattlefieldCinematics } from './systems/BattlefieldCinematics.js';
 import { soundManager } from './core/AudioManager.js';
@@ -76,6 +77,21 @@ export class Game {
     // 10. Arayüz & Menüler
     this.ui = new UIManager();
     this.questSystem = questSystem;
+
+    // 11. Cebelü ve Sipahi Talim Sistemi (Aşama 2 / Perde II)
+    this.training = trainingSystem;
+    window.trainingSystem = this.training;
+    this.training.setCallbacks(
+      (data) => {
+        if (data.title) {
+          this.ui.showTrainingHUD(data.title, data.icon, data.hint, data.target);
+        }
+        this.ui.updateTrainingHUD(data.current, data.target, data.score, data.hint);
+      },
+      () => {
+        setTimeout(() => this.ui.hideTrainingHUD(), 2500);
+      }
+    );
 
     // Hikaye Hatırlatma Zamanlayıcısı
     this.storyReminderTimer = 0;
@@ -161,12 +177,18 @@ export class Game {
     this.input.onAttack = () => {
       if (this.player.triggerAttack()) {
         this.combat.processPlayerAttack();
+        if (this.training && this.training.activeDrill === 'sword') {
+          this.training.processSwordStrike(Math.random() > 0.4);
+        }
       }
     };
 
     // Sağ Tık: Blok / Savunma
     this.input.onBlock = (isBlocking) => {
       this.player.setBlocking(isBlocking);
+      if (isBlocking && this.training && this.training.activeDrill === 'shield') {
+        this.training.processShieldBlock(Math.random() > 0.4);
+      }
     };
 
     // Q Tuşu: Pusat Kuşan / Kına Koy
@@ -189,6 +211,9 @@ export class Game {
       this.player.toggleHorseMount();
       if (this.player.isRiding) {
         try { steamManager.unlockAchievement('ACH_HORSE_MASTER'); } catch (e) {}
+        if (this.training && this.training.activeDrill === 'spear') {
+          this.training.processSpearCharge(1.2);
+        }
       }
     };
 

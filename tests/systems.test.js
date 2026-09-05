@@ -18,12 +18,23 @@ if (typeof document === 'undefined') {
     }
   });
 
+  const mockElement = () => ({
+    width: 512,
+    height: 512,
+    getContext: () => mockCtx,
+    classList: { add: noop, remove: noop, contains: () => false },
+    style: {},
+    addEventListener: noop,
+    textContent: '',
+    innerHTML: '',
+    appendChild: noop,
+    querySelectorAll: () => []
+  });
+
   global.document = {
-    createElement: () => ({
-      width: 512,
-      height: 512,
-      getContext: () => mockCtx
-    })
+    createElement: mockElement,
+    getElementById: () => mockElement(),
+    querySelectorAll: () => []
   };
   global.window = {
     innerWidth: 1920,
@@ -914,6 +925,68 @@ assert(settingsModal.getSettings().fontSize === 'large', 'Altyazı fontu büyük
 
 settingsModal.setMasterVolume(0.8);
 assert(settingsModal.getSettings().masterVolume === 0.8, 'Ses seviyesi 0.8 olarak ayarlandı');
+
+// -------------------------------------------------------------
+// TEST 46: TrainingSystem Cebelü Talim Döngüsü & Callbacks Testi
+// -------------------------------------------------------------
+let progressCallbackFired = false;
+let completeCallbackFired = false;
+
+trainingSystem.setCallbacks(
+  () => { progressCallbackFired = true; },
+  () => { completeCallbackFired = true; }
+);
+
+const drillStarted = trainingSystem.startDrill('shield');
+assert(drillStarted === true, 'Kalkan savunma talimi başlatıldı');
+assert(trainingSystem.activeDrill === 'shield', 'Aktif talim türü shield');
+assert(trainingSystem.drillTarget === 5, 'Kalkan talimi hedefi 5 blok');
+
+for (let b = 0; b < 5; b++) {
+  trainingSystem.processShieldBlock(true);
+}
+
+assert(completeCallbackFired === true, 'Kalkan talimi tamamlandı ve callback tetiklendi');
+assert(trainingSystem.activeDrill === null, 'Talim tamamlandıktan sonra aktif talim temizlendi');
+assert(gameState.military.cebeluExperience > 0, 'Cebelü tecrübesi arttı');
+
+// Kılıç talimi testi
+trainingSystem.startDrill('sword');
+assert(trainingSystem.activeDrill === 'sword', 'Kılıç kombinasyon talimi başlatıldı');
+for (let s = 0; s < 6; s++) {
+  trainingSystem.processSwordStrike(true);
+}
+assert(trainingSystem.activeDrill === null, 'Kılıç talimi 6 vuruşta tamamlandı');
+
+// Bölük komut talimi testi
+trainingSystem.startDrill('squad');
+trainingSystem.issueSquadOrder('HOLD');
+trainingSystem.issueSquadOrder('CHARGE');
+trainingSystem.issueSquadOrder('FOLLOW');
+trainingSystem.issueSquadOrder('FALL_BACK');
+assert(trainingSystem.activeDrill === null, 'Bölük komut talimi 4 emirde tamamlandı');
+
+// -------------------------------------------------------------
+// TEST 47: Akşam Hesabı & Gün Sonu (Evening Accounting & Day Advance) Testi
+// -------------------------------------------------------------
+import { UIManager } from '../src/ui/UIManager.js';
+
+const testUI = new UIManager();
+assert(typeof testUI.openEveningAccountingModal === 'function', 'openEveningAccountingModal metodu mevcut');
+assert(typeof testUI.sleepAndAdvanceDay === 'function', 'sleepAndAdvanceDay metodu mevcut');
+assert(typeof testUI.showImperialDecreeModal === 'function', 'showImperialDecreeModal metodu mevcut');
+assert(typeof testUI.showTrainingHUD === 'function', 'showTrainingHUD metodu mevcut');
+
+const startDay = gameState.time.dayCount || 1;
+testUI.sleepAndAdvanceDay();
+assert(gameState.time.dayCount === startDay + 1, 'Günü bitirince gün sayısı +1 ilerledi');
+assert(gameState.time.dayTimeHours === 8.0, 'İstirahatten sonra saat 08:00 olarak ayarlandı');
+
+// -------------------------------------------------------------
+// TEST 48: Sefer Hazırlığı (Supply Readiness) Derecesi Testi
+// -------------------------------------------------------------
+const currentReadiness = supplySystem.calculateReadinessScore();
+assert(typeof currentReadiness === 'number' && currentReadiness >= 0 && currentReadiness <= 100, 'Sefer hazırlık puanı 0-100 arasında hesaplandı');
 
 console.log('\n🧪 ==========================================');
 console.log(`🧪 TEST SONUCU: ${passedTests}/${totalTests} TEST BAŞARIYLA TAMAMLANDI!`);

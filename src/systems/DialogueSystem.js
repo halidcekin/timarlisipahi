@@ -4,6 +4,7 @@ import { soundManager } from '../core/AudioManager.js';
 import { questSystem } from './QuestSystem.js';
 import { codexSystem } from './CodexSystem.js';
 import { consequenceSystem } from './ConsequenceSystem.js';
+import { trainingSystem } from './TrainingSystem.js';
 
 /**
  * DialogueSystem - 14. Yüzyıl Osmanlı Dönemi Çok Katmanlı Dallanan Dramatik Diyalog Ağacı
@@ -300,40 +301,68 @@ export class DialogueSystem {
         npcName: 'Toy Cebelü Ali',
         npcRole: 'Sipahinin Sadık Çırağı & Silahdarı',
         icon: '🛡️',
-        text: `"Sipahi Beyim! Emrindeyim. Talimgâhta kalkan tuttum, kılıç savurdum. Lakin geceleri gözüme uyku girmez; Tuna boyundaki Haçlıların devasa zırhlarından, şövalyelerin mızrak hücumlarından bahsederler. Bana savaşı öğret beyim!"`,
+        text: `"Sipahi Beyim! Emrindeyim. Tuna boyundaki Frenk şövalyelerinin devasa zırhlarından, mızrak hücumlarından bahsederler. Kalkan tutmayı, kılıç savurmayı ve bölük düzenini talim etmek isterim beyim. Hangi talimle başlayalım?"`,
         onOpen: () => {
           questSystem.advanceObjective('quest_cebelu', 0);
         },
         choices: [
           {
-            label: '🥋 "Korku tabidir Ali, lakin cesaret korkuya rağmen safı bozmamaktır. Gel kalkan talimi yapalım."',
+            label: '🛡️ "Kalkan ve Savunma Talimi (5 Darbe Blokla)"',
             action: () => {
-              gameState.military.cebeluExperience = (gameState.military.cebeluExperience || 0) + 25;
-              gameState.modifySquadLoyalty(20);
-              questSystem.advanceObjective('quest_cebelu', 1);
-              return {
-                text: `"Baş üstüne beyim! Darbeleri kalkanın kenarıyla saptırmayı, nefesimi tutmayı öğrendim. Yanında vuruşmaktan onur duyarım."`,
-                choices: [
-                  {
-                    label: '🚩 "Sana bölük komutlarını öğreteceğim: Saf Tut, Hücum Et ve Düzenli Çekil."',
-                    action: () => ({
-                      text: `"Emirlerinize harfiyen uyacağım beyim. Sancak düşmedikçe Ali geri adım atmaz!"`,
-                      choices: [{ label: 'Aferin Ali, gayretin daim olsun.', action: null }]
-                    })
-                  }
-                ]
-              };
+              trainingSystem.startDrill('shield');
+              return null;
             }
           },
           {
-            label: '🏹 "At üstünde ok atmayı ve hızlanırken yay germeyi ihmal etme."',
+            label: '⚔️ "Kılıç Kombinasyonu ve Mesafe Talimi (6 Vuruş Yap)"',
             action: () => {
-              gameState.military.cebeluExperience = (gameState.military.cebeluExperience || 0) + 15;
-              gameState.modifySquadLoyalty(15);
-              questSystem.advanceObjective('quest_cebelu', 1);
+              trainingSystem.startDrill('sword');
+              return null;
+            }
+          },
+          {
+            label: '🏇 "Atlı Mızrak Hücum Talimi (4 Geçiş Hücumu)"',
+            action: () => {
+              trainingSystem.startDrill('spear');
+              return null;
+            }
+          },
+          {
+            label: '🚩 "Cebelü Bölük Komut Talimi (Taktik Emirler)"',
+            action: () => {
+              trainingSystem.startDrill('squad');
               return {
-                text: `"Haklısın beyim, atlı okçuluk Türkün kadim sanatıdır. Hedef tahtasında temrenlerimi deneyeceğim."`,
-                choices: [{ label: 'Çalışmaya devam et.', action: null }]
+                text: `"Emrindeyim Beyim! Bana bir emir buyur, derhal saf düzeni alayım."`,
+                choices: [
+                  {
+                    label: '🛡️ "Saf Tut ve Mevziyi Koru!"',
+                    action: () => {
+                      trainingSystem.issueSquadOrder('HOLD');
+                      return null;
+                    }
+                  },
+                  {
+                    label: '⚔️ "Hücum! Düşman Hattına Girin!"',
+                    action: () => {
+                      trainingSystem.issueSquadOrder('CHARGE');
+                      return null;
+                    }
+                  },
+                  {
+                    label: '🐎 "Sipahiyi Takip Et!"',
+                    action: () => {
+                      trainingSystem.issueSquadOrder('FOLLOW');
+                      return null;
+                    }
+                  },
+                  {
+                    label: '🔄 "Kontrollü Geri Çekilin!"',
+                    action: () => {
+                      trainingSystem.issueSquadOrder('FALL_BACK');
+                      return null;
+                    }
+                  }
+                ]
               };
             }
           },

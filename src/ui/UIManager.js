@@ -147,6 +147,7 @@ export class UIManager {
       waypointName: document.getElementById('waypoint-name'),
       waypointDist: document.getElementById('waypoint-dist'),
       waypointArrow: document.getElementById('waypoint-arrow'),
+      tbExpeditionPrep: document.getElementById('tb-expedition-prep'),
 
       // Savaş Sonuç Modal
       battleResultModal: document.getElementById('battle-result-modal'),
@@ -155,6 +156,34 @@ export class UIManager {
       battleResultDesc: document.getElementById('battle-result-desc'),
       battleLootList: document.getElementById('battle-loot-list'),
       btnBattleOk: document.getElementById('btn-battle-ok'),
+
+      // Akşam Hesabı & Dirlik Kapanışı Modal
+      eveningModal: document.getElementById('evening-accounting-modal'),
+      eveningCloseBtn: document.getElementById('evening-close-btn'),
+      eveningDayTitle: document.getElementById('evening-day-title'),
+      eveningSummaryText: document.getElementById('evening-summary-text'),
+      eveningAkceDiff: document.getElementById('evening-akce-diff'),
+      eveningTrustDiff: document.getElementById('evening-trust-diff'),
+      eveningReadinessVal: document.getElementById('evening-readiness-val'),
+      eveningChronicleVal: document.getElementById('evening-chronicle-val'),
+      btnEveningSaveExit: document.getElementById('btn-evening-save-exit'),
+      btnEveningSleep: document.getElementById('btn-evening-sleep'),
+      btnEveningContinue: document.getElementById('btn-evening-continue'),
+
+      // Beratın Mührü Modal (Bölüm 0)
+      imperialDecreeModal: document.getElementById('imperial-decree-modal'),
+      decreeCloseBtn: document.getElementById('decree-close-btn'),
+      btnAcceptDecree: document.getElementById('btn-accept-decree'),
+
+      // Talim HUD Göstergesi
+      trainingHudPanel: document.getElementById('training-hud-panel'),
+      trainingHudIcon: document.getElementById('training-hud-icon'),
+      trainingHudTitle: document.getElementById('training-hud-title'),
+      trainingHudProgressBar: document.getElementById('training-hud-progress-bar'),
+      trainingHudCount: document.getElementById('training-hud-count'),
+      trainingHudScore: document.getElementById('training-hud-score'),
+      trainingHudHint: document.getElementById('training-hud-hint'),
+      btnCancelTraining: document.getElementById('btn-cancel-training'),
 
       // Başlangıç Ekranı
       startScreen: document.getElementById('start-screen'),
@@ -219,6 +248,9 @@ export class UIManager {
           soundManager.playVictoryJingle();
         } catch (e) {}
 
+        // Sultan I. Bayezid Han'ın Tımar Beratı Takdimi (Bölüm 0)
+        this.showImperialDecreeModal();
+
         // Canvas'a odaklanma
         const canvas = document.getElementById('webgl-canvas');
         if (canvas) {
@@ -238,6 +270,52 @@ export class UIManager {
     if (this.dom.btnBattleOk) {
       this.dom.btnBattleOk.addEventListener('click', () => {
         this.dom.battleResultModal.classList.add('hidden');
+      });
+    }
+
+    // Akşam Hesabı Olayları
+    if (this.dom.eveningCloseBtn) {
+      this.dom.eveningCloseBtn.addEventListener('click', () => this.closeEveningAccountingModal());
+    }
+    if (this.dom.btnEveningContinue) {
+      this.dom.btnEveningContinue.addEventListener('click', () => this.closeEveningAccountingModal());
+    }
+    if (this.dom.btnEveningSaveExit) {
+      this.dom.btnEveningSaveExit.addEventListener('click', () => {
+        try {
+          if (typeof window !== 'undefined' && window.saveManager) {
+            window.saveManager.saveGame();
+          }
+        } catch (e) {}
+        gameState.addNotification('💾 Dirlik durumu ve defter kayıtları muhafaza edildi.', 'success');
+        this.closeEveningAccountingModal();
+      });
+    }
+    if (this.dom.btnEveningSleep) {
+      this.dom.btnEveningSleep.addEventListener('click', () => {
+        this.sleepAndAdvanceDay();
+      });
+    }
+
+    // Beratın Mührü Olayları
+    if (this.dom.decreeCloseBtn) {
+      this.dom.decreeCloseBtn.addEventListener('click', () => this.closeImperialDecreeModal());
+    }
+    if (this.dom.btnAcceptDecree) {
+      this.dom.btnAcceptDecree.addEventListener('click', () => {
+        this.closeImperialDecreeModal();
+        gameState.addNotification('📜 Sultan beratı mühürlendi! Akçaoba dirligi resmen devralındı.', 'success');
+        try { soundManager.playVictoryJingle(); } catch (e) {}
+      });
+    }
+
+    // Talim HUD İptal
+    if (this.dom.btnCancelTraining) {
+      this.dom.btnCancelTraining.addEventListener('click', () => {
+        if (typeof window !== 'undefined' && window.game && window.game.training) {
+          window.game.training.cancelDrill();
+        }
+        this.hideTrainingHUD();
       });
     }
 
@@ -767,6 +845,10 @@ export class UIManager {
     this.dom.tbCebeluCount.textContent = `${gameState.military.cebeluCount} (${gameState.military.veteranSoldiers.join(', ')})`;
     const readiness = supplySystem.calculateReadinessScore();
     this.dom.tbEquipment.textContent = `Kılıç Kademe ${gameState.sipahi.swordLevel}, Zırh Kademe ${gameState.sipahi.armorLevel} • Sefer Hazırlığı: %${readiness}`;
+    if (this.dom.tbExpeditionPrep) {
+      this.dom.tbExpeditionPrep.textContent = `%${readiness} (${readiness >= 75 ? 'Cebelü & Erzak Tam' : 'İkmal Eksik'})`;
+      this.dom.tbExpeditionPrep.style.color = readiness >= 75 ? '#1e6b2c' : '#8b1e1e';
+    }
     this.dom.tbHorseType.textContent = `${gameState.sipahi.horseType} (Kondisyon: %${gameState.military.horseCondition || 70})`;
 
     if (this.dom.tbStanding) this.dom.tbStanding.textContent = gameState.sipahi.reputation > 50 ? 'Padişah Nezdinde Makbul' : 'Teftiş Altında';
@@ -1888,5 +1970,137 @@ export class UIManager {
         this.updateHUD();
       });
     }
+  }
+
+  // ==========================================
+  // AKŞAM HESABI & DİRLİK KAPANIŞI (V2 Standardı)
+  // ==========================================
+  openEveningAccountingModal(summaryData = null) {
+    if (!this.dom.eveningModal) return;
+
+    const day = gameState.time.dayCount || 1;
+    const dateStr = gameState.getFormattedDate ? gameState.getFormattedDate() : `${day} Nisan 1396`;
+
+    if (this.dom.eveningDayTitle) {
+      this.dom.eveningDayTitle.textContent = `📅 ${dateStr} • ${day}. Gün Kapanışı`;
+    }
+
+    const activeQuest = questSystem.getActiveQuest();
+    const readiness = supplySystem.calculateReadinessScore();
+
+    if (this.dom.eveningSummaryText) {
+      if (summaryData && summaryData.text) {
+        this.dom.eveningSummaryText.textContent = summaryData.text;
+      } else {
+        this.dom.eveningSummaryText.textContent = `Günün hasılatı ve asayişi müzakere edildi. Aktif vazife: "${activeQuest ? activeQuest.shortTitle : 'Tüm vazifeler ikmal edildi'}". Cebelü ve teçhizat hazırlığı devam ediyor.`;
+      }
+    }
+
+    if (this.dom.eveningAkceDiff) {
+      this.dom.eveningAkceDiff.textContent = `${gameState.timar.akce} Akçe`;
+    }
+    if (this.dom.eveningTrustDiff) {
+      const trust = gameState.reputation ? gameState.reputation.reayaTrust : 75;
+      this.dom.eveningTrustDiff.textContent = `%${trust} Güven`;
+      this.dom.eveningTrustDiff.style.color = trust >= 50 ? '#1e6b2c' : '#8b1e1e';
+    }
+    if (this.dom.eveningReadinessVal) {
+      this.dom.eveningReadinessVal.textContent = `%${readiness} (${readiness >= 75 ? 'İyi' : 'Geliştirilmeli'})`;
+    }
+    if (this.dom.eveningChronicleVal) {
+      this.dom.eveningChronicleVal.textContent = activeQuest ? activeQuest.title : 'Dirlik Teftişi';
+    }
+
+    this.dom.eveningModal.classList.remove('hidden');
+    this.dom.eveningModal.style.display = 'flex';
+    try { document.exitPointerLock(); } catch (e) {}
+  }
+
+  closeEveningAccountingModal() {
+    if (!this.dom.eveningModal) return;
+    this.dom.eveningModal.classList.add('hidden');
+    this.dom.eveningModal.style.display = 'none';
+  }
+
+  sleepAndAdvanceDay() {
+    this.closeEveningAccountingModal();
+
+    // 1. Günü ilerlet ve saati sabah 08:00 yap
+    gameState.time.dayCount = (gameState.time.dayCount || 1) + 1;
+    gameState.time.dayTimeHours = 8.0;
+
+    // 2. Günlük rutinleri ve gecikmeli sonuçları işlet
+    if (typeof window !== 'undefined' && window.consequenceSystem) {
+      window.consequenceSystem.checkDailyConsequences(gameState.time.dayCount);
+    }
+    if (typeof window !== 'undefined' && window.historicalNewsSystem) {
+      window.historicalNewsSystem.checkNewsForDay(gameState.time.dayCount);
+    }
+
+    // 3. Bildirim ve ses
+    try { soundManager.playMorningAdhan(); } catch (e) {}
+    gameState.addNotification(`🌅 Yeni Gün Başladı: ${gameState.time.dayCount}. Gün (Sabah 08:00)`, 'info');
+
+    // 4. Oto-kayıt
+    try {
+      if (typeof window !== 'undefined' && window.saveManager) {
+        window.saveManager.saveGame();
+      }
+    } catch (e) {}
+
+    this.updateHUD();
+  }
+
+  // ==========================================
+  // BERATIN MÜHRÜ (Perde I / Bölüm 0)
+  // ==========================================
+  showImperialDecreeModal() {
+    if (!this.dom.imperialDecreeModal) return;
+    this.dom.imperialDecreeModal.classList.remove('hidden');
+    this.dom.imperialDecreeModal.style.display = 'flex';
+    try { document.exitPointerLock(); } catch (e) {}
+  }
+
+  closeImperialDecreeModal() {
+    if (!this.dom.imperialDecreeModal) return;
+    this.dom.imperialDecreeModal.classList.add('hidden');
+    this.dom.imperialDecreeModal.style.display = 'none';
+  }
+
+  // ==========================================
+  // TALİM HUD GÖSTERGESİ (Aşama 2 / Perde II)
+  // ==========================================
+  showTrainingHUD(title, icon = '🥋', hint = 'Talim başladı!', targetCount = 5) {
+    if (!this.dom.trainingHudPanel) return;
+    if (this.dom.trainingHudTitle) this.dom.trainingHudTitle.textContent = title;
+    if (this.dom.trainingHudIcon) this.dom.trainingHudIcon.textContent = icon;
+    if (this.dom.trainingHudHint) this.dom.trainingHudHint.textContent = hint;
+    if (this.dom.trainingHudCount) this.dom.trainingHudCount.textContent = `İlerleme: 0 / ${targetCount}`;
+    if (this.dom.trainingHudScore) this.dom.trainingHudScore.textContent = 'Puan: 0';
+    if (this.dom.trainingHudProgressBar) this.dom.trainingHudProgressBar.style.width = '0%';
+
+    this.dom.trainingHudPanel.classList.remove('hidden');
+  }
+
+  updateTrainingHUD(currentCount, targetCount, score = 0, hint = null) {
+    if (!this.dom.trainingHudPanel) return;
+    if (this.dom.trainingHudCount) {
+      this.dom.trainingHudCount.textContent = `İlerleme: ${currentCount} / ${targetCount}`;
+    }
+    if (this.dom.trainingHudScore) {
+      this.dom.trainingHudScore.textContent = `Puan: ${score}`;
+    }
+    if (this.dom.trainingHudProgressBar) {
+      const pct = Math.min(100, Math.round((currentCount / targetCount) * 100));
+      this.dom.trainingHudProgressBar.style.width = `${pct}%`;
+    }
+    if (hint && this.dom.trainingHudHint) {
+      this.dom.trainingHudHint.textContent = hint;
+    }
+  }
+
+  hideTrainingHUD() {
+    if (!this.dom.trainingHudPanel) return;
+    this.dom.trainingHudPanel.classList.add('hidden');
   }
 }
